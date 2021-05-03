@@ -1,5 +1,7 @@
 mod helper;
 mod messages;
+#[cfg(test)]
+mod tests;
 
 use actix::{Actor, ActorContext, Context, Addr, SyncArbiter, Handler, Recipient, AsyncContext};
 use ndarray::prelude::*;
@@ -200,6 +202,7 @@ impl Handler<MeanShiftHelperResponse> for MeanShift {
                 Some(recipient) => { recipient.do_send(MeanShiftResponse { cluster_centers } ); },
                 None => ()
             }
+            ctx.stop();
         } else if self.centers_sent < self.dataset.as_ref().unwrap().shape()[0] {
             let start_center = self.centers_sent;
             self.centers_sent += 1;
