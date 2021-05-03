@@ -8,6 +8,7 @@ use crate::meanshift::helper::MeanShiftHelper;
 pub use crate::meanshift::messages::{DataMessage, MeanShiftHelperResponse};
 use actix::dev::MessageResponse;
 use kdtree::KdTree;
+use kdtree::distance::squared_euclidean;
 use std::cmp::Ordering;
 use num_traits::float::Float;
 use std::sync::Arc;
@@ -82,7 +83,7 @@ impl MeanShift {
                 }
 
                 let bandwidth: f32 = data.axis_iter(Axis(0)).map(|x| {
-                    let nearest = tree.nearest(x.to_slice().unwrap(), n_neighbors, &euclidean).unwrap();
+                    let nearest = tree.nearest(x.to_slice().unwrap(), n_neighbors, &squared_euclidean).unwrap();
                     let sum = nearest.into_iter().map(|(dist, _)| dist).fold(f32::min_value(), f32::max);
                     sum.clone()
                 }).sum();
@@ -143,7 +144,7 @@ impl MeanShift {
                 let neighbor_idxs = self.center_tree.as_ref().unwrap().within(
                     mean.as_slice().unwrap(),
                     self.bandwidth,
-                    &euclidean).unwrap();
+                    &squared_euclidean).unwrap();
                 for (_, neighbor) in neighbor_idxs {
                     match unique.get_mut(neighbor) {
                         None => {}
@@ -187,8 +188,9 @@ impl Handler<MeanShiftHelperResponse> for MeanShift {
     type Result = ();
 
     fn handle(&mut self, msg: MeanShiftHelperResponse, ctx: &mut Self::Context) -> Self::Result {
+        // todo: do not send one by one but chunks
         self.add_means(msg.mean, msg.points_within_len, msg.iterations);
-        //println!("response received {}/{}", self.means.len(), self.dataset.as_ref().unwrap().shape()[0]);
+
         if self.means.len() == self.dataset.as_ref().unwrap().shape()[0] {
             println!("all means received");
 
@@ -209,14 +211,6 @@ impl AsRef<[f32]> for RefArray {
         let arc_array = &self.0;
         arc_array.as_slice().unwrap()
     }
-}
-
-pub fn euclidean<T: Float>(a: &[T], b: &[T]) -> T {
-    debug_assert_eq!(a.len(), b.len());
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| ((*x) - (*y)) * ((*x) - (*y)))
-        .fold(T::zero(), ::std::ops::Add::add).sqrt()
 }
 
 pub trait SliceComp {

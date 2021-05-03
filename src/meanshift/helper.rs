@@ -3,10 +3,11 @@ use crate::meanshift::messages::{MeanShiftHelperWorkMessage};
 use actix::dev::MessageResponse;
 use ndarray::prelude::*;
 use kdtree::{KdTree, ErrorKind};
+use kdtree::distance::squared_euclidean;
 use std::collections::HashMap;
 use ndarray::{ArcArray2, ArcArray1};
 use num_traits::Float;
-use crate::meanshift::{RefArray, MeanShiftHelperResponse, euclidean};
+use crate::meanshift::{RefArray, MeanShiftHelperResponse};
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -37,7 +38,7 @@ impl MeanShiftHelper {
         let mut points_within_len: usize = 0;
 
         loop {
-            let within_result = self.tree.within(my_mean.as_slice().unwrap(), bandwidth, &euclidean);
+            let within_result = self.tree.within(my_mean.as_slice().unwrap(), bandwidth, &squared_euclidean);
             let neighbor_ids: Vec<usize> = match within_result {
                 Ok(neighbors) => neighbors.into_iter().map(|(_, x)| x.clone()).collect(),
                 Err(_) => break
@@ -47,7 +48,7 @@ impl MeanShiftHelper {
             my_old_mean = my_mean;
             my_mean = points_within.mean_axis(Axis(0)).unwrap();
 
-            if euclidean(my_mean.as_slice().unwrap(), my_old_mean.as_slice().unwrap()) < stop_threshold || iterations >= max_iter {
+            if squared_euclidean(my_mean.as_slice().unwrap(), my_old_mean.as_slice().unwrap()) < stop_threshold || iterations >= max_iter {
                 break
             }
 
