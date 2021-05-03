@@ -1,7 +1,7 @@
 use actix::prelude::*;
 
 use crate::data::read_data;
-use crate::meanshift::{MeanShift, DataMessage, RefArray};
+use crate::meanshift::{MeanShift, MeanShiftMessage};
 use std::time::SystemTime;
 use kdtree::KdTree;
 use ndarray::Axis;
@@ -12,11 +12,13 @@ mod data;
 mod meanshift;
 
 fn main() {
+    env_logger::init();
+
     let system = System::new("S2G++");
 
     let dataset = read_data("data/test.csv", 1, 0);
     let meanshift = MeanShift::new(20).start();
-    meanshift.do_send(DataMessage { source: None, data: dataset });
+    meanshift.do_send(MeanShiftMessage { source: None, data: dataset });
 
     system.run();
 }

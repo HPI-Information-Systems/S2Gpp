@@ -7,9 +7,15 @@ use crate::meanshift::RefArray;
 
 #[derive(Message)]
 #[rtype(Result = "()")]
-pub struct DataMessage {
-    pub source: Option<Recipient<MeanShiftHelperResponse>>,
+pub struct MeanShiftMessage {
+    pub source: Option<Recipient<MeanShiftResponse>>,
     pub data: Array2<f32>
+}
+
+#[derive(Message)]
+#[rtype(Result = "()")]
+pub struct MeanShiftResponse {
+    pub cluster_centers: Array2<f32>
 }
 
 #[derive(Message)]

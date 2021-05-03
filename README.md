@@ -11,7 +11,7 @@
 - [ ] Intersection calculator
   - [ ] Intersection sharing (in ring?)
 - [ ] Node estimator
-    - [ ] MeanShift
+    - [x] MeanShift
 - [ ] Edge estimator
 - [ ] Graph creation
 - [ ] Scorer

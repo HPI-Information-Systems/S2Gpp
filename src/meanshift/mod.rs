@@ -5,7 +5,7 @@ use actix::{Actor, ActorContext, Context, Addr, SyncArbiter, Handler, Recipient,
 use ndarray::prelude::*;
 use ndarray::{Array2, Axis, ArcArray2, ArcArray1, Array1, ArrayView2, concatenate};
 use crate::meanshift::helper::MeanShiftHelper;
-pub use crate::meanshift::messages::{DataMessage, MeanShiftHelperResponse};
+pub use crate::meanshift::messages::{MeanShiftMessage, MeanShiftResponse, MeanShiftHelperResponse, MeanShiftHelperWorkMessage};
 use actix::dev::MessageResponse;
 use kdtree::KdTree;
 use kdtree::distance::squared_euclidean;
@@ -15,9 +15,9 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use std::ops::Div;
 use sortedvec::sortedvec;
-use crate::meanshift::messages::{MeanShiftHelperWorkMessage};
 use std::iter::FromIterator;
 use std::time::{SystemTime, Duration};
+use log::*;
 
 sortedvec! {
     struct SortedVec {
@@ -33,7 +33,7 @@ pub struct MeanShift {
     dataset: Option<Array2<f32>>,
     tree: Option<Arc<KdTree<f32, usize, RefArray>>>,
     center_tree: Option<KdTree<f32, usize, RefArray>>,
-    receiver: Option<Recipient<MeanShiftHelperResponse>>,
+    receiver: Option<Recipient<MeanShiftResponse>>,
     means: Vec<(Array1<f32>, usize, usize, usize)>,
     centers_sent: usize,
     bandwidth: f32,
@@ -97,7 +97,7 @@ impl MeanShift {
 
     fn distribute_data(&mut self, rec: Recipient<MeanShiftHelperResponse>) {
         self.bandwidth = self.estimate_bandwidth();
-        println!("bandwidth {}", self.bandwidth);
+        debug!("bandwidth {}", self.bandwidth);
         self.build_center_tree();
         self.create_helpers();
         self.start_time = Some(SystemTime::now());
@@ -134,7 +134,7 @@ impl MeanShift {
                 }
             }
         );
-        println!("duration {}", SystemTime::now().duration_since(self.start_time.unwrap()).unwrap().as_millis());
+        debug!("duration {}", SystemTime::now().duration_since(self.start_time.unwrap()).unwrap().as_millis());
         self.means.dedup_by_key(|(x, _, _, _)| x.clone());
 
         let mut unique: HashMap<usize, bool> = HashMap::from_iter(self.means.iter().map(|(_, _, _, i)| (*i, true)));
@@ -169,10 +169,10 @@ impl MeanShift {
     }
 }
 
-impl Handler<DataMessage> for MeanShift {
+impl Handler<MeanShiftMessage> for MeanShift {
     type Result = ();
 
-    fn handle(&mut self, msg: DataMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: MeanShiftMessage, ctx: &mut Self::Context) -> Self::Result {
         match &self.dataset {
             None => {
                 self.dataset = Some(msg.data);
@@ -192,10 +192,14 @@ impl Handler<MeanShiftHelperResponse> for MeanShift {
         self.add_means(msg.mean, msg.points_within_len, msg.iterations);
 
         if self.means.len() == self.dataset.as_ref().unwrap().shape()[0] {
-            println!("all means received");
+            debug!("all means received");
 
             let cluster_centers = self.collect_means();
-            println!("cluster_centers {:?}", cluster_centers);
+            debug!("cluster_centers {:?}", cluster_centers);
+            match &self.receiver {
+                Some(recipient) => { recipient.do_send(MeanShiftResponse { cluster_centers } ); },
+                None => ()
+            }
         } else if self.centers_sent < self.dataset.as_ref().unwrap().shape()[0] {
             let start_center = self.centers_sent;
             self.centers_sent += 1;
