@@ -1,4 +1,6 @@
 mod messages;
+#[cfg(test)]
+mod tests;
 
 use log::*;
 use ndarray::prelude::*;
@@ -9,6 +11,7 @@ use actix::dev::MessageResponse;
 use ndarray::{ArcArray2, concatenate};
 use std::ops::{Mul, Div};
 use ndarray_linalg::SVD;
+use crate::pca::messages::PCAComponents;
 
 
 pub struct PCA {
@@ -61,14 +64,23 @@ impl PCA {
         }
     }
 
+    fn next_2_power(&mut self) -> usize {
+        let len = self.cluster_nodes.len();
+        2_i32.pow((len as f32).log2().ceil() as u32) as usize
+    }
+
     fn send_to_neighbor_or_finalize(&mut self) {
-        let threshold = self.cluster_nodes.len().div(2_usize.pow((self.r_count + 1) as u32));
+        let s = self.next_2_power();
+        let threshold = s.div(2_usize.pow((self.r_count + 1) as u32));
 
         if self.id >= threshold && self.id > 0 {
             let neighbor_id = self.id - threshold;
             self.cluster_nodes[neighbor_id].do_send(PCADecompositionMessage {
                 r: self.local_r.as_ref().unwrap().clone(), count: self.r_count + 1 });
-        } else if self.id == 0 && self.cluster_nodes.len() == self.r_count + 1 {
+        } else if self.r_count == 0 && (self.id + threshold) >= self.cluster_nodes.len() {
+            self.r_count += 1;
+            self.send_to_neighbor_or_finalize()
+        } else if self.id == 0 && s == self.r_count + 1 {
             self.finalize()
         }
     }
@@ -102,7 +114,7 @@ impl PCA {
         self.components = Some(self.normalize(&v_sliced));
         debug!("Principal components: {:?}", self.components.as_ref().unwrap());
 
-        // todo: share principal components
+        self.share_principal_components();
     }
 
     fn normalize(&mut self, v: &Array2<f32>) -> Array2<f32> {
@@ -119,6 +131,12 @@ impl PCA {
         }
 
         v
+    }
+
+    fn share_principal_components(&mut self) {
+        for node in &self.cluster_nodes {
+            node.do_send(PCAComponents { components: self.components.as_ref().unwrap().clone() })
+        }
     }
 }
 
@@ -157,5 +175,17 @@ impl Handler<PCADecompositionMessage> for PCA {
     fn handle(&mut self, msg: PCADecompositionMessage, ctx: &mut Self::Context) -> Self::Result {
         self.r_count += msg.count;
         self.combine_remote_r(msg.r);
+    }
+}
+
+impl Handler<PCAComponents> for PCA {
+    type Result = ();
+
+    fn handle(&mut self, msg: PCAComponents, ctx: &mut Self::Context) -> Self::Result {
+        self.components = Some(msg.components);
+        match &self.source {
+            Some(source) => { source.do_send(PCAResponse { components: self.components.as_ref().unwrap().clone() }); },
+            None => ()
+        }
     }
 }

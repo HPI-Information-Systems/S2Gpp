@@ -29,3 +29,9 @@ pub struct PCAMeansMessage {
     pub columns_means: Array2<f32>,
     pub n: usize
 }
+
+#[derive(Message)]
+#[rtype(Result = "()")]
+pub struct PCAComponents {
+    pub components: Array2<f32>
+}
