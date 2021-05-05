@@ -7,6 +7,7 @@
   - [ ] distribute
 - [ ] PhaseSpacer
 - [ ] Distributed PCA
+  - [ ] enumerate cluster nodes
 - [ ] Rotation
 - [ ] Intersection calculator
   - [ ] Intersection sharing (in ring?)
