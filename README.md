@@ -6,7 +6,7 @@
   - [ ] read
   - [ ] distribute
 - [ ] PhaseSpacer
-- [ ] Distributed PCA
+- [x] Distributed PCA
   - [ ] enumerate cluster nodes
 - [ ] Rotation
 - [ ] Intersection calculator
