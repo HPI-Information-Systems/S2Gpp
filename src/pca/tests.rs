@@ -1,7 +1,7 @@
 use ndarray::prelude::*;
 use actix::prelude::*;
 use crate::pca::*;
-use crate::data::*;
+use crate::data_reader::*;
 use std::sync::{Arc, Mutex};
 
 struct PCAReceiver {
@@ -31,7 +31,7 @@ fn test_runs_pca_3_nodes() {
     let cloned = Arc::clone(&result);
 
     let system = System::run(move || {
-        let dataset = read_data("data/test.csv", 1, 0);
+        let dataset = read_data_("data/test.csv");
         let receiver = PCAReceiver {result: cloned}.start();
         let pca1 = PCA::new(Some(receiver.recipient()), 0, 2).start();
         let pca2 = PCA::new(None, 1, 2).start();
@@ -62,7 +62,7 @@ fn test_runs_pca_2_nodes() {
     let cloned = Arc::clone(&result);
 
     let system = System::run(move || {
-        let dataset = read_data("data/test.csv", 1, 0);
+        let dataset = read_data_("data/test.csv");
         let receiver = PCAReceiver {result: cloned}.start();
         let pca1 = PCA::new(Some(receiver.recipient()), 0, 2).start();
         let pca2 = PCA::new(None, 1, 2).start();
