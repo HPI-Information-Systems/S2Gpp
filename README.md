@@ -2,9 +2,9 @@
 
 ## Checklist
 
-- [ ] File reader
-  - [ ] read
-  - [ ] distribute
+- [x] File reader
+  - [x] read
+  - [x] distribute
 - [ ] PhaseSpacer
 - [x] Distributed PCA
   - [ ] enumerate cluster nodes
