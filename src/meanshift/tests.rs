@@ -1,7 +1,7 @@
 use ndarray::prelude::*;
 use actix::prelude::*;
 use crate::meanshift::*;
-use crate::data::*;
+use crate::data_reader::*;
 use std::sync::{Arc, Mutex};
 
 struct MeanShiftReceiver {
@@ -31,7 +31,7 @@ fn test_runs_meanshift() {
     let cloned = Arc::clone(&result);
 
     let system = System::run(move || {
-        let dataset = read_data("data/test.csv", 1, 0);
+        let dataset = read_data_("data/test.csv");
         let receiver = MeanShiftReceiver {result: cloned}.start();
         let meanshift = MeanShift::new(20).start();
         meanshift.do_send(MeanShiftMessage { source: Some(receiver.recipient()), data: dataset });
