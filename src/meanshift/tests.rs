@@ -1,7 +1,7 @@
 use ndarray::prelude::*;
 use actix::prelude::*;
 use crate::meanshift::*;
-use crate::data_reader::*;
+use crate::data_manager::data_reader::*;
 use std::sync::{Arc, Mutex};
 
 struct MeanShiftReceiver {

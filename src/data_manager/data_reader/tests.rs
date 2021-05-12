@@ -1,8 +1,8 @@
 use ndarray::prelude::*;
 use actix::prelude::*;
-use crate::data_reader::*;
+use crate::data_manager::data_reader::*;
 use std::sync::{Arc, Mutex};
-use crate::data_reader::messages::DataReceivedMessage;
+use crate::data_manager::data_reader::messages::DataReceivedMessage;
 use ndarray_linalg::assert::close_l1;
 
 struct DataTestReceiver {

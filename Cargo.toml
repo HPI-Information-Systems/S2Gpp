@@ -9,9 +9,13 @@ edition = "2018"
 [dependencies]
 log = "0.4"
 env_logger = "0.8"
+structopt = "0.3"
 
 actix = "0.10"
-ndarray = "0.14"
+actix-telepathy = "0.1.1"
+actix-broker = "0.3.1"
+serde = "1.0"
+ndarray = { version = "0.14", features = ["serde"] }
 ndarray-linalg = { version = "0.13",  features = ["openblas-static"] }
 csv = "1.1.6"
 kdtree = "0.6.0"

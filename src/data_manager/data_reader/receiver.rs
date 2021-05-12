@@ -1,5 +1,5 @@
 use actix::{Actor, ActorContext, Context, Handler, Recipient};
-use crate::data_reader::messages::{DataPartitionMessage, DataReceivedMessage};
+use crate::data_manager::data_reader::messages::{DataPartitionMessage, DataReceivedMessage};
 use actix::dev::MessageResponse;
 use ndarray::{Array2, Array1};
 use csv::StringRecord;
@@ -31,7 +31,7 @@ impl Handler<DataPartitionMessage> for DataReceiver {
         let n_columns = msg.data[0].len();
 
         let flat_data: Array1<f32> = msg.data.into_iter().flat_map(|rec| {
-            StringRecord::from_byte_record(rec).unwrap().iter().map(|b| {
+            rec.iter().map(|b| {
                 f32::from_str(b).unwrap()
             }).collect::<Vec<f32>>()
         }).collect();
