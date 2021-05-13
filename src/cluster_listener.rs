@@ -58,6 +58,10 @@ impl ClusterMemberListener {
 
         debug!("sorted: {:?}", self.sorted_nodes)
     }
+
+    fn data_management(&mut self) {
+        todo!()
+    }
 }
 
 impl Actor for ClusterMemberListener {
@@ -99,6 +103,7 @@ impl Handler<ClusterLog> for ClusterMemberListener {
                             }
 
                             self.sort_members(sorted_members);
+                            self.data_management();
                         },
                         _ => ()
                     }
@@ -124,6 +129,7 @@ impl Handler<SortedMembersMessage> for ClusterMemberListener {
 
     fn handle(&mut self, msg: SortedMembersMessage, ctx: &mut Self::Context) -> Self::Result {
         self.sort_members(msg.0);
+        self.data_management();
     }
 }
 
