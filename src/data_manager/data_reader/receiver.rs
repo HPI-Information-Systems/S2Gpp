@@ -1,12 +1,14 @@
-use actix::{Actor, ActorContext, Context, Handler, Recipient};
+use actix::prelude::*;
+use actix_telepathy::prelude::*;
 use crate::data_manager::data_reader::messages::{DataPartitionMessage, DataReceivedMessage};
-use actix::dev::MessageResponse;
 use ndarray::{Array2, Array1};
 use csv::StringRecord;
 use std::str::FromStr;
 use log::*;
 
 
+#[derive(RemoteActor)]
+#[remote_messages(DataPartitionMessage)]
 pub struct DataReceiver {
     recipient: Option<Recipient<DataReceivedMessage>>
 }
@@ -21,6 +23,10 @@ impl DataReceiver {
 
 impl Actor for DataReceiver {
     type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        self.register(ctx.address().recipient(), "DataReceiver");
+    }
 }
 
 impl Handler<DataPartitionMessage> for DataReceiver {
@@ -42,5 +48,7 @@ impl Handler<DataPartitionMessage> for DataReceiver {
             Some(recipient) => { recipient.do_send(DataReceivedMessage { data }); },
             None => ()
         }
+
+        ctx.stop();
     }
 }

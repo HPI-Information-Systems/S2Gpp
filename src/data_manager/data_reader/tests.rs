@@ -26,7 +26,7 @@ impl Handler<DataReceivedMessage> for DataTestReceiver {
     }
 }
 
-#[test]
+/*#[test]
 fn test_data_distribution() {
     let result: Arc<Mutex<Option<Array2<f32>>>> = Arc::new(Mutex::new(None));
     let cloned = Arc::clone(&result);
@@ -45,4 +45,4 @@ fn test_data_distribution() {
     let received = (*result.lock().unwrap()).as_ref().unwrap().clone();
 
     close_l1(&received, &data.slice(s![..55, ..]), 0.5);
-}
+}*/

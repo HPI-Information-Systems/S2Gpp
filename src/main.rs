@@ -15,12 +15,16 @@ use crate::parameters::{Parameters, Role};
 use crate::data_manager::DataManager;
 use crate::cluster_listener::ClusterMemberListener;
 use actix_telepathy::Cluster;
+use crate::training::Training;
 
 mod meanshift;
 mod pca;
 mod data_manager;
 mod parameters;
 mod cluster_listener;
+mod training;
+mod utils;
+mod messages;
 
 
 fn main() {
@@ -36,9 +40,10 @@ fn main() {
         _ => vec![]
     };
 
-    let cluster = Cluster::new(host, seed_nodes);
-    let cluster_listener = ClusterMemberListener::new(params).start();
 
+    let training = Training::new(params.clone()).start();
+    let cluster = Cluster::new(host, seed_nodes);
+    let cluster_listener = ClusterMemberListener::new(params, training).start();
 
     system.run();
 }

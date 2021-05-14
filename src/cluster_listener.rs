@@ -8,6 +8,8 @@ use std::collections::{HashSet, HashMap};
 use serde::{Serialize, Deserialize};
 use crate::data_manager::{DataManager, LoadDataMessage};
 use actix_telepathy::AddrResolver;
+use crate::training::{Training, StartTrainingMessage};
+use crate::utils::ClusterNodes;
 
 
 #[derive(Message, RemoteMessage, Serialize, Deserialize)]
@@ -21,17 +23,17 @@ pub struct ClusterMemberListener {
     parameters: Parameters,
     connected_nodes: HashSet<RemoteAddr>,
     main_node: Option<RemoteAddr>,
-    data_manager: Option<Addr<DataManager>>,
+    training: Addr<Training>,
     sorted_nodes: HashMap<usize, RemoteAddr>
 }
 
 impl ClusterMemberListener {
-    pub fn new(parameters: Parameters) -> Self {
+    pub fn new(parameters: Parameters, training: Addr<Training>) -> Self {
         Self {
             parameters,
             connected_nodes: HashSet::new(),
             main_node: None,
-            data_manager: None,
+            training,
             sorted_nodes: HashMap::new()
         }
     }
@@ -59,8 +61,9 @@ impl ClusterMemberListener {
         debug!("sorted: {:?}", self.sorted_nodes)
     }
 
-    fn data_management(&mut self) {
-        todo!()
+    fn start_training(&mut self) {
+        let nodes = ClusterNodes::from(self.sorted_nodes.clone());
+        self.training.do_send(StartTrainingMessage { nodes });
     }
 }
 
@@ -103,7 +106,7 @@ impl Handler<ClusterLog> for ClusterMemberListener {
                             }
 
                             self.sort_members(sorted_members);
-                            self.data_management();
+                            self.start_training();
                         },
                         _ => ()
                     }
@@ -129,7 +132,7 @@ impl Handler<SortedMembersMessage> for ClusterMemberListener {
 
     fn handle(&mut self, msg: SortedMembersMessage, ctx: &mut Self::Context) -> Self::Result {
         self.sort_members(msg.0);
-        self.data_management();
+        self.start_training();
     }
 }
 

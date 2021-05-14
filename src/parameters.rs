@@ -29,6 +29,9 @@ pub struct Parameters {
     #[structopt(short = "p", long = "pattern-length")]
     pub pattern_length: usize,
 
+    #[structopt(long = "latent")]
+    pub latent: usize,
+
     #[structopt(short = "t", long = "threads")]
     pub n_threads: usize,
 

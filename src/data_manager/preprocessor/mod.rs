@@ -7,7 +7,7 @@ pub use crate::data_manager::preprocessor::messages::{ProcessedColumnMessage, Pr
 use actix::dev::MessageResponse;
 use crate::data_manager::preprocessor::helper::{PreprocessorHelper};
 use crate::parameters::Parameters;
-use actix_telepathy::{RemoteAddr, AnyAddr};
+use actix_telepathy::prelude::*;
 use crate::main;
 use std::net::SocketAddr;
 
@@ -33,6 +33,9 @@ impl StdCalculation {
     }
 }
 
+
+#[derive(RemoteActor)]
+#[remote_messages(StdNodeMessage, StdDoneMessage)]
 pub struct Preprocessor {
     data: ArcArray2<f32>,
     parameters: Parameters,
@@ -170,6 +173,8 @@ impl Handler<ProcessedColumnMessage> for Preprocessor {
         self.set_processed_column(msg.column, msg.processed_column);
         if self.n_cols_processed == self.n_cols_total {
             self.source.do_send(PreprocessingDoneMessage );
+            // todo stop helpers
+            ctx.stop();
         } else {
             self.distribute_work(ctx.address().recipient());
         }
