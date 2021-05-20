@@ -5,6 +5,7 @@ use actix::dev::MessageResponse;
 use num_traits::real::Real;
 use num_traits::float::Float;
 use num_integer::Integer;
+use crate::messages::PoisonPill;
 
 
 pub struct PreprocessorHelper {
@@ -67,5 +68,13 @@ impl Handler<PreprocessColumnMessage> for PreprocessorHelper {
     fn handle(&mut self, msg: PreprocessColumnMessage, ctx: &mut Self::Context) -> Self::Result {
         let processed_column = self.preprocess(msg.column, msg.std);
         msg.source.do_send(ProcessedColumnMessage { column: msg.column, processed_column });
+    }
+}
+
+impl Handler<PoisonPill> for PreprocessorHelper {
+    type Result = ();
+
+    fn handle(&mut self, _msg: PoisonPill, ctx: &mut Self::Context) -> Self::Result {
+        ctx.stop()
     }
 }

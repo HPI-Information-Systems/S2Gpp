@@ -1,7 +1,11 @@
+mod ndarray_extensions;
+
 use std::collections::HashMap;
 use actix_telepathy::{RemoteAddr, AnyAddr};
 use actix::{Recipient, Addr, Actor};
 use std::any::Any;
+use std::collections::hash_map::Iter;
+pub use ndarray_extensions::*;
 
 
 #[derive(Default, Clone)]
@@ -28,8 +32,32 @@ impl ClusterNodes {
         self.nodes.get(key)
     }
 
+    pub fn uget(&self, key: &usize) -> &RemoteAddr {
+        self.nodes.get(key).unwrap()
+    }
+
+    pub fn get_own_idx(&self) -> usize {
+        let mut own_idx = 0;
+        for idx in self.nodes.keys() {
+            if own_idx.eq(idx) {
+                own_idx += 1
+            } else {
+                break
+            }
+        }
+        own_idx
+    }
+
     pub fn to_any<T: Actor>(&self, addr: Addr<T>) -> AnyClusterNodes<T> {
         AnyClusterNodes::new(self.clone(), addr)
+    }
+
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn iter(&self) -> Iter<'_, usize, RemoteAddr> {
+        self.nodes.iter()
     }
 }
 

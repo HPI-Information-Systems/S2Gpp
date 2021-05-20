@@ -17,6 +17,12 @@ pub enum Role {
     }
 }
 
+impl Default for Role {
+    fn default() -> Self {
+        Role::Main {data_path: "".to_string()}
+    }
+}
+
 
 #[derive(StructOpt, Debug, Clone)]
 pub struct Parameters {
@@ -51,6 +57,19 @@ impl Parameters {
         match &self.role {
             Role::Sub { mainhost} => addr.eq(mainhost),
             Role::Main { .. } => addr.eq(&self.local_host)
+        }
+    }
+}
+
+impl Default for Parameters {
+    fn default() -> Self {
+        Self {
+            role: Role::default(),
+            local_host: "127.0.0.1:8000".parse().unwrap(),
+            pattern_length: 50,
+            latent: 16,
+            n_threads: 1,
+            n_cluster_nodes: 1
         }
     }
 }

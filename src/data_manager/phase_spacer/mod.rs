@@ -1,6 +1,8 @@
-use ndarray::{ArcArray2, Array3, ArrayBase, Axis};
+#[cfg(test)]
+mod tests;
+
+use ndarray::{ArcArray2, Array3, ArrayBase, Axis, s, Array2};
 use crate::parameters::Parameters;
-use core::slice::SlicePattern;
 
 pub struct PhaseSpacer {
     data: ArcArray2<f32>,
@@ -24,23 +26,23 @@ impl PhaseSpacer {
             )
         );
         let shape = (self.parameters.pattern_length - self.parameters.latent, self.data.shape()[1]);
-        let mut current_seq = ArrayBase::zeros(shape);
+        let mut current_seq: Array2<f32> = ArrayBase::zeros(shape);
         let mut tmp = ArrayBase::zeros(shape);
         let mut first = true;
 
-        for i in 0..phase_space.shape()[0] {
+        for i in 0..(phase_space.shape()[0] - (self.parameters.pattern_length - self.parameters.latent)) {
             tmp.fill(0.0);
             if first {
                 first = false;
                 for j in 0..(self.parameters.pattern_length - self.parameters.latent) {
-                    tmp[j] = self.data.slice(s![(i + j)..(i + j + self.parameters.latent)]).sum_axis(Axis(0));
+                    tmp.index_axis_mut(Axis(0), j).assign(&self.data.slice(s![(i + j)..(i + j + self.parameters.latent), ..]).sum_axis(Axis(0)));
                 }
-                phase_space[i] = tmp.clone();
+                phase_space.index_axis_mut(Axis(0), i).assign(&tmp);
                 current_seq = tmp.clone();
             } else {
-                tmp.slice(s![..-1, ..]) = current_seq.slice(s![1.., ..]);
-                tmp[-1] = self.data.slice(s![(i + self.parameters.pattern_length - self.parameters.latent)..(i + self.parameters.pattern_length)]).sum_axis(Axis(0));
-                phase_space[i] = tmp.clone();
+                tmp.slice_mut(s![..-1, ..]).assign(&current_seq.slice(s![1.., ..]));
+                tmp.slice_mut(s![-1, ..]).assign(&self.data.slice(s![(i + self.parameters.pattern_length - self.parameters.latent)..(i + self.parameters.pattern_length), ..]).sum_axis(Axis(0)));
+                phase_space.index_axis_mut(Axis(0), i).assign(&tmp);
                 current_seq = tmp.clone();
             }
         }

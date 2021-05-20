@@ -1,45 +1,50 @@
 mod messages;
 #[cfg(test)]
 mod tests;
+mod rotator;
 
 use log::*;
 use ndarray::prelude::*;
 use ndarray_linalg::qr::*;
 use actix::prelude::*;
-pub use crate::pca::messages::{PCAMessage, PCAMeansMessage, PCADecompositionMessage, PCAResponse};
+pub use crate::pca::messages::{PCAMessage, PCAMeansMessage, PCADecompositionMessage, PCAResponse, RotatedMessage};
+pub use crate::pca::rotator::{Rotator};
 use actix::dev::MessageResponse;
 use ndarray::{ArcArray2, concatenate};
 use std::ops::{Mul, Div};
 use ndarray_linalg::SVD;
 use crate::pca::messages::PCAComponents;
+use crate::utils::ClusterNodes;
 
 
 pub struct PCA {
     source: Option<Recipient<PCAResponse>>,
     id: usize,
-    cluster_nodes: Vec<Addr<PCA>>,
+    cluster_nodes: ClusterNodes,
     n_components: usize,
     components: Option<Array2<f32>>,
     data: Option<ArcArray2<f32>>,
     local_r: Option<Array2<f32>>,
     r_count: usize,
     column_means: Option<Array2<f32>>,
-    n: Option<Array1<f32>>
+    n: Option<Array1<f32>>,
+    own_addr: Option<Addr<Self>>
 }
 
 impl PCA {
-    pub fn new(source: Option<Recipient<PCAResponse>>, id: usize, n_components: usize) -> Self {
+    pub fn new(cluster_nodes: ClusterNodes, source: Option<Recipient<PCAResponse>>, id: usize, n_components: usize) -> Self {
         Self {
             source,
             id,
-            cluster_nodes: vec![],
+            cluster_nodes,
             n_components,
             components: None,
             data: None,
             local_r: None,
             r_count: 0,
             column_means: None,
-            n: None
+            n: None,
+            own_addr: None
         }
     }
 
@@ -56,16 +61,17 @@ impl PCA {
     }
 
     fn send_to_main(&mut self) {
-        if self.id > 0 {
-            self.cluster_nodes[0].do_send(PCAMeansMessage {
+        match self.cluster_nodes.get(&0) {
+            Some(addr) => addr.do_send(PCAMeansMessage {
                 columns_means: self.column_means.as_ref().unwrap().clone(),
                 n: self.data.as_ref().unwrap().shape()[0]
-            });
+            }),
+            None => ()
         }
     }
 
     fn next_2_power(&mut self) -> usize {
-        let len = self.cluster_nodes.len();
+        let len = self.cluster_nodes.len() + 1;
         2_i32.pow((len as f32).log2().ceil() as u32) as usize
     }
 
@@ -75,7 +81,7 @@ impl PCA {
 
         if self.id >= threshold && self.id > 0 {
             let neighbor_id = self.id - threshold;
-            self.cluster_nodes[neighbor_id].do_send(PCADecompositionMessage {
+            self.cluster_nodes.uget(&neighbor_id).do_send(PCADecompositionMessage {
                 r: self.local_r.as_ref().unwrap().clone(), count: self.r_count + 1 });
         } else if self.r_count == 0 && (self.id + threshold) >= self.cluster_nodes.len() {
             self.r_count += 1;
@@ -134,14 +140,24 @@ impl PCA {
     }
 
     fn share_principal_components(&mut self) {
-        for node in &self.cluster_nodes {
-            node.do_send(PCAComponents { components: self.components.as_ref().unwrap().clone() })
+        let msg = PCAComponents { components: self.components.as_ref().unwrap().clone() };
+
+        for (_, node) in self.cluster_nodes.iter() {
+            node.do_send(msg.clone())
+        }
+        match &self.own_addr {
+            Some(addr) => addr.do_send(msg.clone()),
+            _ => ()
         }
     }
 }
 
 impl Actor for PCA {
     type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        self.own_addr = Some(ctx.address());
+    }
 }
 
 impl Handler<PCAMessage> for PCA {
@@ -149,7 +165,6 @@ impl Handler<PCAMessage> for PCA {
 
     fn handle(&mut self, msg: PCAMessage, ctx: &mut Self::Context) -> Self::Result {
         self.data = Some(msg.data);
-        self.cluster_nodes = msg.cluster_nodes;
         self.center_columns_decomposition();
     }
 }
@@ -187,5 +202,6 @@ impl Handler<PCAComponents> for PCA {
             Some(source) => { source.do_send(PCAResponse { components: self.components.as_ref().unwrap().clone() }); },
             None => ()
         }
+        ctx.stop();
     }
 }

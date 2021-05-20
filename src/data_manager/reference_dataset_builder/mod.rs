@@ -1,7 +1,11 @@
+#[cfg(test)]
+mod tests;
+
 use actix::prelude::*;
-use ndarray::{ArcArray2, Array2, Axis, ArrayBase, Array, Array3};
+use ndarray::{ArcArray2, Array2, Axis, ArrayBase, Array, Array3, s, Array1, Dimension, RemoveAxis, concatenate, stack, ArrayView1};
 use crate::parameters::Parameters;
-use num_traits::real::Real;
+use num_traits::Float;
+use crate::utils::{linspace, Stats};
 
 pub struct ReferenceDatasetBuilder {
     data: ArcArray2<f32>,
@@ -17,24 +21,27 @@ impl ReferenceDatasetBuilder {
     }
 
     pub fn build(&self) -> Array3<f32> {
-        let min_cols = self.data.map_axis(Axis(0), |x| x.min());
-        let max_cols = self.data.map_axis(Axis(0), |x| x.max());
+        let min_cols = self.data.min_axis(Axis(0));
+        let max_cols = self.data.max_axis(Axis(0));
 
         let length = 100;
         let width = self.parameters.pattern_length - self.parameters.latent;
         let dim = self.data.shape()[1];
 
         let mut data_ref = ArrayBase::zeros((length, width, dim));
-        let mut tmp = ArrayBase::zeros((width, dim));
-        let mut T = ArrayBase::zeros((self.parameters.pattern_length, dim));
-        for (i, v) in Array::linspace(min_cols, max_cols, length).enumerate() {
+        let mut tmp: Array2<f32> = ArrayBase::zeros((width, dim));
+        let mut T: Array2<f32> = ArrayBase::zeros((self.parameters.pattern_length, dim));
+
+        for (i, v) in linspace(min_cols, max_cols, length).axis_iter(Axis(1)).enumerate() {
             tmp.fill(0.0);
             T.fill(0.0);
             T = T + v;
+
             for j in 0..width {
-                tmp[j] = T.slice(s![j..j+self.parameters.latent, ..]).sum_axis(Axis(0));
+                tmp.slice_mut(s![j, ..]).assign(&T.slice(s![j..j+self.parameters.latent, ..]).sum_axis(Axis(0)));
             }
-            data_ref[i] = tmp.clone();
+
+            data_ref.index_axis_mut(Axis(0), i).assign(&tmp);
         }
 
         data_ref

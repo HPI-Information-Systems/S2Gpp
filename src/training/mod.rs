@@ -9,9 +9,10 @@ use actix_telepathy::RemoteAddr;
 use crate::data_manager::{DataManager, LoadDataMessage};
 use crate::utils::ClusterNodes;
 use crate::training::messages::DataLoadedAndProcessed;
-use ndarray::{ArcArray, Dimension, Array, Array2};
+use ndarray::{ArcArray, Dimension, Array, Array2, Ix3};
 use crate::messages::PoisonPill;
-use crate::pca::PCAResponse;
+use crate::pca::{PCAResponse, PCA, PCAMessage, Rotator, RotatedMessage};
+use log::*;
 
 
 pub struct Training {
@@ -41,12 +42,8 @@ impl Training {
         self.data_manager = Some(data_manager);
     }
 
-    fn pca(&mut self, phase_space: ArcArray3<f32>, data_ref: ArcArray3<f32>) {
-
-    }
-
-    fn rotate(&mut self, components: Array2<f32>) {
-
+    fn rotate(&mut self, phase_space: ArcArray<f32, Ix3>, data_ref: ArcArray<f32, Ix3>, rec: Recipient<RotatedMessage>) {
+        let rotator = Rotator::new(self.nodes.clone(), rec, phase_space, data_ref).start();
     }
 }
 
@@ -66,17 +63,16 @@ impl Handler<StartTrainingMessage> for Training {
 impl Handler<DataLoadedAndProcessed> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: DataLoadedAndProcessed, _ctx: &mut Self::Context) -> Self::Result {
-        pca(msg.phase_space, msg.data_ref);
-        self.data_manager.unwrap().do_send(PoisonPill);
+    fn handle(&mut self, msg: DataLoadedAndProcessed, ctx: &mut Self::Context) -> Self::Result {
+        self.rotate(msg.phase_space, msg.data_ref, ctx.address().recipient());
     }
 }
 
-impl Handler<PCAResponse> for Training {
+impl Handler<RotatedMessage> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: PCAResponse, ctx: &mut _) -> Self::Result {
-        self.rotate(msg.components);
-
+    fn handle(&mut self, msg: RotatedMessage, ctx: &mut Self::Context) -> Self::Result {
+        self.rotated = Some(msg.rotated);
+        self.data_manager.as_ref().unwrap().do_send(PoisonPill);
     }
 }

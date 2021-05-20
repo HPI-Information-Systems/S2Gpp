@@ -25,7 +25,7 @@ impl Actor for DataReceiver {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        self.register(ctx.address().recipient(), "DataReceiver");
+        self.register(ctx.address().recipient(), "DataReceiver".to_string());
     }
 }
 

@@ -10,6 +10,7 @@ use crate::parameters::Parameters;
 use actix_telepathy::prelude::*;
 use crate::main;
 use std::net::SocketAddr;
+use crate::messages::PoisonPill;
 
 
 #[derive(Default)]
@@ -173,7 +174,7 @@ impl Handler<ProcessedColumnMessage> for Preprocessor {
         self.set_processed_column(msg.column, msg.processed_column);
         if self.n_cols_processed == self.n_cols_total {
             self.source.do_send(PreprocessingDoneMessage );
-            // todo stop helpers
+            self.helpers.do_send(PoisonPill);
             ctx.stop();
         } else {
             self.distribute_work(ctx.address().recipient());
