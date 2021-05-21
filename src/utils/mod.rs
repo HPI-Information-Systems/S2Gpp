@@ -86,7 +86,7 @@ impl<T: Actor> AnyClusterNodes<T> {
     }
 
     pub fn len(&self) -> usize {
-        self.nodes.nodes.len()
+        self.nodes.nodes.len() + 1
     }
 }
 

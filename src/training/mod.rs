@@ -43,7 +43,12 @@ impl Training {
     }
 
     fn rotate(&mut self, phase_space: ArcArray<f32, Ix3>, data_ref: ArcArray<f32, Ix3>, rec: Recipient<RotatedMessage>) {
-        let rotator = Rotator::new(self.nodes.clone(), rec, phase_space, data_ref).start();
+        let rotator = Rotator::new(
+            self.parameters.clone(),
+            self.nodes.clone(),
+            rec,
+            phase_space,
+            data_ref).start();
     }
 }
 

@@ -1,7 +1,7 @@
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
 use serde::{Serialize, Deserialize};
-use ndarray::{Array2, Array1, ArcArray2};
+use ndarray::{Array2, Array1, ArcArray2, Array3};
 use crate::pca::PCA;
 use crate::utils::ClusterNodes;
 
@@ -36,6 +36,12 @@ pub struct PCAMeansMessage {
 #[rtype(Result = "()")]
 pub struct PCAComponents {
     pub components: Array2<f32>
+}
+
+#[derive(Message, RemoteMessage, Serialize, Deserialize)]
+#[rtype(Result = "()")]
+pub struct RotationMatrixMessage {
+    pub rotation_matrix: Array3<f32>
 }
 
 #[derive(Message)]

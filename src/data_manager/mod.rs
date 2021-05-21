@@ -14,6 +14,8 @@ use crate::data_manager::reference_dataset_builder::ReferenceDatasetBuilder;
 use crate::data_manager::phase_spacer::PhaseSpacer;
 use crate::messages::PoisonPill;
 
+#[cfg(test)]
+mod tests;
 mod messages;
 pub mod data_reader;
 mod preprocessor;

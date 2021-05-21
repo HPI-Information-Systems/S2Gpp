@@ -1,6 +1,6 @@
-use ndarray::{ArrayBase, ArcArray, Array3, Ix3, Array1, Array2, Axis, arr1, s, ArrayView2, Dimension, Array, arr3, arr2, concatenate, Data, stack};
-use actix::{Actor, Recipient, ActorContext, Context, Handler, AsyncContext};
-use crate::pca::messages::RotatedMessage;
+use ndarray::{ArrayBase, ArcArray, Array3, Ix3, Array1, Array2, Axis, arr1, s, ArrayView2, Dimension, Array, arr3, arr2, concatenate, Data, stack, Dim};
+use actix::{Actor, Recipient, ActorContext, Context, Handler, AsyncContext, Addr};
+use crate::pca::messages::{RotatedMessage, RotationMatrixMessage};
 use crate::pca::{PCAResponse, PCA, PCAMessage};
 use actix::dev::MessageResponse;
 use crate::utils::{ClusterNodes, norm, cross2d, repeat};
@@ -8,8 +8,10 @@ use std::ops::Mul;
 use ndarray_linalg::Norm;
 use num_traits::Float;
 use ndarray_einsum_beta::*;
+use crate::parameters::{Parameters, Role};
 
 pub struct Rotator {
+    parameters: Parameters,
     cluster_nodes: ClusterNodes,
     source: Recipient<RotatedMessage>,
     phase_space: ArcArray<f32, Ix3>,
@@ -20,11 +22,12 @@ pub struct Rotator {
 }
 
 impl Rotator {
-    pub fn new(cluster_nodes: ClusterNodes, source: Recipient<RotatedMessage>, phase_space: ArcArray<f32, Ix3>, data_ref: ArcArray<f32, Ix3>) -> Self {
+    pub fn new(parameters: Parameters, cluster_nodes: ClusterNodes, source: Recipient<RotatedMessage>, phase_space: ArcArray<f32, Ix3>, data_ref: ArcArray<f32, Ix3>) -> Self {
         let reduced = ArrayBase::zeros((phase_space.shape()[0], 3, phase_space.shape()[2]));
         let reduced_ref = ArrayBase::zeros((data_ref.shape()[0], 3, data_ref.shape()[2]));
 
         Self {
+            parameters,
             cluster_nodes,
             source,
             phase_space,
@@ -88,9 +91,33 @@ impl Rotator {
         ).unwrap() * ((1.0 - c) / &s_ * s_)
     }
 
-    fn rotate(&mut self) {
-        // todo: if Role::Main
-        let R = self.get_rotation_matrix();
+    fn broadcast_rotation_matrix(&mut self, addr: Addr<Self>) {
+        match &self.parameters.role {
+            Role::Main { .. } => {
+                let rotation_matrix = self.get_rotation_matrix();
+                for nodes in self.cluster_nodes.to_any(addr) {
+                    nodes.do_send(RotationMatrixMessage { rotation_matrix: rotation_matrix.clone() })
+                }
+            },
+            _ => ()
+        }
+    }
+
+    fn rotate(&mut self, rotation_matrix: Array3<f32>) {
+        let rotations: Vec<Array2<f32>> = rotation_matrix.axis_iter(Axis(2))
+            .zip(self.reduced.axis_iter(Axis(2)))
+            .map(|(a, b)| {
+                a.dot(&b.t())
+            }).collect();
+
+        let rotated_3 = stack(Axis(2), rotations.iter().map(|x|
+            x.view()).collect::<Vec<ArrayView2<f32>>>().as_slice()
+        ).unwrap();
+
+        let rotated = rotated_3.slice(s![.., 0..2, ..])
+            .into_shape(Dim([rotated_3.shape()[0], rotated_3.shape()[2] * 2])).unwrap().to_owned();
+
+        self.source.do_send(RotatedMessage { rotated });
     }
 }
 
@@ -111,8 +138,17 @@ impl Handler<PCAResponse> for Rotator {
             self.reduce(msg.components);
         } else {
             self.reduce(msg.components);
-            self.rotate();
+            self.broadcast_rotation_matrix(ctx.address());
         }
+    }
+}
+
+impl Handler<RotationMatrixMessage> for Rotator {
+    type Result = ();
+
+    fn handle(&mut self, msg: RotationMatrixMessage, ctx: &mut Self::Context) -> Self::Result {
+        self.rotate(msg.rotation_matrix);
+        ctx.stop();
     }
 }
 
@@ -149,6 +185,7 @@ mod tests {
             let dummy_data = arr3(&[[[0.]]]);
 
             let mut rotator = Rotator::new(
+                Parameters::default(),
                 ClusterNodes::new(),
                 recipient,
                 dummy_data.to_shared(),
@@ -167,5 +204,10 @@ mod tests {
         let truth = rotation_matrix.lock().unwrap();
 
         close_l1(truth.as_ref().unwrap(), &expects, 0.0005)
+    }
+
+    #[test]
+    fn test_distributed_rotation() {
+        // todo: test distributed rotation
     }
 }
