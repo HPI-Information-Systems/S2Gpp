@@ -56,6 +56,10 @@ impl ClusterNodes {
         self.nodes.len()
     }
 
+    pub fn len_incl_own(&self) -> usize {
+        self.len() + 1
+    }
+
     pub fn iter(&self) -> Iter<'_, usize, RemoteAddr> {
         self.nodes.iter()
     }

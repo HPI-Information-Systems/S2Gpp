@@ -13,6 +13,7 @@ use crate::utils::ClusterNodes;
 use crate::data_manager::reference_dataset_builder::ReferenceDatasetBuilder;
 use crate::data_manager::phase_spacer::PhaseSpacer;
 use crate::messages::PoisonPill;
+use crate::data_manager::stats_collector::{DatasetStatsMessage, DatasetStats};
 
 #[cfg(test)]
 mod tests;
@@ -21,6 +22,7 @@ pub mod data_reader;
 mod preprocessor;
 mod reference_dataset_builder;
 mod phase_spacer;
+mod stats_collector;
 
 pub struct DataManager {
     data: Option<Array2<f32>>,
@@ -52,23 +54,14 @@ impl DataManager {
                         self.parameters.pattern_length).start();
     }
 
-    fn preprocess(&mut self, rec: Recipient<PreprocessingDoneMessage>) {
-        let main_node = match self.nodes.get(&0) {
-            None => None,
-            Some(remote) => {
-                let mut remote = remote.clone();
-                remote.change_id("Preprocessor".to_string());
-                Some(AnyAddr::Remote(remote))
-            }
-        };
-
+    fn preprocess(&mut self, rec: Recipient<PreprocessingDoneMessage>, dataset_stats: DatasetStats) {
         match &self.data {
             Some(data) => {
                 Preprocessor::new(
                     data.to_shared(),
                     self.parameters.clone(),
-                    main_node,
-                    rec
+                    rec,
+                    dataset_stats
                 ).start();
             },
             None => panic!("Data should be set by now!")
@@ -115,7 +108,15 @@ impl Handler<DataReceivedMessage> for DataManager {
 
     fn handle(&mut self, msg: DataReceivedMessage, ctx: &mut Self::Context) -> Self::Result {
         self.data = Some(msg.data);
-        self.preprocess(ctx.address().recipient());
+        //todo datasetstats
+    }
+}
+
+impl Handler<DatasetStatsMessage> for DataManager {
+    type Result = ();
+
+    fn handle(&mut self, msg: DatasetStatsMessage, ctx: &mut Self::Context) -> Self::Result {
+        self.preprocess(ctx.address().recipient(), msg.dataset_stats);
     }
 }
 

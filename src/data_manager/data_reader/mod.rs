@@ -1,4 +1,4 @@
-mod messages;
+pub(crate) mod messages;
 mod receiver;
 #[cfg(test)]
 mod tests;
