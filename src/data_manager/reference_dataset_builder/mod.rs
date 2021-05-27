@@ -6,33 +6,34 @@ use ndarray::{ArcArray2, Array2, Axis, ArrayBase, Array, Array3, s, Array1, Dime
 use crate::parameters::Parameters;
 use num_traits::Float;
 use crate::utils::{linspace, Stats};
+use crate::data_manager::stats_collector::DatasetStats;
 
 pub struct ReferenceDatasetBuilder {
-    data: ArcArray2<f32>,
+    data_stats: DatasetStats,
     parameters: Parameters
 }
 
 impl ReferenceDatasetBuilder {
-    pub fn new(data: ArcArray2<f32>, parameters: Parameters) -> Self {
+    pub fn new(data_stats: DatasetStats, parameters: Parameters) -> Self {
         Self {
-            data,
+            data_stats,
             parameters
         }
     }
 
     pub fn build(&self) -> Array3<f32> {
-        let min_cols = self.data.min_axis(Axis(0));
-        let max_cols = self.data.max_axis(Axis(0));
+        let min_cols = self.data_stats.min_col.as_ref().unwrap();
+        let max_cols = self.data_stats.max_col.as_ref().unwrap();
 
         let length = 100;
         let width = self.parameters.pattern_length - self.parameters.latent;
-        let dim = self.data.shape()[1];
+        let dim = min_cols.len();
 
         let mut data_ref = ArrayBase::zeros((length, width, dim));
         let mut tmp: Array2<f32> = ArrayBase::zeros((width, dim));
         let mut T: Array2<f32> = ArrayBase::zeros((self.parameters.pattern_length, dim));
 
-        for (i, v) in linspace(min_cols, max_cols, length).axis_iter(Axis(1)).enumerate() {
+        for (i, v) in linspace(min_cols.clone(), max_cols.clone(), length).axis_iter(Axis(1)).enumerate() {
             tmp.fill(0.0);
             T.fill(0.0);
             T = T + v;

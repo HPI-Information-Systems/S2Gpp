@@ -6,9 +6,8 @@ pub use crate::training::messages::StartTrainingMessage;
 use actix::dev::MessageResponse;
 use std::collections::HashMap;
 use actix_telepathy::RemoteAddr;
-use crate::data_manager::{DataManager, LoadDataMessage};
+use crate::data_manager::{DataManager, LoadDataMessage, DataLoadedAndProcessed};
 use crate::utils::ClusterNodes;
-use crate::training::messages::DataLoadedAndProcessed;
 use ndarray::{ArcArray, Dimension, Array, Array2, Ix3};
 use crate::messages::PoisonPill;
 use crate::pca::{PCAResponse, PCA, PCAMessage, Rotator, RotatedMessage};
@@ -32,10 +31,11 @@ impl Training {
         }
     }
 
-    fn data_management(&mut self) {
+    fn data_management(&mut self, rec: Recipient<DataLoadedAndProcessed>) {
         let data_manager = DataManager::new(
             self.nodes.clone(),
-            self.parameters.clone()
+            self.parameters.clone(),
+            rec
         ).start();
 
         data_manager.do_send(LoadDataMessage);
@@ -61,7 +61,7 @@ impl Handler<StartTrainingMessage> for Training {
 
     fn handle(&mut self, msg: StartTrainingMessage, ctx: &mut Self::Context) -> Self::Result {
         self.nodes = msg.nodes;
-        self.data_management();
+        self.data_management(ctx.address().recipient());
     }
 }
 

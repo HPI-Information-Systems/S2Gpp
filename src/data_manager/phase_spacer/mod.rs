@@ -20,7 +20,7 @@ impl PhaseSpacer {
     pub fn build(&self) -> Array3<f32> {
         let mut phase_space = ArrayBase::zeros(
             (
-                self.data.shape()[0] - (self.parameters.pattern_length - self.parameters.latent),
+                self.data.shape()[0] - (self.parameters.pattern_length - 1),
                 self.parameters.pattern_length - self.parameters.latent,
                 self.data.shape()[1]
             )
@@ -30,7 +30,7 @@ impl PhaseSpacer {
         let mut tmp = ArrayBase::zeros(shape);
         let mut first = true;
 
-        for i in 0..(phase_space.shape()[0] - (self.parameters.pattern_length - self.parameters.latent)) {
+        for i in 0..phase_space.shape()[0] {
             tmp.fill(0.0);
             if first {
                 first = false;
@@ -41,7 +41,7 @@ impl PhaseSpacer {
                 current_seq = tmp.clone();
             } else {
                 tmp.slice_mut(s![..-1, ..]).assign(&current_seq.slice(s![1.., ..]));
-                tmp.slice_mut(s![-1, ..]).assign(&self.data.slice(s![(i + self.parameters.pattern_length - self.parameters.latent)..(i + self.parameters.pattern_length), ..]).sum_axis(Axis(0)));
+                tmp.slice_mut(s![-1, ..]).assign(&self.data.slice(s![(i + self.parameters.pattern_length - self.parameters.latent - 1)..(i + self.parameters.pattern_length - 1), ..]).sum_axis(Axis(0)));
                 phase_space.index_axis_mut(Axis(0), i).assign(&tmp);
                 current_seq = tmp.clone();
             }

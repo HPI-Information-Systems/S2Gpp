@@ -2,7 +2,7 @@ use actix::{Actor, ActorContext, Context, Handler, Recipient, Addr, AsyncContext
 use actix::dev::MessageResponse;
 use ndarray::{ArcArray2, Array2, Array3};
 
-pub use crate::data_manager::messages::{LoadDataMessage};
+pub use crate::data_manager::messages::{LoadDataMessage, DataLoadedAndProcessed};
 use crate::data_manager::data_reader::{DataReceivedMessage, DataReader, DataPartitionMessage, DataReceiver};
 use crate::data_manager::preprocessor::{Preprocessor, PreprocessingDoneMessage};
 use crate::parameters::{Parameters, Role};
@@ -13,7 +13,7 @@ use crate::utils::ClusterNodes;
 use crate::data_manager::reference_dataset_builder::ReferenceDatasetBuilder;
 use crate::data_manager::phase_spacer::PhaseSpacer;
 use crate::messages::PoisonPill;
-use crate::data_manager::stats_collector::{DatasetStatsMessage, DatasetStats};
+use crate::data_manager::stats_collector::{DatasetStatsMessage, DatasetStats, StatsCollector};
 
 #[cfg(test)]
 mod tests;
@@ -28,17 +28,21 @@ pub struct DataManager {
     data: Option<Array2<f32>>,
     nodes: ClusterNodes,
     parameters: Parameters,
+    receiver: Recipient<DataLoadedAndProcessed>,
+    dataset_stats: DatasetStats,
     data_receiver: Option<Addr<DataReceiver>>,
     reference_dataset: Option<Array3<f32>>,
     phase_space: Option<Array3<f32>>
 }
 
 impl DataManager {
-    pub fn new(nodes: ClusterNodes, parameters: Parameters) -> Self {
+    pub fn new(nodes: ClusterNodes, parameters: Parameters, receiver: Recipient<DataLoadedAndProcessed>) -> Self {
         Self {
             data: None,
             nodes,
             parameters,
+            receiver,
+            dataset_stats: DatasetStats::default(),
             data_receiver: None,
             reference_dataset: None,
             phase_space: None
@@ -51,13 +55,21 @@ impl DataManager {
 
         DataReader::new(data_path,
                         nodes.to_any(self.data_receiver.as_ref().unwrap().clone()),
-                        self.parameters.pattern_length).start();
+                        self.parameters.pattern_length - 1).start();
+    }
+
+    fn collect_statistics(&mut self, rec: Recipient<DatasetStatsMessage>) {
+        let data = self.data.as_ref().expect("Data should be received by now!").to_shared();
+        StatsCollector::new(data,
+                            self.parameters.clone(),
+                            self.nodes.clone(),
+                            rec).start();
     }
 
     fn preprocess(&mut self, rec: Recipient<PreprocessingDoneMessage>, dataset_stats: DatasetStats) {
         match &self.data {
             Some(data) => {
-                Preprocessor::new(
+                let pp = Preprocessor::new(
                     data.to_shared(),
                     self.parameters.clone(),
                     rec,
@@ -70,7 +82,7 @@ impl DataManager {
 
     fn build_reference_dataset(&mut self) {
         let reference_dataset = ReferenceDatasetBuilder::new(
-            self.data.as_ref().unwrap().to_shared(),
+            self.dataset_stats.clone(),
             self.parameters.clone()
         ).build();
         self.reference_dataset = Some(reference_dataset);
@@ -82,6 +94,12 @@ impl DataManager {
             self.parameters.clone()
         ).build();
         self.phase_space = Some(phase_space);
+    }
+
+    fn finalize(&mut self) {
+        self.receiver.do_send(DataLoadedAndProcessed {
+            data_ref: self.reference_dataset.as_ref().unwrap().to_shared(),
+            phase_space: self.phase_space.as_ref().unwrap().to_shared() });
     }
 }
 
@@ -108,7 +126,7 @@ impl Handler<DataReceivedMessage> for DataManager {
 
     fn handle(&mut self, msg: DataReceivedMessage, ctx: &mut Self::Context) -> Self::Result {
         self.data = Some(msg.data);
-        //todo datasetstats
+        self.collect_statistics(ctx.address().recipient());
     }
 }
 
@@ -116,7 +134,8 @@ impl Handler<DatasetStatsMessage> for DataManager {
     type Result = ();
 
     fn handle(&mut self, msg: DatasetStatsMessage, ctx: &mut Self::Context) -> Self::Result {
-        self.preprocess(ctx.address().recipient(), msg.dataset_stats);
+        self.dataset_stats = msg.dataset_stats;
+        self.preprocess(ctx.address().recipient(), self.dataset_stats.clone());
     }
 }
 
@@ -126,6 +145,7 @@ impl Handler<PreprocessingDoneMessage> for DataManager {
     fn handle(&mut self, msg: PreprocessingDoneMessage, ctx: &mut Self::Context) -> Self::Result {
         self.build_reference_dataset();
         self.build_phase_space();
+        self.finalize();
     }
 }
 

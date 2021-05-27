@@ -75,6 +75,10 @@ impl Preprocessor {
 
 impl Actor for Preprocessor {
     type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        self.distribute_work(ctx.address().recipient());
+    }
 }
 
 impl Handler<ProcessedColumnMessage> for Preprocessor {

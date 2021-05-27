@@ -113,6 +113,7 @@ impl Handler<StdDoneMessage> for StdCalculator {
 
     fn handle(&mut self, msg: StdDoneMessage, ctx: &mut Self::Context) -> Self::Result {
         match &self.receiver {
+            //todo also send `n`
             Some(addr) => { addr.do_send(msg); },
             _ => ()
         };

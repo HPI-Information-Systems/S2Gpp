@@ -1,8 +1,11 @@
 use crate::data_manager::data_reader::read_data_;
 use crate::parameters::{Parameters, Role};
-use ndarray::{arr2, s};
+use ndarray::{arr2, s, Axis};
 use ndarray_linalg::close_l1;
 use crate::data_manager::reference_dataset_builder::ReferenceDatasetBuilder;
+use crate::data_manager::stats_collector::DatasetStats;
+use std::convert::TryFrom;
+use crate::utils::Stats;
 
 #[test]
 fn test_correct_spacing() {
@@ -16,7 +19,13 @@ fn test_correct_spacing() {
         n_cluster_nodes: 1
     };
 
-    let rdb = ReferenceDatasetBuilder::new(data.to_shared(), parameters);
+    let dataset_stats = DatasetStats::new(
+        data.std_axis(Axis(0), 0.0),
+        data.to_shared().min_axis(Axis(0)),
+        data.to_shared().max_axis(Axis(0))
+    );
+
+    let rdb = ReferenceDatasetBuilder::new(dataset_stats, parameters);
     let df_ref = rdb.build();
     let expected = arr2(&[
           [ 0.09360752,  0.63319328,  0.0458456 ],
