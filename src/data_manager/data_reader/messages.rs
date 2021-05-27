@@ -1,12 +1,14 @@
 use actix::prelude::*;
+use actix_telepathy::prelude::*;
+use serde::{Serialize, Deserialize, Serializer};
 use ndarray::Array2;
-use csv::ByteRecord;
+use csv::{ByteRecord, StringRecord};
 
 
-#[derive(Message)]
+#[derive(Message, RemoteMessage, Serialize, Deserialize)]
 #[rtype(Result = "()")]
 pub struct DataPartitionMessage {
-    pub data: Vec<ByteRecord>
+    pub data: Vec<Vec<String>>
 }
 
 #[derive(Message)]

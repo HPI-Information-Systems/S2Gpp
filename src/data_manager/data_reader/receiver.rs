@@ -1,12 +1,14 @@
-use actix::{Actor, ActorContext, Context, Handler, Recipient};
-use crate::data_reader::messages::{DataPartitionMessage, DataReceivedMessage};
-use actix::dev::MessageResponse;
+use actix::prelude::*;
+use actix_telepathy::prelude::*;
+use crate::data_manager::data_reader::messages::{DataPartitionMessage, DataReceivedMessage};
 use ndarray::{Array2, Array1};
 use csv::StringRecord;
 use std::str::FromStr;
 use log::*;
 
 
+#[derive(RemoteActor)]
+#[remote_messages(DataPartitionMessage)]
 pub struct DataReceiver {
     recipient: Option<Recipient<DataReceivedMessage>>
 }
@@ -21,6 +23,10 @@ impl DataReceiver {
 
 impl Actor for DataReceiver {
     type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        self.register(ctx.address().recipient(), "DataReceiver".to_string());
+    }
 }
 
 impl Handler<DataPartitionMessage> for DataReceiver {
@@ -31,7 +37,7 @@ impl Handler<DataPartitionMessage> for DataReceiver {
         let n_columns = msg.data[0].len();
 
         let flat_data: Array1<f32> = msg.data.into_iter().flat_map(|rec| {
-            StringRecord::from_byte_record(rec).unwrap().iter().map(|b| {
+            rec.iter().map(|b| {
                 f32::from_str(b).unwrap()
             }).collect::<Vec<f32>>()
         }).collect();
@@ -42,5 +48,7 @@ impl Handler<DataPartitionMessage> for DataReceiver {
             Some(recipient) => { recipient.do_send(DataReceivedMessage { data }); },
             None => ()
         }
+
+        ctx.stop();
     }
 }

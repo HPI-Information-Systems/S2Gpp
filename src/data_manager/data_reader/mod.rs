@@ -1,9 +1,10 @@
-mod messages;
+pub(crate) mod messages;
 mod receiver;
 #[cfg(test)]
 mod tests;
 
 pub use receiver::DataReceiver;
+pub use messages::DataReceivedMessage;
 use log::*;
 use ndarray::prelude::*;
 use csv::{ReaderBuilder, Trim, StringRecord};
@@ -11,20 +12,23 @@ use std::path::Path;
 use std::fs::{File};
 use std::str::FromStr;
 use actix::{Addr, Recipient, Actor, ActorContext, Context};
-use crate::data_reader::messages::DataPartitionMessage;
+pub use crate::data_manager::data_reader::messages::DataPartitionMessage;
 use std::io::{BufReader, BufRead};
 use num_integer::Integer;
+use actix_telepathy::RemoteAddr;
+use crate::utils::{ClusterNodes, AnyClusterNodes, AnyClusterNodesIterator};
+use std::ops::Not;
 
 
 pub struct DataReader {
     file_path: String,
-    receivers: Vec<Recipient<DataPartitionMessage>>,
+    receivers: AnyClusterNodes<DataReceiver>,
     overlap: usize,
     with_header: bool
 }
 
 impl DataReader {
-    pub fn new(file_path: &str, receivers: Vec<Recipient<DataPartitionMessage>>, overlap: usize) -> Self {
+    pub fn new(file_path: &str, receivers: AnyClusterNodes<DataReceiver>, overlap: usize) -> Self {
         Self {
             file_path: file_path.to_string(),
             receivers,
@@ -47,28 +51,28 @@ impl DataReader {
 
         let partition_len = n_lines.div_floor(&self.receivers.len());
         let last_overlap = n_lines - (partition_len * self.receivers.len());
-        let mut receiver_id = 0;
+        let mut receiver_iterator: AnyClusterNodesIterator<DataReceiver> = self.receivers.clone().into_iter();
         let mut buffer = vec![];
         let mut overlap_buffer = vec![];
-        for record in reader.byte_records() {
+        for record in reader.records() {
             match record {
                 Ok(r) => {
+                    let strings = r.iter().map(|x| x.to_string()).collect();
                     if buffer.len() < partition_len {
-                        buffer.push(r);
+                        buffer.push(strings);
                     } else if self.receivers.len() > 1 &&
-                        ((overlap_buffer.len() < self.overlap && receiver_id < (self.receivers.len() - 1))
-                        || (overlap_buffer.len() < last_overlap && receiver_id == (self.receivers.len() - 1)))  {
-                        overlap_buffer.push(r);
+                        ((overlap_buffer.len() < self.overlap && receiver_iterator.last_position().not())
+                        || (overlap_buffer.len() < last_overlap && receiver_iterator.last_position()))  {
+                        overlap_buffer.push(strings);
                     } else {
                         let mut data = buffer.clone();
                         data.extend(overlap_buffer.clone());
-                        self.receivers[receiver_id].do_send(DataPartitionMessage { data });
-                        debug!("Sent data to receiver {}", receiver_id);
+                        receiver_iterator.next().unwrap().do_send(DataPartitionMessage { data });
+                        debug!("Sent data to receiver {}", receiver_iterator.get_position() - 1);
 
-                        receiver_id += 1;
                         buffer.clear();
                         buffer.extend(overlap_buffer.clone());
-                        buffer.push(r);
+                        buffer.push(strings);
                         overlap_buffer.clear();
                     }
                 },
@@ -78,8 +82,8 @@ impl DataReader {
 
         let mut data = buffer.clone();
         data.extend(overlap_buffer.clone());
-        self.receivers[receiver_id].do_send(DataPartitionMessage { data });
-        debug!("Sent data to receiver {}", receiver_id);
+        receiver_iterator.next().unwrap().do_send(DataPartitionMessage { data });
+        debug!("Sent data to receiver {}", receiver_iterator.get_position() - 1);
     }
 }
 
@@ -88,6 +92,7 @@ impl Actor for DataReader {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         self.read_data();
+        ctx.stop();
     }
 }
 
