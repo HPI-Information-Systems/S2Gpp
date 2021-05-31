@@ -43,5 +43,5 @@ fn main() {
     let _cluster = Cluster::new(host, seed_nodes);
     let _cluster_listener = ClusterMemberListener::new(params, training).start();
 
-    system.run();
+    system.run().unwrap();
 }

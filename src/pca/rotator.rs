@@ -1,4 +1,4 @@
-use ndarray::{ArrayBase, ArcArray, Array3, Ix3, Array1, Array2, Axis, arr1, s, ArrayView2, Dimension, Array, arr3, arr2, concatenate, Data, stack, Dim};
+use ndarray::{ArrayBase, ArcArray, Array3, Ix3, Array1, Array2, Axis, arr1, s, ArrayView2, concatenate, stack, Dim};
 use actix::{Actor, Recipient, ActorContext, Context, Handler, AsyncContext, Addr};
 use crate::pca::messages::{RotatedMessage, RotationMatrixMessage};
 use crate::pca::{PCAResponse, PCA, PCAMessage};
@@ -117,7 +117,7 @@ impl Rotator {
         let rotated = rotated_3.slice(s![.., 0..2, ..])
             .into_shape(Dim([rotated_3.shape()[0], rotated_3.shape()[2] * 2])).unwrap().to_owned();
 
-        self.source.do_send(RotatedMessage { rotated });
+        self.source.do_send(RotatedMessage { rotated }).unwrap();
     }
 }
 

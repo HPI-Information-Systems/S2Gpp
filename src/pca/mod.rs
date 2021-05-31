@@ -199,7 +199,7 @@ impl Handler<PCAComponents> for PCA {
     fn handle(&mut self, msg: PCAComponents, ctx: &mut Self::Context) -> Self::Result {
         self.components = Some(msg.components);
         match &self.source {
-            Some(source) => { source.do_send(PCAResponse { components: self.components.as_ref().unwrap().clone() }); },
+            Some(source) => { source.do_send(PCAResponse { components: self.components.as_ref().unwrap().clone() }).unwrap(); },
             None => ()
         }
         ctx.stop();

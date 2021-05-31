@@ -1,7 +1,7 @@
 mod messages;
 mod helper;
 
-use actix::{Actor, ActorContext, SyncContext, Context, Handler, Addr, SyncArbiter, Recipient, AsyncContext};
+use actix::{Handler, Addr, SyncArbiter, AsyncContext};
 use ndarray::{ArcArray2};
 pub use crate::data_manager::preprocessor::messages::{ProcessedColumnMessage, PreprocessColumnMessage, PreprocessingDoneMessage};
 

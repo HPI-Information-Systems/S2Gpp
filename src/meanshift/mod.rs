@@ -4,7 +4,6 @@ mod messages;
 mod tests;
 
 use actix::{Actor, ActorContext, Context, Addr, SyncArbiter, Handler, Recipient, AsyncContext};
-use ndarray::prelude::*;
 use ndarray::{Array2, Axis, ArcArray1, Array1, ArrayView2, concatenate};
 use crate::meanshift::helper::MeanShiftHelper;
 pub use crate::meanshift::messages::{MeanShiftMessage, MeanShiftResponse, MeanShiftHelperResponse, MeanShiftHelperWorkMessage};
@@ -99,7 +98,7 @@ impl MeanShift {
 
                 let mut tree = KdTree::new(data.shape()[1]);
                 for (i, point) in data.axis_iter(Axis(0)).enumerate() {
-                    tree.add(RefArray(point.to_shared()), i);
+                    tree.add(RefArray(point.to_shared()), i).unwrap();
                 }
 
                 let bandwidth: f32 = data.axis_iter(Axis(0)).map(|x| {
@@ -137,7 +136,7 @@ impl MeanShift {
     fn add_means(&mut self, mean: Array1<f32>, points_within_len: usize, iterations: usize) {
         if points_within_len > 0 {
             let identifier = self.means.len();
-            self.center_tree.as_mut().unwrap().add(RefArray(mean.to_shared()), identifier);
+            self.center_tree.as_mut().unwrap().add(RefArray(mean.to_shared()), identifier).unwrap();
             self.means.push((mean, points_within_len, iterations, identifier));
         }
     }
@@ -217,14 +216,14 @@ impl Handler<MeanShiftHelperResponse> for MeanShift {
             let cluster_centers = self.collect_means();
             debug!("cluster_centers {:?}", cluster_centers);
             match &self.receiver {
-                Some(recipient) => { recipient.do_send(MeanShiftResponse { cluster_centers } ); },
+                Some(recipient) => { recipient.do_send(MeanShiftResponse { cluster_centers } ).unwrap(); },
                 None => ()
             }
             ctx.stop();
         } else if self.centers_sent < self.dataset.as_ref().unwrap().shape()[0] {
             let start_center = self.centers_sent;
             self.centers_sent += 1;
-            msg.source.do_send(MeanShiftHelperWorkMessage { source: ctx.address().recipient(), start_center });
+            msg.source.do_send(MeanShiftHelperWorkMessage { source: ctx.address().recipient(), start_center }).unwrap();
         }
     }
 }

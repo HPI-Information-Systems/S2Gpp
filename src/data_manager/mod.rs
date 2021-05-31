@@ -110,7 +110,7 @@ impl DataManager {
     fn finalize(&mut self) {
         self.receiver.do_send(DataLoadedAndProcessed {
             data_ref: self.reference_dataset.as_ref().unwrap().to_shared(),
-            phase_space: self.phase_space.as_ref().unwrap().to_shared() });
+            phase_space: self.phase_space.as_ref().unwrap().to_shared() }).unwrap();
     }
 }
 

@@ -8,7 +8,7 @@ pub use crate::training::messages::StartTrainingMessage;
 
 use crate::data_manager::{DataManager, LoadDataMessage, DataLoadedAndProcessed};
 use crate::utils::ClusterNodes;
-use ndarray::{ArcArray, Dimension, Array, Array2, Ix3};
+use ndarray::Array2;
 use crate::messages::PoisonPill;
 use crate::pca::{RotatedMessage};
 

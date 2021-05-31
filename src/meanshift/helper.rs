@@ -70,6 +70,6 @@ impl Handler<MeanShiftHelperWorkMessage> for MeanShiftHelper {
 
     fn handle(&mut self, msg: MeanShiftHelperWorkMessage, ctx: &mut Self::Context) -> Self::Result {
         let (mean, points_within_len, iterations) = self.mean_shift_single(msg.start_center, self.bandwidth);
-        msg.source.do_send(MeanShiftHelperResponse { source: ctx.address().recipient(), mean, points_within_len, iterations });
+        msg.source.do_send(MeanShiftHelperResponse { source: ctx.address().recipient(), mean, points_within_len, iterations }).unwrap();
     }
 }
