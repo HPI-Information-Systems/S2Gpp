@@ -41,7 +41,7 @@ impl Training {
         data_manager.do_send(LoadDataMessage);
         self.data_manager = Some(data_manager);
     }
-
+    /*
     fn rotate(&mut self, phase_space: ArcArray<f32, Ix3>, data_ref: ArcArray<f32, Ix3>, rec: Recipient<RotatedMessage>) {
         let rotator = Rotator::new(
             self.parameters.clone(),
@@ -50,6 +50,10 @@ impl Training {
             phase_space,
             data_ref).start();
     }
+
+    fn segment(&mut self, rec: Recipient<SegmentMessage>) {
+
+    }*/
 }
 
 impl Actor for Training {
@@ -69,7 +73,7 @@ impl Handler<DataLoadedAndProcessed> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: DataLoadedAndProcessed, ctx: &mut Self::Context) -> Self::Result {
-        self.rotate(msg.phase_space, msg.data_ref, ctx.address().recipient());
+        /*self.rotate(msg.phase_space, msg.data_ref, ctx.address().recipient());*/
     }
 }
 

@@ -242,7 +242,6 @@ fn test_data_management() {
 
 #[actix_rt::main]
 async fn start_reading(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>, main: bool, expected_phase_space: ArcArray<f32, Ix3>, expected_data_ref: ArcArray<f32, Ix3>) {
-    let _cluster = Cluster::new(ip_address, seed_nodes.clone());
     let result: Arc<Mutex<DataResult>> = Arc::new(Mutex::new(DataResult::default()));
     
     let parameters = Parameters {
@@ -263,7 +262,12 @@ async fn start_reading(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>, main
         parameters,
         result: result.clone()
     }.start();
-    delay_for(Duration::from_millis(1000)).await;
+
+    delay_for(Duration::from_millis(200)).await;
+
+    let _cluster = Cluster::new(ip_address, seed_nodes.clone());
+
+    delay_for(Duration::from_millis(200)).await;
 
     let data_result = result.lock().unwrap();
 

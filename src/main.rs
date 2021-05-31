@@ -8,7 +8,7 @@ use num_traits::Float;
 use log::*;
 use structopt::StructOpt;
 
-use data_manager::data_reader::{DataReader, DataReceiver};
+use data_manager::data_reader::{DataReader};
 use crate::meanshift::{MeanShift, MeanShiftMessage};
 use crate::pca::{PCA, PCAMessage};
 use crate::parameters::{Parameters, Role};

@@ -15,7 +15,7 @@ use std::cmp::Ordering;
 use num_traits::float::Float;
 use std::sync::Arc;
 use std::collections::HashMap;
-use std::ops::Div;
+use std::ops::{Div, Sub};
 use sortedvec::sortedvec;
 use std::iter::FromIterator;
 use std::time::{SystemTime, Duration};
@@ -25,6 +25,24 @@ sortedvec! {
     struct SortedVec {
         fn derive_key(x: &(Array1<f32>, usize, usize, usize)) -> usize {
             (*x).1
+        }
+    }
+}
+
+pub enum DistanceMeasure {
+    SquaredEuclidean,
+    Manhattan
+}
+
+impl DistanceMeasure {
+    pub fn call(&self, a: &[f32], b: &[f32]) -> f32 {
+        match self {
+            Self::SquaredEuclidean => squared_euclidean(a, b),
+            Self::Manhattan => {
+                a.iter().zip(b.iter()).map(|(a_, b_)| {
+                    a_.sub(b_).abs()
+                }).sum()
+            }
         }
     }
 }
