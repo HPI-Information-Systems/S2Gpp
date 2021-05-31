@@ -9,9 +9,9 @@ use ndarray_linalg::qr::*;
 use actix::prelude::*;
 pub use crate::pca::messages::{PCAMessage, PCAMeansMessage, PCADecompositionMessage, PCAResponse, RotatedMessage};
 pub use crate::pca::rotator::{Rotator};
-use actix::dev::MessageResponse;
+
 use ndarray::{ArcArray2, concatenate};
-use std::ops::{Mul, Div};
+use std::ops::{Div};
 use ndarray_linalg::SVD;
 use crate::pca::messages::PCAComponents;
 use crate::utils::ClusterNodes;
@@ -116,7 +116,7 @@ impl PCA {
 
         let (_u, _s, v) = r.svd(false, true).unwrap();
         let v = v.expect("Could not calculate SVD.");
-        let mut v_sliced = v.slice(s![0..self.n_components, ..]).to_owned();
+        let v_sliced = v.slice(s![0..self.n_components, ..]).to_owned();
         self.components = Some(self.normalize(&v_sliced));
         debug!("Principal components: {:?}", self.components.as_ref().unwrap());
 
@@ -163,7 +163,7 @@ impl Actor for PCA {
 impl Handler<PCAMessage> for PCA {
     type Result = ();
 
-    fn handle(&mut self, msg: PCAMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: PCAMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.data = Some(msg.data);
         self.center_columns_decomposition();
     }
@@ -172,7 +172,7 @@ impl Handler<PCAMessage> for PCA {
 impl Handler<PCAMeansMessage> for PCA {
     type Result = ();
 
-    fn handle(&mut self, msg: PCAMeansMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: PCAMeansMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.column_means = Some(concatenate![Axis(0),
             self.column_means.as_ref().unwrap().clone(),
             msg.columns_means.view().into_dimensionality().unwrap()
@@ -187,7 +187,7 @@ impl Handler<PCAMeansMessage> for PCA {
 impl Handler<PCADecompositionMessage> for PCA {
     type Result = ();
 
-    fn handle(&mut self, msg: PCADecompositionMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: PCADecompositionMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.r_count += msg.count;
         self.combine_remote_r(msg.r);
     }
@@ -199,7 +199,7 @@ impl Handler<PCAComponents> for PCA {
     fn handle(&mut self, msg: PCAComponents, ctx: &mut Self::Context) -> Self::Result {
         self.components = Some(msg.components);
         match &self.source {
-            Some(source) => { source.do_send(PCAResponse { components: self.components.as_ref().unwrap().clone() }); },
+            Some(source) => { source.do_send(PCAResponse { components: self.components.as_ref().unwrap().clone() }).unwrap(); },
             None => ()
         }
         ctx.stop();

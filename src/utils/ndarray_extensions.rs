@@ -30,8 +30,8 @@ fn cross1d<A: Float>(a: ArrayView1<A>, b: ArrayView1<A>) -> Array1<A> {
 }
 
 pub fn repeat<A: Copy + Debug>(a: ArrayView2<A>, n: usize) -> Array1<A> {
-    let flat = a.into_shape((a.len())).unwrap();
-    let mut c = concatenate(Axis(0), vec![flat.view(); n].as_slice()).unwrap()
+    let flat = a.into_shape(a.len()).unwrap();
+    let c = concatenate(Axis(0), vec![flat.view(); n].as_slice()).unwrap()
         .into_shape((n, a.len())).unwrap();
     Array::from_iter(c.t().iter().cloned())
 }
@@ -61,7 +61,7 @@ where
     A: Float
 {
     fn min_axis(&self, axis: Axis) -> Array1<A> {
-        let n = self.len_of(axis);
+        let _n = self.len_of(axis);
         let mut res = Array::zeros(self.raw_dim().remove_axis(axis));
         let stride = self.strides()[1 - axis.index()];
         if self.ndim() == 2 && stride == 1 {

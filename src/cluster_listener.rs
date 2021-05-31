@@ -2,12 +2,12 @@ use std::net::SocketAddr;
 use crate::parameters::{Parameters, Role};
 use actix::{Actor, Context, System, Handler, ActorContext, AsyncContext, Addr, Message};
 use actix_telepathy::prelude::*;
-use actix_broker::{BrokerSubscribe, BrokerIssue, SystemBroker, ArbiterBroker, Broker};
+use actix_broker::{BrokerSubscribe};
 use log::*;
 use std::collections::{HashSet, HashMap};
 use serde::{Serialize, Deserialize};
-use crate::data_manager::{DataManager, LoadDataMessage};
-use actix_telepathy::AddrResolver;
+
+
 use crate::training::{Training, StartTrainingMessage};
 use crate::utils::ClusterNodes;
 
@@ -130,7 +130,7 @@ impl Handler<ClusterLog> for ClusterMemberListener {
 impl Handler<SortedMembersMessage> for ClusterMemberListener {
     type Result = ();
 
-    fn handle(&mut self, msg: SortedMembersMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: SortedMembersMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.sort_members(msg.0);
         self.start_training();
     }

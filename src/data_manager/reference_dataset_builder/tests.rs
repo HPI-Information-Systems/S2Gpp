@@ -4,7 +4,7 @@ use ndarray::{arr2, s, Axis};
 use ndarray_linalg::close_l1;
 use crate::data_manager::reference_dataset_builder::ReferenceDatasetBuilder;
 use crate::data_manager::stats_collector::DatasetStats;
-use std::convert::TryFrom;
+
 use crate::utils::Stats;
 
 #[test]

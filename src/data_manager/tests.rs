@@ -1,14 +1,14 @@
 use ndarray::prelude::*;
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
-use crate::data_manager::data_reader::*;
+
 use std::sync::{Arc, Mutex};
-use crate::data_manager::data_reader::messages::DataReceivedMessage;
+
 use ndarray_linalg::assert::close_l1;
 use std::net::SocketAddr;
 use actix_broker::BrokerSubscribe;
 use std::collections::HashMap;
-use actix::dev::MessageResponse;
+
 use actix::clock::delay_for;
 use std::time::Duration;
 use port_scanner::request_open_port;
@@ -16,10 +16,10 @@ use rayon::prelude::*;
 use log::*;
 use crate::utils::ClusterNodes;
 use crate::data_manager::messages::DataLoadedAndProcessed;
-use ndarray::{ArcArray2, arr3};
+use ndarray::{arr3};
 use crate::data_manager::{DataManager, LoadDataMessage};
 use crate::parameters::{Parameters, Role};
-use std::borrow::Borrow;
+
 
 
 #[derive(Default)]
@@ -79,7 +79,7 @@ impl Handler<ClusterLog> for OwnListener {
 impl Handler<DataLoadedAndProcessed> for OwnListener {
     type Result = ();
 
-    fn handle(&mut self, msg: DataLoadedAndProcessed, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: DataLoadedAndProcessed, _ctx: &mut Self::Context) -> Self::Result {
         let mut dataresult = self.result.lock().unwrap();
         (*dataresult).data_ref = Some(msg.data_ref);
         (*dataresult).phase_space = Some(msg.phase_space);

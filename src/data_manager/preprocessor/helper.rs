@@ -1,9 +1,9 @@
-use ndarray::{ArcArray2, Array1, ArrayView1, Axis, s};
+use ndarray::{ArcArray2, Array1, ArrayView1, Axis};
 use actix::{Actor, ActorContext, SyncContext, Handler};
 use crate::data_manager::preprocessor::messages::{PreprocessColumnMessage, ProcessedColumnMessage};
-use actix::dev::MessageResponse;
-use num_traits::real::Real;
-use num_traits::float::Float;
+
+
+
 use num_integer::Integer;
 use crate::messages::PoisonPill;
 
@@ -65,7 +65,7 @@ impl Actor for PreprocessorHelper {
 impl Handler<PreprocessColumnMessage> for PreprocessorHelper {
     type Result = ();
 
-    fn handle(&mut self, msg: PreprocessColumnMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: PreprocessColumnMessage, _ctx: &mut Self::Context) -> Self::Result {
         let processed_column = self.preprocess(msg.column, msg.std);
         msg.source.do_send(ProcessedColumnMessage { column: msg.column, processed_column });
     }

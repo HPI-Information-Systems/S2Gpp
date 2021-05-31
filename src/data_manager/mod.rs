@@ -1,19 +1,19 @@
 use actix::{Actor, ActorContext, Context, Handler, Recipient, Addr, AsyncContext};
-use actix::dev::MessageResponse;
-use ndarray::{ArcArray2, Array2, Array3, Array1, Dim};
+
+use ndarray::{Array2, Array3, Array1, Dim};
 
 pub use crate::data_manager::messages::{LoadDataMessage, DataLoadedAndProcessed};
 use crate::data_manager::data_reader::{DataReader, DataPartitionMessage, DataReading};
 use crate::data_manager::preprocessor::{Preprocessor, PreprocessingDoneMessage, Preprocessing};
 use crate::parameters::{Parameters, Role};
 use actix_telepathy::prelude::*;
-use std::borrow::Borrow;
-use std::collections::HashMap;
+
+
 use crate::utils::ClusterNodes;
 use crate::data_manager::reference_dataset_builder::ReferenceDatasetBuilder;
 use crate::data_manager::phase_spacer::PhaseSpacer;
 use crate::messages::PoisonPill;
-use crate::data_manager::stats_collector::{DatasetStatsMessage, DatasetStats, MinMaxNodeMessage, MinMaxDoneMessage, StdNodeMessage, StdDoneMessage, MinMaxCalculation, MinMaxCalculator, StdCalculator, StdCalculation};
+use crate::data_manager::stats_collector::{DatasetStats, MinMaxNodeMessage, MinMaxDoneMessage, StdNodeMessage, StdDoneMessage, MinMaxCalculation, MinMaxCalculator, StdCalculator, StdCalculation};
 use std::str::FromStr;
 
 #[cfg(test)]
@@ -110,7 +110,7 @@ impl DataManager {
     fn finalize(&mut self) {
         self.receiver.do_send(DataLoadedAndProcessed {
             data_ref: self.reference_dataset.as_ref().unwrap().to_shared(),
-            phase_space: self.phase_space.as_ref().unwrap().to_shared() });
+            phase_space: self.phase_space.as_ref().unwrap().to_shared() }).unwrap();
     }
 }
 
@@ -177,7 +177,7 @@ impl Handler<StdDoneMessage> for DataManager {
 impl Handler<PreprocessingDoneMessage> for DataManager {
     type Result = ();
 
-    fn handle(&mut self, msg: PreprocessingDoneMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: PreprocessingDoneMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.build_reference_dataset();
         self.build_phase_space();
         self.finalize();
@@ -187,7 +187,7 @@ impl Handler<PreprocessingDoneMessage> for DataManager {
 impl Handler<PoisonPill> for DataManager {
     type Result = ();
 
-    fn handle(&mut self, msg: PoisonPill, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: PoisonPill, ctx: &mut Self::Context) -> Self::Result {
         ctx.stop();
     }
 }

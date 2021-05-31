@@ -1,18 +1,16 @@
-use std::time::SystemTime;
-
 use actix::prelude::*;
-use kdtree::distance::squared_euclidean;
-use kdtree::KdTree;
-use ndarray::{Axis, s};
-use num_traits::Float;
+
+
+
+
 use log::*;
 use structopt::StructOpt;
 
-use data_manager::data_reader::{DataReader};
-use crate::meanshift::{MeanShift, MeanShiftMessage};
-use crate::pca::{PCA, PCAMessage};
+
+
+
 use crate::parameters::{Parameters, Role};
-use crate::data_manager::DataManager;
+
 use crate::cluster_listener::ClusterMemberListener;
 use actix_telepathy::Cluster;
 use crate::training::Training;
@@ -42,8 +40,8 @@ fn main() {
 
 
     let training = Training::new(params.clone()).start();
-    let cluster = Cluster::new(host, seed_nodes);
-    let cluster_listener = ClusterMemberListener::new(params, training).start();
+    let _cluster = Cluster::new(host, seed_nodes);
+    let _cluster_listener = ClusterMemberListener::new(params, training).start();
 
-    system.run();
+    system.run().unwrap();
 }
