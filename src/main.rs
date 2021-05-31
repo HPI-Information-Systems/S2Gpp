@@ -1,5 +1,3 @@
-use std::time::SystemTime;
-
 use actix::prelude::*;
 use kdtree::distance::squared_euclidean;
 use kdtree::KdTree;

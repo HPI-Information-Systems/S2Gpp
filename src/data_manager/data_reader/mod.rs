@@ -1,6 +1,4 @@
 pub(crate) mod messages;
-#[cfg(test)]
-mod tests;
 
 pub use messages::DataReceivedMessage;
 use log::*;

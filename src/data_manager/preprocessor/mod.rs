@@ -1,7 +1,5 @@
 mod messages;
 mod helper;
-#[cfg(test)]
-mod tests;
 
 use actix::{Actor, ActorContext, SyncContext, Context, Handler, Addr, SyncArbiter, Recipient, AsyncContext};
 use ndarray::{ArcArray2, Axis, Array1, Array2};

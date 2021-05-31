@@ -1,8 +1,6 @@
 mod std;
 mod messages;
 mod minmax;
-#[cfg(test)]
-mod tests;
 
 use ndarray::{Array1, ArcArray2, Array2, s};
 use crate::utils::ClusterNodes;
