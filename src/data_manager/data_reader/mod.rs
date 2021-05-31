@@ -1,18 +1,18 @@
 pub(crate) mod messages;
 
 pub use messages::DataReceivedMessage;
-use log::*;
+
 use ndarray::prelude::*;
-use csv::{ReaderBuilder, Trim, StringRecord};
-use std::path::Path;
+use csv::{ReaderBuilder, Trim};
+
 use std::fs::{File};
 use std::str::FromStr;
 use actix::{Addr, Recipient, Actor, ActorContext, Context};
 pub use crate::data_manager::data_reader::messages::DataPartitionMessage;
 use std::io::{BufReader, BufRead};
 use num_integer::Integer;
-use actix_telepathy::RemoteAddr;
-use crate::utils::{ClusterNodes, AnyClusterNodes, AnyClusterNodesIterator};
+
+use crate::utils::{AnyClusterNodesIterator};
 use std::ops::Not;
 use crate::data_manager::DataManager;
 
@@ -31,7 +31,7 @@ pub trait DataReader {
 impl DataReader for DataManager {
     fn read_csv(&mut self, file_path: &str, addr: Addr<Self>) {
         let file = File::open(file_path).unwrap();
-        let mut count_reader = BufReader::new(file);
+        let count_reader = BufReader::new(file);
         let n_lines = if self.data_reading.as_ref().unwrap().with_header {
             count_reader.lines().count() - 1
         } else {
@@ -84,7 +84,7 @@ impl DataReader for DataManager {
 
 pub fn read_data_(file_path: &str) -> Array2<f32> {
     let file = File::open(file_path).unwrap();
-    let mut count_reader = BufReader::new(file);
+    let count_reader = BufReader::new(file);
     let n_lines = count_reader.lines().count() - 1;
 
     let file = File::open(file_path).unwrap();

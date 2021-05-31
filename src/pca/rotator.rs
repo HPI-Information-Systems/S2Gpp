@@ -2,12 +2,12 @@ use ndarray::{ArrayBase, ArcArray, Array3, Ix3, Array1, Array2, Axis, arr1, s, A
 use actix::{Actor, Recipient, ActorContext, Context, Handler, AsyncContext, Addr};
 use crate::pca::messages::{RotatedMessage, RotationMatrixMessage};
 use crate::pca::{PCAResponse, PCA, PCAMessage};
-use actix::dev::MessageResponse;
+
 use crate::utils::{ClusterNodes, norm, cross2d, repeat};
 use std::ops::Mul;
-use ndarray_linalg::Norm;
-use num_traits::Float;
-use ndarray_einsum_beta::*;
+
+
+
 use crate::parameters::{Parameters, Role};
 
 pub struct Rotator {
@@ -64,7 +64,7 @@ impl Rotator {
         let curve_vec1 = self.reduced_ref.slice(s![0, .., ..]).to_owned();
         let curve_vec2 = arr1(&[0., 0., 1.]);
 
-        let a = (curve_vec1.clone() / norm(curve_vec1.view(), Axis(0)).into_shape((1, curve_vec1.shape()[1])).unwrap());
+        let a = curve_vec1.clone() / norm(curve_vec1.view(), Axis(0)).into_shape((1, curve_vec1.shape()[1])).unwrap();
         let b = curve_vec2.into_shape((3, 1)).unwrap();
 
         let v = cross2d(a.view(), b.view(), Axis(0), Axis(0));
@@ -155,9 +155,9 @@ impl Handler<RotationMatrixMessage> for Rotator {
 
 #[cfg(test)]
 mod tests {
-    use crate::pca::{Rotator, RotatedMessage};
+    use crate::pca::{Rotator};
     use crate::utils::ClusterNodes;
-    use actix::{Recipient, Actor, System};
+    use actix::{Actor, System};
     use crate::training::Training;
     use crate::parameters::Parameters;
     use ndarray::{arr3, Array3};
@@ -180,7 +180,7 @@ mod tests {
               [ 9.45265121e-04,  8.29841247e-03],
               [ 1.39796979e-03,  3.42653727e-03]]]);
 
-        let system = System::run(move || {
+        let _system = System::run(move || {
             let recipient = Training::new(Parameters::default()).start().recipient();
             let dummy_data = arr3(&[[[0.]]]);
 

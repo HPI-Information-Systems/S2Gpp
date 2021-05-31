@@ -5,20 +5,20 @@ mod tests;
 
 use actix::{Actor, ActorContext, Context, Addr, SyncArbiter, Handler, Recipient, AsyncContext};
 use ndarray::prelude::*;
-use ndarray::{Array2, Axis, ArcArray2, ArcArray1, Array1, ArrayView2, concatenate};
+use ndarray::{Array2, Axis, ArcArray1, Array1, ArrayView2, concatenate};
 use crate::meanshift::helper::MeanShiftHelper;
 pub use crate::meanshift::messages::{MeanShiftMessage, MeanShiftResponse, MeanShiftHelperResponse, MeanShiftHelperWorkMessage};
-use actix::dev::MessageResponse;
+
 use kdtree::KdTree;
 use kdtree::distance::squared_euclidean;
 use std::cmp::Ordering;
 use num_traits::float::Float;
 use std::sync::Arc;
 use std::collections::HashMap;
-use std::ops::{Div, Sub};
+use std::ops::{Sub};
 use sortedvec::sortedvec;
 use std::iter::FromIterator;
-use std::time::{SystemTime, Duration};
+use std::time::{SystemTime};
 use log::*;
 
 sortedvec! {

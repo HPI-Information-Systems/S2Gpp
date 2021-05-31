@@ -2,16 +2,16 @@ mod messages;
 mod helper;
 
 use actix::{Actor, ActorContext, SyncContext, Context, Handler, Addr, SyncArbiter, Recipient, AsyncContext};
-use ndarray::{ArcArray2, Axis, Array1, Array2};
+use ndarray::{ArcArray2};
 pub use crate::data_manager::preprocessor::messages::{ProcessedColumnMessage, PreprocessColumnMessage, PreprocessingDoneMessage};
-use actix::dev::MessageResponse;
+
 use crate::data_manager::preprocessor::helper::{PreprocessorHelper};
-use crate::parameters::Parameters;
-use actix_telepathy::prelude::*;
-use crate::main;
-use std::net::SocketAddr;
+
+
+
+
 use crate::messages::PoisonPill;
-use crate::data_manager::stats_collector::DatasetStats;
+
 use crate::data_manager::DataManager;
 
 
@@ -65,7 +65,7 @@ impl Preprocessor for DataManager {
 impl Handler<ProcessedColumnMessage> for DataManager {
     type Result = ();
 
-    fn handle(&mut self, msg: ProcessedColumnMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: ProcessedColumnMessage, ctx: &mut Self::Context) -> Self::Result {
         let preprocessing = self.preprocessing.as_mut().unwrap();
         preprocessing.n_cols_processed += 1;
         if preprocessing.n_cols_processed == preprocessing.n_cols_total {

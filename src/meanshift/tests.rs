@@ -30,7 +30,7 @@ fn test_runs_meanshift() {
     let result = Arc::new(Mutex::new(None));
     let cloned = Arc::clone(&result);
 
-    let system = System::run(move || {
+    let _system = System::run(move || {
         let dataset = read_data_("data/test.csv");
         let receiver = MeanShiftReceiver {result: cloned}.start();
         let meanshift = MeanShift::new(20).start();

@@ -3,15 +3,15 @@ mod messages;
 use actix::prelude::*;
 use crate::parameters::Parameters;
 pub use crate::training::messages::StartTrainingMessage;
-use actix::dev::MessageResponse;
-use std::collections::HashMap;
-use actix_telepathy::RemoteAddr;
+
+
+
 use crate::data_manager::{DataManager, LoadDataMessage, DataLoadedAndProcessed};
 use crate::utils::ClusterNodes;
 use ndarray::{ArcArray, Dimension, Array, Array2, Ix3};
 use crate::messages::PoisonPill;
-use crate::pca::{PCAResponse, PCA, PCAMessage, Rotator, RotatedMessage};
-use log::*;
+use crate::pca::{RotatedMessage};
+
 
 
 pub struct Training {
@@ -72,7 +72,7 @@ impl Handler<StartTrainingMessage> for Training {
 impl Handler<DataLoadedAndProcessed> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: DataLoadedAndProcessed, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: DataLoadedAndProcessed, _ctx: &mut Self::Context) -> Self::Result {
         /*self.rotate(msg.phase_space, msg.data_ref, ctx.address().recipient());*/
     }
 }
@@ -80,7 +80,7 @@ impl Handler<DataLoadedAndProcessed> for Training {
 impl Handler<RotatedMessage> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: RotatedMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: RotatedMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.rotated = Some(msg.rotated);
         self.data_manager.as_ref().unwrap().do_send(PoisonPill);
     }

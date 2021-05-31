@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests;
 
-use actix::prelude::*;
+
 use ndarray::{ArcArray2, Array2, Axis, ArrayBase, Array, Array3, s, Array1, Dimension, RemoveAxis, concatenate, stack, ArrayView1};
 use crate::parameters::Parameters;
-use num_traits::Float;
-use crate::utils::{linspace, Stats};
+
+use crate::utils::{linspace};
 use crate::data_manager::stats_collector::DatasetStats;
 
 pub struct ReferenceDatasetBuilder {

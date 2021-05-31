@@ -1,15 +1,15 @@
-use actix::{Actor, ActorContext, SyncContext, Handler};
+use actix::{Actor, SyncContext, Handler};
 use crate::meanshift::messages::{MeanShiftHelperWorkMessage};
-use actix::dev::MessageResponse;
+
 use ndarray::prelude::*;
-use kdtree::{KdTree, ErrorKind};
+use kdtree::{KdTree};
 use kdtree::distance::squared_euclidean;
-use std::collections::HashMap;
-use ndarray::{ArcArray2, ArcArray1};
-use num_traits::Float;
+
+use ndarray::{ArcArray2};
+
 use crate::meanshift::{RefArray, MeanShiftHelperResponse};
 use std::sync::Arc;
-use std::time::SystemTime;
+
 
 
 pub struct MeanShiftHelper {

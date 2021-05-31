@@ -2,8 +2,8 @@ mod ndarray_extensions;
 
 use std::collections::HashMap;
 use actix_telepathy::{RemoteAddr, AnyAddr};
-use actix::{Recipient, Addr, Actor};
-use std::any::Any;
+use actix::{Addr, Actor};
+
 use std::collections::hash_map::Iter;
 pub use ndarray_extensions::*;
 

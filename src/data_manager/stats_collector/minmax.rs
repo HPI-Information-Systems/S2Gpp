@@ -1,9 +1,9 @@
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
-use ndarray::{Array1, Axis, ArcArray2};
-use crate::data_manager::stats_collector::messages::{StdNodeMessage, StdDoneMessage, MinMaxDoneMessage, MinMaxNodeMessage};
+use ndarray::{Array1, Axis};
+use crate::data_manager::stats_collector::messages::{MinMaxDoneMessage, MinMaxNodeMessage};
 use crate::utils::Stats;
-use crate::parameters::Parameters;
+
 use crate::data_manager::DataManager;
 
 
