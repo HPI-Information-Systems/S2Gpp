@@ -1,19 +1,20 @@
 use actix::{Actor, ActorContext, Context, Handler, Recipient, Addr, AsyncContext};
 use actix::dev::MessageResponse;
-use ndarray::{ArcArray2, Array2, Array3};
+use ndarray::{ArcArray2, Array2, Array3, Array1, Dim};
 
 pub use crate::data_manager::messages::{LoadDataMessage, DataLoadedAndProcessed};
-use crate::data_manager::data_reader::{DataReceivedMessage, DataReader, DataPartitionMessage, DataReceiver};
-use crate::data_manager::preprocessor::{Preprocessor, PreprocessingDoneMessage};
+use crate::data_manager::data_reader::{DataReader, DataPartitionMessage, DataReading};
+use crate::data_manager::preprocessor::{Preprocessor, PreprocessingDoneMessage, Preprocessing};
 use crate::parameters::{Parameters, Role};
-use actix_telepathy::{RemoteAddr, AnyAddr};
+use actix_telepathy::prelude::*;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use crate::utils::ClusterNodes;
 use crate::data_manager::reference_dataset_builder::ReferenceDatasetBuilder;
 use crate::data_manager::phase_spacer::PhaseSpacer;
 use crate::messages::PoisonPill;
-use crate::data_manager::stats_collector::{DatasetStatsMessage, DatasetStats, StatsCollector};
+use crate::data_manager::stats_collector::{DatasetStatsMessage, DatasetStats, MinMaxNodeMessage, MinMaxDoneMessage, StdNodeMessage, StdDoneMessage, MinMaxCalculation, MinMaxCalculator, StdCalculator, StdCalculation};
+use std::str::FromStr;
 
 #[cfg(test)]
 mod tests;
@@ -24,57 +25,67 @@ mod reference_dataset_builder;
 mod phase_spacer;
 mod stats_collector;
 
+
+#[derive(RemoteActor)]
+#[remote_messages(DataPartitionMessage, StdNodeMessage, StdDoneMessage, MinMaxNodeMessage, MinMaxDoneMessage)]
 pub struct DataManager {
     data: Option<Array2<f32>>,
     nodes: ClusterNodes,
     parameters: Parameters,
+    data_reading: Option<DataReading>,
+    minmax_calculation: Option<MinMaxCalculation>,
+    std_calculation: Option<StdCalculation>,
+    preprocessing: Option<Preprocessing>,
     receiver: Recipient<DataLoadedAndProcessed>,
     dataset_stats: DatasetStats,
-    data_receiver: Option<Addr<DataReceiver>>,
     reference_dataset: Option<Array3<f32>>,
     phase_space: Option<Array3<f32>>
 }
 
 impl DataManager {
-    pub fn new(nodes: ClusterNodes, parameters: Parameters, receiver: Recipient<DataLoadedAndProcessed>) -> Self {
+    pub fn new(mut nodes: ClusterNodes, parameters: Parameters, receiver: Recipient<DataLoadedAndProcessed>) -> Self {
+        nodes.change_ids("DataManager");
+
         Self {
             data: None,
             nodes,
             parameters,
+            data_reading: None,
+            minmax_calculation: None,
+            std_calculation: None,
+            preprocessing: None,
             receiver,
             dataset_stats: DatasetStats::default(),
-            data_receiver: None,
             reference_dataset: None,
             phase_space: None
         }
     }
 
-    fn load_data(&mut self, data_path: &str) {
-        let mut nodes = self.nodes.clone();
-        nodes.change_ids("DataReceiver");
+    fn calculate_datastats(&mut self, addr: Addr<Self>) {
+        self.minmax_calculation = Some(MinMaxCalculation { nodes: vec![], min: None, max: None });
+        self.std_calculation = Some(StdCalculation {
+            nodes: vec![],
+            n: None,
+            mean: None,
+            m2: None
+        });
 
-        DataReader::new(data_path,
-                        nodes.to_any(self.data_receiver.as_ref().unwrap().clone()),
-                        self.parameters.pattern_length - 1).start();
+
+        self.calculate_minmax(addr.clone());
+        self.calculate_std(addr);
     }
 
-    fn collect_statistics(&mut self, rec: Recipient<DatasetStatsMessage>) {
-        let data = self.data.as_ref().expect("Data should be received by now!").to_shared();
-        StatsCollector::new(data,
-                            self.parameters.clone(),
-                            self.nodes.clone(),
-                            rec).start();
+    fn datastats_finished(&mut self, addr: Addr<Self>) {
+        if self.dataset_stats.is_done() {
+            self.preprocess(addr);
+        }
     }
 
-    fn preprocess(&mut self, rec: Recipient<PreprocessingDoneMessage>, dataset_stats: DatasetStats) {
+    fn preprocess(&mut self, addr: Addr<Self>) {
         match &self.data {
             Some(data) => {
-                let pp = Preprocessor::new(
-                    data.to_shared(),
-                    self.parameters.clone(),
-                    rec,
-                    dataset_stats
-                ).start();
+                self.preprocessing = Some(Preprocessing::new(data.to_shared(), self.parameters.n_threads, self.parameters.pattern_length));
+                self.distribute_work(addr);
             },
             None => panic!("Data should be set by now!")
         }
@@ -105,37 +116,61 @@ impl DataManager {
 
 impl Actor for DataManager {
     type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        self.register(ctx.address().recipient(), "DataManager".to_string());
+    }
 }
 
 impl Handler<LoadDataMessage> for DataManager {
     type Result = ();
 
     fn handle(&mut self, _msg: LoadDataMessage, ctx: &mut Self::Context) -> Self::Result {
-        self.data_receiver = Some(DataReceiver::new(Some(ctx.address().recipient())).start());
+        self.data_reading = Some(DataReading { with_header: true, overlap: self.parameters.pattern_length - 1 });
 
         let role = self.parameters.role.clone();
         match role {
-            Role::Main {data_path} => self.load_data(&data_path),
+            Role::Main {data_path} => self.read_csv(&data_path, ctx.address()),
             _ => ()
         }
     }
 }
 
-impl Handler<DataReceivedMessage> for DataManager {
+impl Handler<DataPartitionMessage> for DataManager {
     type Result = ();
 
-    fn handle(&mut self, msg: DataReceivedMessage, ctx: &mut Self::Context) -> Self::Result {
-        self.data = Some(msg.data);
-        self.collect_statistics(ctx.address().recipient());
+    fn handle(&mut self, msg: DataPartitionMessage, ctx: &mut Self::Context) -> Self::Result {
+        let n_rows = msg.data.len();
+        let n_columns = msg.data[0].len();
+
+        let flat_data: Array1<f32> = msg.data.into_iter().flat_map(|rec| {
+            rec.iter().map(|b| {
+                f32::from_str(b).unwrap()
+            }).collect::<Vec<f32>>()
+        }).collect();
+
+        self.data = Some(flat_data.into_shape(Dim([n_rows, n_columns])).expect("Could not deserialize sent data"));
+
+        self.calculate_datastats(ctx.address());
     }
 }
 
-impl Handler<DatasetStatsMessage> for DataManager {
+impl Handler<MinMaxDoneMessage> for DataManager {
     type Result = ();
 
-    fn handle(&mut self, msg: DatasetStatsMessage, ctx: &mut Self::Context) -> Self::Result {
-        self.dataset_stats = msg.dataset_stats;
-        self.preprocess(ctx.address().recipient(), self.dataset_stats.clone());
+    fn handle(&mut self, msg: MinMaxDoneMessage, ctx: &mut Self::Context) -> Self::Result {
+        self.dataset_stats.min_col = Some(msg.min);
+        self.dataset_stats.max_col = Some(msg.max);
+        self.datastats_finished(ctx.address());
+    }
+}
+
+impl Handler<StdDoneMessage> for DataManager {
+    type Result = ();
+
+    fn handle(&mut self, msg: StdDoneMessage, ctx: &mut Self::Context) -> Self::Result {
+        self.dataset_stats.std_col = Some(msg.std);
+        self.datastats_finished(ctx.address());
     }
 }
 

@@ -4,16 +4,14 @@ use actix_telepathy::prelude::*;
 use serde::{Serialize, Deserialize};
 use ndarray::{Array1, Array};
 use crate::data_manager::preprocessor::Preprocessor;
-
-
-
+use crate::data_manager::DataManager;
 
 
 #[derive(Message)]
 #[rtype(Result = "()")]
 pub struct PreprocessColumnMessage {
     pub column: usize,
-    pub source: Recipient<ProcessedColumnMessage>,
+    pub source: Addr<DataManager>,
     pub std: f32
 }
 

@@ -14,84 +14,67 @@ use crate::main;
 use std::net::SocketAddr;
 use crate::messages::PoisonPill;
 use crate::data_manager::stats_collector::DatasetStats;
+use crate::data_manager::DataManager;
 
 
-pub struct Preprocessor {
-    data: ArcArray2<f32>,
-    parameters: Parameters,
-    source: Recipient<PreprocessingDoneMessage>,
+pub struct Preprocessing {
     helpers: Addr<PreprocessorHelper>,
     n_cols_total: usize,
     n_cols_processed: usize,
-    n_cols_distributed: usize,
-    dataset_stats: DatasetStats
+    n_cols_distributed: usize
 }
 
-impl Preprocessor {
-    pub fn new(data: ArcArray2<f32>,
-               parameters: Parameters,
-               source: Recipient<PreprocessingDoneMessage>,
-               dataset_stats: DatasetStats
-    ) -> Self {
-        let data_copy = data.clone();
 
-        let cloned_parameters = parameters.clone();
-        let helpers = SyncArbiter::start(cloned_parameters.n_threads, move || {
-            PreprocessorHelper::new(data_copy.clone(), cloned_parameters.pattern_length)
+impl Preprocessing {
+    pub fn new(data: ArcArray2<f32>, n_threads: usize, window_size: usize) -> Self {
+        let n_cols_total = data.ncols();
+        let helpers = SyncArbiter::start(n_threads, move || {
+            PreprocessorHelper::new(data.clone(), window_size)
         });
 
-        let n_cols_total = data.ncols();
-
         Self {
-            data,
-            parameters,
-            source,
             helpers,
             n_cols_total,
             n_cols_processed: 0,
-            n_cols_distributed: 0,
-            dataset_stats
+            n_cols_distributed: 0
         }
     }
+}
 
-    fn distribute_work(&mut self, source: Recipient<ProcessedColumnMessage>) {
-        let max_distribution = self.parameters.n_threads - (self.n_cols_distributed - self.n_cols_processed);
 
-        for (i, column) in (self.n_cols_distributed..self.n_cols_total).enumerate() {
+pub trait Preprocessor {
+    fn distribute_work(&mut self, source: Addr<Self>) where Self: actix::Actor;
+}
+
+
+impl Preprocessor for DataManager {
+    fn distribute_work(&mut self, source: Addr<Self>) {
+        let preprocessing = self.preprocessing.as_mut().unwrap();
+        let max_distribution = self.parameters.n_threads - (preprocessing.n_cols_distributed - preprocessing.n_cols_processed);
+
+        for (i, column) in (preprocessing.n_cols_distributed..preprocessing.n_cols_total).enumerate() {
             if i < max_distribution {
-                self.helpers.do_send(PreprocessColumnMessage { column, source: source.clone(), std: 0.0 });
-                self.n_cols_distributed += 1;
+                preprocessing.helpers.do_send(PreprocessColumnMessage { column, source: source.clone(), std: 0.0 });
+                preprocessing.n_cols_distributed += 1;
             } else {
                 break;
             }
         }
     }
-
-    fn set_processed_column(&mut self, column_id: usize, data: Array1<f32>) {
-        self.n_cols_processed += 1;
-
-    }
 }
 
-impl Actor for Preprocessor {
-    type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut Self::Context) {
-        self.distribute_work(ctx.address().recipient());
-    }
-}
-
-impl Handler<ProcessedColumnMessage> for Preprocessor {
+impl Handler<ProcessedColumnMessage> for DataManager {
     type Result = ();
 
     fn handle(&mut self, msg: ProcessedColumnMessage, ctx: &mut Self::Context) -> Self::Result {
-        self.set_processed_column(msg.column, msg.processed_column);
-        if self.n_cols_processed == self.n_cols_total {
-            self.source.do_send(PreprocessingDoneMessage );
-            self.helpers.do_send(PoisonPill);
-            ctx.stop();
+        let preprocessing = self.preprocessing.as_mut().unwrap();
+        preprocessing.n_cols_processed += 1;
+        if preprocessing.n_cols_processed == preprocessing.n_cols_total {
+            ctx.address().do_send(PreprocessingDoneMessage);
+            preprocessing.helpers.do_send(PoisonPill);
         } else {
-            self.distribute_work(ctx.address().recipient());
+            self.distribute_work(ctx.address());
         }
     }
 }
