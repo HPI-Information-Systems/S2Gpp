@@ -13,7 +13,8 @@ use crate::utils::ClusterNodes;
 use crate::data_manager::reference_dataset_builder::ReferenceDatasetBuilder;
 use crate::data_manager::phase_spacer::PhaseSpacer;
 use crate::messages::PoisonPill;
-use crate::data_manager::stats_collector::{DatasetStats, MinMaxNodeMessage, MinMaxDoneMessage, StdNodeMessage, StdDoneMessage, MinMaxCalculation, MinMaxCalculator, StdCalculator, StdCalculation};
+pub use crate::data_manager::stats_collector::DatasetStats;
+use crate::data_manager::stats_collector::{MinMaxNodeMessage, MinMaxDoneMessage, StdNodeMessage, StdDoneMessage, MinMaxCalculation, MinMaxCalculator, StdCalculator, StdCalculation};
 use std::str::FromStr;
 
 #[cfg(test)]
@@ -110,7 +111,9 @@ impl DataManager {
     fn finalize(&mut self) {
         self.receiver.do_send(DataLoadedAndProcessed {
             data_ref: self.reference_dataset.as_ref().unwrap().to_shared(),
-            phase_space: self.phase_space.as_ref().unwrap().to_shared() }).unwrap();
+            phase_space: self.phase_space.as_ref().unwrap().to_shared(),
+            dataset_stats: self.dataset_stats.clone()
+        }).unwrap();
     }
 }
 
@@ -170,6 +173,7 @@ impl Handler<StdDoneMessage> for DataManager {
 
     fn handle(&mut self, msg: StdDoneMessage, ctx: &mut Self::Context) -> Self::Result {
         self.dataset_stats.std_col = Some(msg.std);
+        self.dataset_stats.n = Some(msg.n);
         self.datastats_finished(ctx.address());
     }
 }

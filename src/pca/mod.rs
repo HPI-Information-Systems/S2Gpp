@@ -7,7 +7,7 @@ use log::*;
 use ndarray::prelude::*;
 use ndarray_linalg::qr::*;
 use actix::prelude::*;
-pub use crate::pca::messages::{PCAMessage, PCAMeansMessage, PCADecompositionMessage, PCAResponse, RotatedMessage};
+pub use crate::pca::messages::{PCAMessage, PCAMeansMessage, PCADecompositionMessage, PCAResponse, RotatedMessage, StartRotation};
 pub use crate::pca::rotator::{Rotator};
 
 use ndarray::{ArcArray2, concatenate};

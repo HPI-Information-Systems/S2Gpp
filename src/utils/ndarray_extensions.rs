@@ -3,6 +3,7 @@ use ndarray_linalg::Norm;
 use num_traits::Float;
 use std::fmt::Debug;
 use std::iter::FromIterator;
+use num_traits::real::Real;
 
 pub fn norm(a: ArrayView2<f32>, axis: Axis) -> Array1<f32> {
     a.axis_iter(Axis(1 - axis.0)).map(|x| x.norm()).collect()
@@ -101,6 +102,21 @@ where
         res
     }
 }
+
+
+pub trait PolarCoords<A> where A: Float {
+    /// Takes the first two values as x and y respectively
+    fn to_polar(&self) -> Array1<A> {
+        let x = self[0];
+        let y = self[1];
+        let radius = (x.powf(2.0) + y.powf(2.0)).sqrt();
+        let theta = y.atan2(x);
+        arr1(&[radius, theta])
+    }
+}
+
+impl<A> PolarCoords<A> for Array1<A> {}
+impl<A> PolarCoords<A> for ArrayView1<A> {}
 
 
 #[cfg(test)]

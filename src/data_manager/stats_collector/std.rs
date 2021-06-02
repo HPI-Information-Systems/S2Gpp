@@ -68,6 +68,7 @@ impl Handler<StdNodeMessage> for DataManager {
                     let global_n = n + msg.n;
                     let delta: Array1<f32> = msg.mean.clone() - mean;
                     let m2 = msg.m2 + m2 + delta.clone() * delta * ((n + msg.n) as f32 / global_n as f32);
+                    std_calcuation.n = Some(global_n);
                     (m2 / (global_n - 1) as f32).iter().map(|x| x.sqrt()).collect()
                 },
                 _ => panic!("Some value for variance should have been set by now!")
@@ -78,7 +79,7 @@ impl Handler<StdNodeMessage> for DataManager {
                     Some(_) => AnyAddr::Remote(node.clone()),
                     None => AnyAddr::Local(ctx.address())
                 };
-                receiving_node.do_send(StdDoneMessage { std: std.clone() });
+                receiving_node.do_send(StdDoneMessage { std: std.clone(), n: std_calcuation.n.as_ref().unwrap().clone()});
             }
         }
     }
