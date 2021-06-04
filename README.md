@@ -5,12 +5,12 @@
 - [x] File reader
   - [x] read
   - [x] distribute
-- [ ] PhaseSpacer
+- [x] PhaseSpacer
 - [x] Distributed PCA
-  - [ ] enumerate cluster nodes
-- [ ] Rotation
+  - [x] enumerate cluster nodes
+- [x] Rotation
 - [ ] Intersection calculator
-  - [ ] Intersection sharing (in ring?)
+  - [x] Intersection sharing (in ring?)
 - [ ] Node estimator
     - [x] MeanShift
 - [ ] Edge estimator
