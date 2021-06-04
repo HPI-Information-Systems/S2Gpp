@@ -14,15 +14,17 @@ pub use crate::data_manager::stats_collector::minmax::{MinMaxCalculator, MinMaxC
 pub struct DatasetStats {
     pub min_col: Option<Array1<f32>>,
     pub max_col: Option<Array1<f32>>,
-    pub std_col: Option<Array1<f32>>
+    pub std_col: Option<Array1<f32>>,
+    pub n: Option<usize>
 }
 
 impl DatasetStats {
-    pub fn new(std_col: Array1<f32>, min_col: Array1<f32>, max_col: Array1<f32>) -> Self {
+    pub fn new(std_col: Array1<f32>, min_col: Array1<f32>, max_col: Array1<f32>, n: usize) -> Self {
         Self {
             min_col: Some(min_col),
             max_col: Some(max_col),
-            std_col: Some(std_col)
+            std_col: Some(std_col),
+            n: Some(n)
         }
     }
 

@@ -22,7 +22,8 @@ fn test_correct_spacing() {
     let dataset_stats = DatasetStats::new(
         data.std_axis(Axis(0), 0.0),
         data.to_shared().min_axis(Axis(0)),
-        data.to_shared().max_axis(Axis(0))
+        data.to_shared().max_axis(Axis(0)),
+        0
     );
 
     let rdb = ReferenceDatasetBuilder::new(dataset_stats, parameters);

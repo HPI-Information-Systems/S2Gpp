@@ -6,7 +6,10 @@ use actix::{Addr, Actor};
 
 use std::collections::hash_map::Iter;
 pub use ndarray_extensions::*;
+use ndarray::{ArcArray, Ix3};
 
+
+pub type ArcArray3<T> = ArcArray<T, Ix3>;
 
 #[derive(Default, Clone)]
 pub struct ClusterNodes {

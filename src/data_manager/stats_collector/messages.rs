@@ -24,7 +24,8 @@ pub struct StdNodeMessage {
 #[derive(Message, RemoteMessage, Serialize, Deserialize)]
 #[rtype(Result = "()")]
 pub struct StdDoneMessage {
-    pub std: Array1<f32>
+    pub std: Array1<f32>,
+    pub n: usize
 }
 
 #[derive(Message, RemoteMessage, Serialize, Deserialize)]
