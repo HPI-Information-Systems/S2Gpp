@@ -104,19 +104,25 @@ where
 }
 
 
-pub trait PolarCoords<A> where A: Float {
+pub trait PolarCoords<A>
+    where A: Float
+{
     /// Takes the first two values as x and y respectively
+    fn to_polar(&self) -> Array1<A>;
+}
+
+impl<S, A> PolarCoords<A> for ArrayBase<S, Dim<[usize; 1]>>
+    where
+        S: Data<Elem = A>,
+        A: Float {
     fn to_polar(&self) -> Array1<A> {
-        let x = self[0];
-        let y = self[1];
-        let radius = (x.powf(2.0) + y.powf(2.0)).sqrt();
-        let theta = y.atan2(x);
+        let x = &self[0];
+        let y = &self[1];
+        let radius = (x.powi(2) + y.powi(2)).sqrt();
+        let theta = y.atan2(x.clone());
         arr1(&[radius, theta])
     }
 }
-
-impl<A> PolarCoords<A> for Array1<A> {}
-impl<A> PolarCoords<A> for ArrayView1<A> {}
 
 
 #[cfg(test)]
