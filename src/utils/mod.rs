@@ -1,4 +1,5 @@
 mod ndarray_extensions;
+mod geometry;
 
 use std::collections::HashMap;
 use actix_telepathy::{RemoteAddr, AnyAddr};

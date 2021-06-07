@@ -38,6 +38,9 @@ pub struct Parameters {
     #[structopt(long = "latent")]
     pub latent: usize,
 
+    #[structopt(long = "rate")]
+    pub rate: usize,
+
     #[structopt(short = "t", long = "threads")]
     pub n_threads: usize,
 
@@ -68,6 +71,7 @@ impl Default for Parameters {
             local_host: "127.0.0.1:8000".parse().unwrap(),
             pattern_length: 50,
             latent: 16,
+            rate: 100,
             n_threads: 1,
             n_cluster_nodes: 1
         }

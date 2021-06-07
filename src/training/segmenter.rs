@@ -10,6 +10,7 @@ use crate::training::messages::{SegmentMessage, SegmentedMessage};
 use actix::prelude::*;
 use actix::dev::MessageResponse;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use std::hash::Hash;
 
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -18,14 +19,42 @@ pub struct PointWithId {
     pub coords: Array1<f32>
 }
 
-pub type PointsForNodes = HashMap<usize, Vec<PointWithId>>;
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SegmentedPointWithId {
+    pub segment_id: usize,
+    pub point_with_id: PointWithId
+}
+
+pub trait ToSegmented {
+    fn to_segmented(&self, segment_id: usize) -> Vec<SegmentedPointWithId>;
+}
+
+impl ToSegmented for Vec<PointWithId> {
+    fn to_segmented(&self, segment_id: usize) -> Vec<SegmentedPointWithId> {
+        self.iter()
+            .map(|p| SegmentedPointWithId { segment_id, point_with_id: p.clone() })
+            .collect()
+    }
+}
+
+pub trait FromPointsWithId {
+    fn append_points_with_id(&mut self, points: &Vec<PointWithId>, segment_id: usize);
+}
+
+impl FromPointsWithId for Vec<SegmentedPointWithId> {
+    fn append_points_with_id(&mut self, points: &Vec<PointWithId>, segment_id: usize) {
+        let mut segmented_points = points.to_segmented(segment_id);
+        self.append(&mut segmented_points);
+    }
+}
+
+pub type PointsForNodes = HashMap<usize, Vec<SegmentedPointWithId>>;
 
 pub struct Segmentation {
-    pub rate: usize,
     /// list of lists with (data ID, data point) as elements and inner list at position segment ID
     pub segments: Vec<Vec<PointWithId>>,
     /// list with (data ID, data point) as elements
-    pub own_segment: Vec<PointWithId>,
+    pub own_segment: Vec<SegmentedPointWithId>,
     pub n_received: usize
 }
 
@@ -36,7 +65,7 @@ pub trait Segmenter {
 
 impl Segmenter for Training {
     fn segment(&mut self) {
-        for _ in 0..self.segmentation.rate {
+        for _ in 0..self.parameters.rate {
             self.segmentation.segments.push(vec![]);
         }
 
@@ -45,7 +74,7 @@ impl Segmenter for Training {
         let mut id = self.nodes.get_own_idx() * partition_size;
         for x in self.rotated.as_ref().unwrap().axis_iter(Axis(0)) {
             let polar = x.to_polar();
-            let segment_id = get_segment_id(polar[1], self.segmentation.rate);
+            let segment_id = get_segment_id(polar[1], self.parameters.rate);
             self.segmentation.segments.get_mut(segment_id).unwrap().push(PointWithId { id, coords: x.iter().map(|x| x.clone()).collect() });
             id += 1;
         }
@@ -61,10 +90,10 @@ impl Segmenter for Training {
             node_segments.insert(i.clone(), vec![]);
         }
 
-        let segments_per_node = (self.segmentation.rate as f32 / self.nodes.len_incl_own() as f32).floor() as usize;
-        let _rest = self.segmentation.rate % (&self.nodes.len_incl_own());
+        let segments_per_node = (self.parameters.rate as f32 / self.nodes.len_incl_own() as f32).floor() as usize;
+        let _rest = self.parameters.rate % (&self.nodes.len_incl_own());
 
-        for i in 0..self.segmentation.rate {
+        for i in 0..self.parameters.rate {
             let node_id = i / segments_per_node;
             let points = self.segmentation.segments.get_mut(i).unwrap();
             let mut points_cloned = vec![];
@@ -74,8 +103,8 @@ impl Segmenter for Training {
 
                 let prev_node = ((node_id as isize - 1).rem_euclid(self.nodes.len_incl_own() as isize)) as usize;
                 match node_segments.get_mut(&prev_node) {
-                    Some(prev_node_segments) => prev_node_segments.append(points),
-                    None => self.segmentation.own_segment.append(points)
+                    Some(prev_node_segments) => prev_node_segments.append_points_with_id(points, i),
+                    None => self.segmentation.own_segment.append_points_with_id(points, i)
                 }
 
                 points_cloned.as_mut()
@@ -84,8 +113,8 @@ impl Segmenter for Training {
             };
 
             match node_segments.get_mut(&node_id) {
-                Some(this_node_segments) => this_node_segments.append(points_to_add),
-                None => self.segmentation.own_segment.append(points_to_add)
+                Some(this_node_segments) => this_node_segments.append_points_with_id(points_to_add, i),
+                None => self.segmentation.own_segment.append_points_with_id(points_to_add, i)
             };
         }
 
@@ -113,8 +142,8 @@ impl Handler<SegmentMessage> for Training {
         if self.segmentation.n_received < self.nodes.len() {
             self.nodes.get(&next_id).unwrap().do_send(SegmentMessage { segments });
         } else {
-            self.segmentation.own_segment.sort_by_key(|r| r.id.clone());
-            self.segmentation.own_segment.dedup_by_key(|r| r.id.clone());
+            self.segmentation.own_segment.sort_by_key(|r| r.point_with_id.id.clone());
+            self.segmentation.own_segment.dedup_by_key(|r| r.point_with_id.id.clone());
             ctx.address().do_send(SegmentedMessage);
             self.segmentation.segments.clear();
         }
@@ -162,8 +191,7 @@ mod tests {
 
             let mut result = true;
             for rotated in points.iter() {
-                let polar: Array1<f32> = rotated.coords.to_polar();
-                let segment_id = get_segment_id(polar[1], 100);
+                let segment_id = rotated.segment_id;
                 //println!("segment_id: {}", segment_id);
                 if !msg.expected_segments.contains(&segment_id) {
                     println!("{} not contained", &segment_id);
@@ -325,6 +353,7 @@ mod tests {
             local_host: ip_address,
             pattern_length: 20,
             latent: 6,
+            rate: 100,
             n_threads: 1,
             n_cluster_nodes: 2
         };

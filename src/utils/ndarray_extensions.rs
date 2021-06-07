@@ -109,18 +109,27 @@ pub trait PolarCoords<A>
 {
     /// Takes the first two values as x and y respectively
     fn to_polar(&self) -> Array1<A>;
+    fn to_cartesian(&self) -> Array1<A>;
 }
 
 impl<S, A> PolarCoords<A> for ArrayBase<S, Dim<[usize; 1]>>
     where
         S: Data<Elem = A>,
-        A: Float {
+        A: Float + std::ops::Mul<Output = A> {
     fn to_polar(&self) -> Array1<A> {
         let x = &self[0];
         let y = &self[1];
         let radius = (x.powi(2) + y.powi(2)).sqrt();
         let theta = y.atan2(x.clone());
         arr1(&[radius, theta])
+    }
+
+    fn to_cartesian(&self) -> Array1<A> {
+        let radius = &self[0];
+        let theta = &self[1];
+        let x = radius.mul(theta.cos());
+        let y = radius.mul(theta.sin());
+        arr1(&[x, y])
     }
 }
 

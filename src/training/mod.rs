@@ -1,5 +1,6 @@
 mod messages;
 mod segmenter;
+mod intersection_calculation;
 
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
@@ -15,6 +16,7 @@ use crate::training::segmenter::{Segmenter, Segmentation};
 use std::collections::HashMap;
 use crate::training::messages::{SegmentedMessage, SegmentMessage};
 use actix::dev::MessageResponse;
+use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculator};
 
 
 #[derive(RemoteActor)]
@@ -26,7 +28,8 @@ pub struct Training {
     dataset_stats: Option<DatasetStats>,
     rotator: Option<Addr<Rotator>>,
     rotated: Option<Array2<f32>>,
-    segmentation: Segmentation
+    segmentation: Segmentation,
+    intersection_calculation: IntersectionCalculation
 }
 
 impl Training {
@@ -38,7 +41,8 @@ impl Training {
             dataset_stats: None,
             rotator: None,
             rotated: None,
-            segmentation: Segmentation { rate: 100, segments: vec![], own_segment: vec![], n_received: 0 }
+            segmentation: Segmentation { segments: vec![], own_segment: vec![], n_received: 0 },
+            intersection_calculation: IntersectionCalculation { intersections: Default::default() }
         }
     }
 }
@@ -97,6 +101,6 @@ impl Handler<SegmentedMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, _msg: SegmentedMessage, _ctx: &mut Self::Context) -> Self::Result {
-        //todo: self.node_calculation();
+        self.calculate_intersections();
     }
 }

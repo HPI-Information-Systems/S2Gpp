@@ -254,6 +254,7 @@ async fn start_reading(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>, main
         local_host: ip_address,
         pattern_length: 20,
         latent: 6,
+        rate: 100,
         n_threads: 1,
         n_cluster_nodes: 2
     };
