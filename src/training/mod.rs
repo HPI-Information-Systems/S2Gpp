@@ -16,7 +16,7 @@ use crate::training::segmenter::{Segmenter, Segmentation};
 use std::collections::HashMap;
 use crate::training::messages::{SegmentedMessage, SegmentMessage};
 use actix::dev::MessageResponse;
-use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculator};
+use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculator, IntersectionCalculationDone};
 
 
 #[derive(RemoteActor)]
@@ -42,7 +42,14 @@ impl Training {
             rotator: None,
             rotated: None,
             segmentation: Segmentation { segments: vec![], own_segment: vec![], n_received: 0 },
-            intersection_calculation: IntersectionCalculation { intersections: Default::default() }
+            intersection_calculation: IntersectionCalculation {
+                intersections: HashMap::new(),
+                intersection_coords: HashMap::new(),
+                helpers: None,
+                pairs: vec![],
+                n_total: 0,
+                n_sent: 0,
+                n_received: 0 }
         }
     }
 }
@@ -102,5 +109,13 @@ impl Handler<SegmentedMessage> for Training {
 
     fn handle(&mut self, _msg: SegmentedMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.calculate_intersections();
+    }
+}
+
+impl Handler<IntersectionCalculationDone> for Training {
+    type Result = ();
+
+    fn handle(&mut self, _msg: IntersectionCalculationDone, _ctx: &mut Self::Context) -> Self::Result {
+        //todo node calculation
     }
 }

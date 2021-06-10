@@ -7,6 +7,7 @@ use actix::{Addr, Actor};
 
 use std::collections::hash_map::Iter;
 pub use ndarray_extensions::*;
+pub use geometry::line_plane_intersection;
 use ndarray::{ArcArray, Ix3};
 
 
