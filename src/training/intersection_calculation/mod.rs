@@ -44,7 +44,11 @@ impl IntersectionCalculator for Training {
         let dims = self.segmentation.own_segment.get(0).unwrap().point_with_id.coords.len();
 
         let origin = arr1(vec![0_f32; dims].as_slice());
-        let planes_end_points: Vec<Array1<f32>> = vec![];
+        let planes_end_points: Vec<Array1<f32>> = (0..self.parameters.rate).into_iter().map(|segment_id| {
+            let polar = arr1(&[f32::max_value(), (2.0 * PI * segment_id as f32) / self.parameters.rate]);
+            let other_dims = arr1((2..dims).into_iter().map(|_| f32::max_value()).collect::<Vec<f32>>().as_slice());
+            concatenate(Axis(0), &[polar.to_cartesian(), other_dims]).unwrap()
+        }).collect();
 
         let mut first: Option<&SegmentedPointWithId> = None;
         for segmented_point in self.segmentation.own_segment.iter() {
@@ -61,7 +65,7 @@ impl IntersectionCalculator for Training {
                         for segment_id in ((f.segment_id + 1)..(segmented_point.segment_id + 1)) {
                             segment_ids.push(segment_id);
 
-                            let mut arrays = vec![];
+                            let mut arrays = vec![origin.clone()];
                             let corner_points: Vec<Array1<f32>> = (2..dims).into_iter().map(|d| {
                                 let mut corner_point = planes_end_points[segment_id].clone();
                                 corner_point[d] = 0.;
