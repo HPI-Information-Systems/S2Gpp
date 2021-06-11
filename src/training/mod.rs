@@ -107,8 +107,9 @@ impl Handler<RotatedMessage> for Training {
 impl Handler<SegmentedMessage> for Training {
     type Result = ();
 
-    fn handle(&mut self, _msg: SegmentedMessage, _ctx: &mut Self::Context) -> Self::Result {
-        self.calculate_intersections();
+    fn handle(&mut self, _msg: SegmentedMessage, ctx: &mut Self::Context) -> Self::Result {
+        println!("segmented");
+        self.calculate_intersections(ctx.address().recipient());
     }
 }
 

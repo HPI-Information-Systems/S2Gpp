@@ -5,7 +5,7 @@ mod tests;
 
 use actix::{Addr, SyncArbiter, Handler, Recipient, AsyncContext};
 use actix::dev::MessageResponse;
-use ndarray::{Array1, arr1, stack_new_axis, Axis, concatenate, ArrayBase, Array2, arr2, OwnedRepr, Array};
+use ndarray::{Array1, arr1, stack_new_axis, Axis, concatenate, ArrayBase, Array2, arr2, OwnedRepr, Array, ArrayView1};
 use num_traits::real::Real;
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
@@ -16,8 +16,11 @@ pub use crate::training::intersection_calculation::messages::{IntersectionResult
 use crate::training::segmenter::{SegmentedPointWithId, PointWithId};
 use crate::training::Training;
 use crate::utils::PolarCoords;
+use crate::messages::PoisonPill;
+use ndarray_stats::QuantileExt;
+use std::cmp::Ordering::Equal;
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Transition(usize, usize);
 pub type SegmentID = usize;
 
@@ -41,13 +44,17 @@ pub trait IntersectionCalculator {
 
 impl IntersectionCalculator for Training {
     fn calculate_intersections(&mut self, rec: Recipient<IntersectionResultMessage>) {
+        let max_value = self.segmentation.own_segment.iter()
+            .map(|x| x.point_with_id.coords.max().unwrap().max(x.point_with_id.coords.min().unwrap().abs()))
+            .fold(0_f32, |a, b| { a.max(b) });
+
         let dims = self.segmentation.own_segment.get(0).unwrap().point_with_id.coords.len();
 
         let origin = arr1(vec![0_f32; dims].as_slice());
         let planes_end_points: Vec<Array1<f32>> = (0..self.parameters.rate).into_iter().map(|segment_id| {
-            let polar = arr1(&[f32::max_value(), (2.0 * PI * segment_id as f32) / self.parameters.rate]);
-            let other_dims = arr1((2..dims).into_iter().map(|_| f32::max_value()).collect::<Vec<f32>>().as_slice());
-            concatenate(Axis(0), &[polar.to_cartesian(), other_dims]).unwrap()
+            let polar = arr1(&[f32::max_value(), (2.0 * PI * segment_id as f32) / self.parameters.rate as f32]);
+            let other_dims = arr1((2..dims).into_iter().map(|_| max_value).collect::<Vec<f32>>().as_slice());
+            concatenate(Axis(0), &[polar.to_cartesian().view(), other_dims.view()]).unwrap()
         }).collect();
 
         let mut first: Option<&SegmentedPointWithId> = None;
@@ -56,39 +63,45 @@ impl IntersectionCalculator for Training {
                 Some(f) =>
                     if f.segment_id.ne(&segmented_point.segment_id) && f.point_with_id.id.eq(&(segmented_point.point_with_id.id - 1)) {
                         let line_points = stack_new_axis(Axis(0), &[
-                            f.point_with_id.coords.clone(),
-                            segmented_point.point_with_id.coords.clone()
+                            f.point_with_id.coords.view(),
+                            segmented_point.point_with_id.coords.view()
                         ]).unwrap();
 
+                        let transition = Transition(f.point_with_id.id, segmented_point.point_with_id.id);
                         let mut segment_ids = vec![];
 
                         for segment_id in ((f.segment_id + 1)..(segmented_point.segment_id + 1)) {
                             segment_ids.push(segment_id);
 
-                            let mut arrays = vec![origin.clone()];
+                            let mut arrays = vec![origin.view()];
                             let corner_points: Vec<Array1<f32>> = (2..dims).into_iter().map(|d| {
                                 let mut corner_point = planes_end_points[segment_id].clone();
                                 corner_point[d] = 0.;
                                 corner_point
                             }).collect();
-                            arrays.extend(corner_points);
-                            arrays.push(planes_end_points[segment_id].clone());
 
-                            let plane_points = stack_new_axis(Axis(0), &arrays).unwrap();
-                            self.intersection_calculation.pairs.push((transition, segmented_point.segment_id, line_points.clone(), plane_points));
+                            arrays.extend(corner_points.iter().map(|x| {x.view()}));
+                            arrays.push(planes_end_points[segment_id].view());
+
+                            let plane_points = stack_new_axis(Axis(0), arrays.as_slice()).unwrap();
+                            self.intersection_calculation.pairs.push((transition.clone(), segment_id, line_points.clone(), plane_points));
                         }
 
                         let transition = Transition(f.point_with_id.id, segmented_point.point_with_id.id);
 
                         match self.intersection_calculation.intersections.get_mut(&transition) {
-                            Some(segment_ids) => segment_ids.extend(segment_ids),
-                            None => self.intersection_calculation.intersections.insert(transition.clone(), segment_ids)
+                            Some(internal_segment_ids) => internal_segment_ids.extend(segment_ids),
+                            None => {self.intersection_calculation.intersections.insert(transition.clone(), segment_ids);}
                         };
+                        first = None;
                 },
                 None => { first = Some(segmented_point) }
             }
         }
         self.intersection_calculation.n_total = self.intersection_calculation.pairs.len();
+
+        self.intersection_calculation.helpers = Some(SyncArbiter::start(self.parameters.n_threads, move || {IntersectionCalculationHelper {}}));
+
         self.distribute_intersection_tasks(rec);
     }
 
@@ -121,7 +134,7 @@ impl Handler<IntersectionResultMessage> for Training {
         self.intersection_calculation.n_received += 1;
 
         match self.intersection_calculation.intersection_coords.get_mut(&msg.segment_id) {
-            Some(transition_coord) => transition_coord.insert(msg.transition, msg.intersection),
+            Some(transition_coord) => { transition_coord.insert(msg.transition, msg.intersection); },
             None => {
                 let mut transition_coord = HashMap::new();
                 transition_coord.insert(msg.transition, msg.intersection);
@@ -132,7 +145,8 @@ impl Handler<IntersectionResultMessage> for Training {
         if self.intersection_calculation.n_received < self.intersection_calculation.n_total {
             self.distribute_intersection_tasks(ctx.address().recipient());
         } else {
-            ctx.address().do_send();
+            self.intersection_calculation.helpers.as_ref().unwrap().do_send(PoisonPill);
+            ctx.address().do_send(IntersectionCalculationDone );
         }
     }
 }
