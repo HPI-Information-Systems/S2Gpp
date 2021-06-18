@@ -25,6 +25,7 @@ serde_with = "1.9.1"
 ndarray = { version = "0.14", features = ["serde"] }
 ndarray-linalg = { version = "0.13",  features = ["openblas-static"] }
 ndarray_einsum_beta = "0.7.0"
+ndarray-stats = "0.4"
 csv = "1.1.6"
 kdtree = "0.6.0"
 num-traits = "0.2.14"

@@ -12,6 +12,7 @@ fn test_correct_spacing() {
         local_host: "127.0.0.1:8000".parse().unwrap(),
         pattern_length: 50,
         latent: 16,
+        rate: 100,
         n_threads: 20,
         n_cluster_nodes: 1
     };
