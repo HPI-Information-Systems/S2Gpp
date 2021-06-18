@@ -9,7 +9,7 @@
 - [x] Distributed PCA
   - [x] enumerate cluster nodes
 - [x] Rotation
-- [ ] Intersection calculator
+- [x] Intersection calculator
   - [x] Intersection sharing (in ring?)
 - [ ] Node estimator
     - [x] MeanShift
