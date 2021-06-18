@@ -25,7 +25,7 @@ impl Handler<IntersectionTaskMessage> for IntersectionCalculationHelper {
                 IntersectionResultMessage {
                     transition: msg.transition,
                     segment_id: msg.segment_id,
-                    intersection
+                    intersection: distance
                 }).unwrap(); },
             Err(e) => warn!("intersection error {:?}", e)
         };

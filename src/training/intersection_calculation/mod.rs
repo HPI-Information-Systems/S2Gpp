@@ -19,6 +19,7 @@ use crate::utils::PolarCoords;
 use crate::messages::PoisonPill;
 use ndarray_stats::QuantileExt;
 use std::cmp::Ordering::Equal;
+use num_integer::Integer;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Transition(usize, usize);
@@ -52,51 +53,69 @@ impl IntersectionCalculator for Training {
 
         let origin = arr1(vec![0_f32; dims].as_slice());
         let planes_end_points: Vec<Array1<f32>> = (0..self.parameters.rate).into_iter().map(|segment_id| {
-            let polar = arr1(&[f32::max_value(), (2.0 * PI * segment_id as f32) / self.parameters.rate as f32]);
+            let polar = arr1(&[max_value, (2.0 * PI * segment_id as f32) / self.parameters.rate as f32]);
             let other_dims = arr1((2..dims).into_iter().map(|_| max_value).collect::<Vec<f32>>().as_slice());
             concatenate(Axis(0), &[polar.to_cartesian().view(), other_dims.view()]).unwrap()
         }).collect();
 
-        let mut first: Option<&SegmentedPointWithId> = None;
-        for segmented_point in self.segmentation.own_segment.iter() {
-            match first {
-                Some(f) =>
-                    if f.segment_id.ne(&segmented_point.segment_id) && f.point_with_id.id.eq(&(segmented_point.point_with_id.id - 1)) {
-                        let line_points = stack_new_axis(Axis(0), &[
-                            f.point_with_id.coords.view(),
-                            segmented_point.point_with_id.coords.view()
-                        ]).unwrap();
+        let mut last: &SegmentedPointWithId = self.segmentation.own_segment.get(0).unwrap();
+        for current in self.segmentation.own_segment.iter().skip(1) {
+            if last.segment_id.ne(&current.segment_id) {
+                let line_points = stack_new_axis(Axis(0), &[
+                    last.point_with_id.coords.view(),
+                    current.point_with_id.coords.view()
+                ]).unwrap();
 
-                        let transition = Transition(f.point_with_id.id, segmented_point.point_with_id.id);
-                        let mut segment_ids = vec![];
+                let transition = Transition(last.point_with_id.id, current.point_with_id.id);
+                let mut segment_ids = vec![];
 
-                        for segment_id in ((f.segment_id + 1)..(segmented_point.segment_id + 1)) {
-                            segment_ids.push(segment_id);
+                let raw_diff = current.segment_id as isize - last.segment_id as isize;
+                let raw_diff_counter = (self.parameters.rate + current.segment_id) as isize - last.segment_id as isize;
+                let mut segment_diff = raw_diff.abs() as usize;
+                let half_rate = self.parameters.rate.div_floor(&2);
 
-                            let mut arrays = vec![origin.view()];
-                            let corner_points: Vec<Array1<f32>> = (2..dims).into_iter().map(|d| {
-                                let mut corner_point = planes_end_points[segment_id].clone();
-                                corner_point[d] = 0.;
-                                corner_point
-                            }).collect();
+                let valid_direction = (0 <= raw_diff && raw_diff <= half_rate as isize) ||
+                    (raw_diff < 0 && (0 <= raw_diff_counter && raw_diff_counter <= half_rate as isize));
 
-                            arrays.extend(corner_points.iter().map(|x| {x.view()}));
-                            arrays.push(planes_end_points[segment_id].view());
-
-                            let plane_points = stack_new_axis(Axis(0), arrays.as_slice()).unwrap();
-                            self.intersection_calculation.pairs.push((transition.clone(), segment_id, line_points.clone(), plane_points));
+                if valid_direction {
+                    if segment_diff > half_rate {
+                        if current.segment_id > half_rate {
+                            segment_diff = (last.segment_id as isize - (-(self.parameters.rate as isize) + current.segment_id as isize)).abs() as usize;
+                        } else if last.segment_id > half_rate {
+                            segment_diff = (current.segment_id as isize - (-(self.parameters.rate as isize) + last.segment_id as isize)).abs() as usize;
                         }
+                    }
+                    segment_diff = segment_diff.min(half_rate);
 
-                        let transition = Transition(f.point_with_id.id, segmented_point.point_with_id.id);
+                    for segment_lag in 1..(segment_diff) + 1 {
+                        let segment_id = (last.segment_id + segment_lag).mod_floor(&self.parameters.rate);
+                        segment_ids.push(segment_id);
 
-                        match self.intersection_calculation.intersections.get_mut(&transition) {
-                            Some(internal_segment_ids) => internal_segment_ids.extend(segment_ids),
-                            None => {self.intersection_calculation.intersections.insert(transition.clone(), segment_ids);}
-                        };
-                        first = None;
-                },
-                None => { first = Some(segmented_point) }
+                        let mut arrays = vec![origin.view()];
+                        let corner_points: Vec<Array1<f32>> = (2..dims).into_iter().map(|d| {
+                            let mut corner_point = planes_end_points[segment_id].clone();
+                            corner_point[d] = 0.;
+                            corner_point
+                        }).collect();
+
+                        arrays.extend(corner_points.iter().map(|x| { x.view() }));
+                        arrays.push(planes_end_points[segment_id].view());
+
+                        let plane_points = stack_new_axis(Axis(0), arrays.as_slice()).unwrap();
+                        self.intersection_calculation.pairs.push((transition.clone(), segment_id, line_points.clone(), plane_points));
+                    }
+                }
+
+                let transition = Transition(last.point_with_id.id, current.point_with_id.id);
+
+                match self.intersection_calculation.intersections.get_mut(&transition) {
+                    Some(internal_segment_ids) => internal_segment_ids.extend(segment_ids),
+                    None => { self.intersection_calculation.intersections.insert(transition.clone(), segment_ids); }
+                };
             }
+
+
+            last = current;
         }
         self.intersection_calculation.n_total = self.intersection_calculation.pairs.len();
 

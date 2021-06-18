@@ -108,7 +108,6 @@ impl Handler<SegmentedMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, _msg: SegmentedMessage, ctx: &mut Self::Context) -> Self::Result {
-        println!("segmented");
         self.calculate_intersections(ctx.address().recipient());
     }
 }
