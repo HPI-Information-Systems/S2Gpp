@@ -1,6 +1,7 @@
 mod messages;
 mod segmenter;
 mod intersection_calculation;
+mod node_estimation;
 
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
@@ -17,6 +18,7 @@ use std::collections::HashMap;
 use crate::training::messages::{SegmentedMessage, SegmentMessage};
 use actix::dev::MessageResponse;
 use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculator, IntersectionCalculationDone};
+use crate::training::node_estimation::NodeEstimation;
 
 
 #[derive(RemoteActor)]
@@ -29,7 +31,8 @@ pub struct Training {
     rotator: Option<Addr<Rotator>>,
     rotated: Option<Array2<f32>>,
     segmentation: Segmentation,
-    intersection_calculation: IntersectionCalculation
+    intersection_calculation: IntersectionCalculation,
+    node_estimation: NodeEstimation
 }
 
 impl Training {

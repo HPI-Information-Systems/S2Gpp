@@ -19,6 +19,7 @@ use sortedvec::sortedvec;
 use std::iter::FromIterator;
 use std::time::{SystemTime};
 use log::*;
+use crate::messages::PoisonPill;
 
 sortedvec! {
     struct SortedVec {
@@ -219,6 +220,7 @@ impl Handler<MeanShiftHelperResponse> for MeanShift {
                 Some(recipient) => { recipient.do_send(MeanShiftResponse { cluster_centers } ).unwrap(); },
                 None => ()
             }
+            self.helpers.as_ref().unwrap().do_send(PoisonPill);
             ctx.stop();
         } else if self.centers_sent < self.dataset.as_ref().unwrap().shape()[0] {
             let start_center = self.centers_sent;

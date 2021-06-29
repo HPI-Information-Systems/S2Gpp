@@ -1,4 +1,4 @@
-use actix::{Actor, SyncContext, Handler};
+use actix::{Actor, SyncContext, Handler, ActorContext};
 use crate::meanshift::messages::{MeanShiftHelperWorkMessage};
 
 use ndarray::prelude::*;
@@ -9,7 +9,8 @@ use ndarray::{ArcArray2};
 
 use crate::meanshift::{RefArray, MeanShiftHelperResponse};
 use std::sync::Arc;
-
+use crate::messages::PoisonPill;
+use actix::dev::MessageResponse;
 
 
 pub struct MeanShiftHelper {
@@ -71,5 +72,13 @@ impl Handler<MeanShiftHelperWorkMessage> for MeanShiftHelper {
     fn handle(&mut self, msg: MeanShiftHelperWorkMessage, ctx: &mut Self::Context) -> Self::Result {
         let (mean, points_within_len, iterations) = self.mean_shift_single(msg.start_center, self.bandwidth);
         msg.source.do_send(MeanShiftHelperResponse { source: ctx.address().recipient(), mean, points_within_len, iterations }).unwrap();
+    }
+}
+
+impl Handler<PoisonPill> for MeanShiftHelper {
+    type Result = ();
+
+    fn handle(&mut self, msg: PoisonPill, ctx: &mut Self::Context) -> Self::Result {
+        ctx.stop();
     }
 }
