@@ -11,8 +11,10 @@ use actix::{Addr, Actor};
 pub use crate::data_manager::data_reader::messages::DataPartitionMessage;
 use std::io::{BufReader, BufRead};
 use num_integer::Integer;
+use indicatif::ProgressBar;
 
 use crate::utils::{AnyClusterNodesIterator};
+use crate::utils::ConsoleLogger;
 use std::ops::Not;
 use crate::data_manager::DataManager;
 
@@ -49,6 +51,9 @@ impl DataReader for DataManager {
         let mut receiver_iterator: AnyClusterNodesIterator<Self> = receivers.clone().into_iter();
         let mut buffer = vec![];
         let mut overlap_buffer = vec![];
+
+        ConsoleLogger::new(1, 8, "Reading Data".to_string()).print();
+        let bar = ProgressBar::new(n_lines as u64);
         for record in reader.records() {
             match record {
                 Ok(r) => {
@@ -73,11 +78,13 @@ impl DataReader for DataManager {
                 },
                 Err(e) => panic!(e)
             }
+            bar.inc(1);
         }
 
         let mut data = buffer.clone();
         data.extend(overlap_buffer.clone());
         receiver_iterator.next().unwrap().do_send(DataPartitionMessage { data });
+        bar.finish_and_clear();
         println!("Sent data to receiver {}", receiver_iterator.get_position() - 1);
     }
 }

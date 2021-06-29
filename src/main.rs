@@ -1,13 +1,6 @@
 use actix::prelude::*;
-
-
-
-
 use log::*;
 use structopt::StructOpt;
-
-
-
 
 use crate::parameters::{Parameters, Role};
 
