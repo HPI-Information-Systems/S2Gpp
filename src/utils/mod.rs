@@ -1,5 +1,6 @@
 mod ndarray_extensions;
 mod geometry;
+mod console_logger;
 
 use std::collections::HashMap;
 use actix_telepathy::{RemoteAddr, AnyAddr};
@@ -8,6 +9,7 @@ use actix::{Addr, Actor};
 use std::collections::hash_map::Iter;
 pub use ndarray_extensions::*;
 pub use geometry::line_plane_intersection;
+pub use console_logger::ConsoleLogger;
 use ndarray::{ArcArray, Ix3};
 
 
