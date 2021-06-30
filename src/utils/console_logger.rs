@@ -16,8 +16,8 @@ impl ConsoleLogger {
         }
     }
 
-    fn format_step(&self) -> &str {
-        format!("[{}/{}]", self.step, self.from).as_str()
+    fn format_step(&self) -> String {
+        format!("[{}/{}]", self.step, self.from)
     }
 
     pub fn print(&self) {
