@@ -11,8 +11,9 @@
 - [x] Rotation
 - [x] Intersection calculator
   - [x] Intersection sharing (in ring?)
-- [ ] Node estimator
+- [x] Node estimator
     - [x] MeanShift
 - [ ] Edge estimator
 - [ ] Graph creation
 - [ ] Scorer
+- [ ] Result Writing

@@ -9,7 +9,7 @@ use crate::parameters::{Parameters, Role};
 use actix_telepathy::prelude::*;
 
 
-use crate::utils::ClusterNodes;
+use crate::utils::{ClusterNodes, ConsoleLogger};
 use crate::data_manager::reference_dataset_builder::ReferenceDatasetBuilder;
 use crate::data_manager::phase_spacer::PhaseSpacer;
 use crate::messages::PoisonPill;
@@ -83,6 +83,7 @@ impl DataManager {
     }
 
     fn preprocess(&mut self, addr: Addr<Self>) {
+        ConsoleLogger::new(3, 12, "Preprocessing Data".to_string()).print();
         match &self.data {
             Some(data) => {
                 self.preprocessing = Some(Preprocessing::new(data.to_shared(), self.parameters.n_threads, self.parameters.pattern_length));
@@ -129,6 +130,7 @@ impl Handler<LoadDataMessage> for DataManager {
     type Result = ();
 
     fn handle(&mut self, _msg: LoadDataMessage, ctx: &mut Self::Context) -> Self::Result {
+        ConsoleLogger::new(1, 12, "Reading Data".to_string()).print();
         self.data_reading = Some(DataReading { with_header: true, overlap: self.parameters.pattern_length - 1 });
 
         let role = self.parameters.role.clone();
@@ -143,6 +145,7 @@ impl Handler<DataPartitionMessage> for DataManager {
     type Result = ();
 
     fn handle(&mut self, msg: DataPartitionMessage, ctx: &mut Self::Context) -> Self::Result {
+        ConsoleLogger::new(2, 12, "Calculating Data Stats".to_string()).print();
         let n_rows = msg.data.len();
         let n_columns = msg.data[0].len();
 
@@ -182,7 +185,9 @@ impl Handler<PreprocessingDoneMessage> for DataManager {
     type Result = ();
 
     fn handle(&mut self, _msg: PreprocessingDoneMessage, _ctx: &mut Self::Context) -> Self::Result {
+        ConsoleLogger::new(4, 12, "Building Reference Dataset".to_string()).print();
         self.build_reference_dataset();
+        ConsoleLogger::new(5, 12, "Building Phase Space".to_string()).print();
         self.build_phase_space();
         self.finalize();
     }

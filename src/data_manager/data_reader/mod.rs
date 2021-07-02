@@ -14,7 +14,6 @@ use num_integer::Integer;
 use indicatif::ProgressBar;
 
 use crate::utils::{AnyClusterNodesIterator};
-use crate::utils::ConsoleLogger;
 use std::ops::Not;
 use crate::data_manager::DataManager;
 
@@ -52,7 +51,6 @@ impl DataReader for DataManager {
         let mut buffer = vec![];
         let mut overlap_buffer = vec![];
 
-        ConsoleLogger::new(1, 8, "Reading Data".to_string()).print();
         let bar = ProgressBar::new(n_lines as u64);
         for record in reader.records() {
             match record {

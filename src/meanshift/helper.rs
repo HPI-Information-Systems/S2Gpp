@@ -1,4 +1,4 @@
-use actix::{Actor, SyncContext, Handler};
+use actix::{Actor, SyncContext, Handler, ActorContext};
 use crate::meanshift::messages::{MeanShiftHelperWorkMessage};
 
 use ndarray::prelude::*;
@@ -7,23 +7,26 @@ use kdtree::distance::squared_euclidean;
 
 use ndarray::{ArcArray2};
 
-use crate::meanshift::{RefArray, MeanShiftHelperResponse};
+use crate::meanshift::{RefArray, MeanShiftHelperResponse, DistanceMeasure};
 use std::sync::Arc;
-
+use crate::messages::PoisonPill;
+use actix::dev::MessageResponse;
 
 
 pub struct MeanShiftHelper {
     data: ArcArray2<f32>,
     tree: Arc<KdTree<f32, usize, RefArray>>,
-    bandwidth: f32
+    bandwidth: f32,
+    distance_measure: DistanceMeasure
 }
 
 impl MeanShiftHelper {
-    pub fn new(data: ArcArray2<f32>, tree: Arc<KdTree<f32, usize, RefArray>>, bandwidth: f32) -> Self {
+    pub fn new(data: ArcArray2<f32>, tree: Arc<KdTree<f32, usize, RefArray>>, bandwidth: f32, distance_measure: DistanceMeasure) -> Self {
         Self {
             data,
             tree,
-            bandwidth
+            bandwidth,
+            distance_measure
         }
     }
 
@@ -36,19 +39,19 @@ impl MeanShiftHelper {
         let mut my_old_mean = my_mean.clone();
         let mut iterations: usize = 0;
         let mut points_within_len: usize = 0;
-
         loop {
-            let within_result = self.tree.within(my_mean.as_slice().unwrap(), bandwidth, &squared_euclidean);
+            let within_result = self.tree.within(my_mean.as_slice().unwrap(), bandwidth, &(self.distance_measure.call()));
             let neighbor_ids: Vec<usize> = match within_result {
                 Ok(neighbors) => neighbors.into_iter().map(|(_, x)| x.clone()).collect(),
                 Err(_) => break
             };
+            //println!("{:?}", neighbor_ids);
             let points_within = self.data.select(Axis(0), neighbor_ids.as_slice());
             points_within_len = points_within.shape()[0];
             my_old_mean = my_mean;
             my_mean = points_within.mean_axis(Axis(0)).unwrap();
 
-            if squared_euclidean(my_mean.as_slice().unwrap(), my_old_mean.as_slice().unwrap()) < stop_threshold || iterations >= max_iter {
+            if self.distance_measure.call()(my_mean.as_slice().unwrap(), my_old_mean.as_slice().unwrap()) < stop_threshold || iterations >= max_iter {
                 break
             }
 
@@ -71,5 +74,13 @@ impl Handler<MeanShiftHelperWorkMessage> for MeanShiftHelper {
     fn handle(&mut self, msg: MeanShiftHelperWorkMessage, ctx: &mut Self::Context) -> Self::Result {
         let (mean, points_within_len, iterations) = self.mean_shift_single(msg.start_center, self.bandwidth);
         msg.source.do_send(MeanShiftHelperResponse { source: ctx.address().recipient(), mean, points_within_len, iterations }).unwrap();
+    }
+}
+
+impl Handler<PoisonPill> for MeanShiftHelper {
+    type Result = ();
+
+    fn handle(&mut self, msg: PoisonPill, ctx: &mut Self::Context) -> Self::Result {
+        ctx.stop();
     }
 }

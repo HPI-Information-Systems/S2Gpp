@@ -22,7 +22,7 @@ use std::cmp::Ordering::Equal;
 use num_integer::Integer;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
-pub struct Transition(usize, usize);
+pub struct Transition(pub usize, pub usize);
 pub type SegmentID = usize;
 
 
