@@ -16,3 +16,4 @@
 - [ ] Edge estimator
 - [ ] Graph creation
 - [ ] Scorer
+- [ ] Result Writing

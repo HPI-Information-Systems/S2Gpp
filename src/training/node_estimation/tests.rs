@@ -14,6 +14,7 @@ use actix_rt::time::delay_for;
 use crate::training::intersection_calculation::{Transition, IntersectionCalculation, SegmentID, IntersectionCalculationDone};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
+use ndarray_linalg::close_l1;
 
 
 #[derive(Default)]
@@ -45,8 +46,7 @@ impl Handler<CheckingMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: CheckingMessage, ctx: &mut Self::Context) -> Self::Result {
-        println!("{:?}", self.node_estimation.nodes);
-        assert_eq!(self.node_estimation.nodes.get(&0).unwrap().clone(), arr2(&[[887.93504405], [709.53277102], [556.61652615], [403.70025919], [250.78392674], [97.8670747]]));
+        close_l1(self.node_estimation.nodes.get(&92).unwrap(), &arr2(&[[862.44900531], [709.53277102], [556.61652615], [403.70025919], [250.78392674], [123.35325327]]), 0.0005);
 
         msg.rec.unwrap().do_send(CheckingMessage { rec: None });
     }

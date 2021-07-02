@@ -4,7 +4,7 @@ mod messages;
 mod tests;
 
 use actix::{Actor, ActorContext, Context, Addr, SyncArbiter, Handler, Recipient, AsyncContext};
-use ndarray::{Array2, Axis, ArcArray1, Array1, ArrayView2, concatenate};
+use ndarray::{Array2, Axis, ArcArray1, Array1, ArrayView2, concatenate, arr2, Array};
 use crate::meanshift::helper::MeanShiftHelper;
 pub use crate::meanshift::messages::{MeanShiftMessage, MeanShiftResponse, MeanShiftHelperResponse, MeanShiftHelperWorkMessage};
 
@@ -20,6 +20,7 @@ use std::iter::FromIterator;
 use std::time::{SystemTime};
 use log::*;
 use crate::messages::PoisonPill;
+use ndarray_stats::QuantileExt;
 
 sortedvec! {
     struct SortedVec {
@@ -29,16 +30,19 @@ sortedvec! {
     }
 }
 
+#[derive(Clone)]
 pub enum DistanceMeasure {
     SquaredEuclidean,
+    Minkowski,
     Manhattan
 }
 
 impl DistanceMeasure {
-    pub fn call(&self, a: &[f32], b: &[f32]) -> f32 {
+    pub fn call(&self) -> fn(&[f32], &[f32]) -> f32 {
         match self {
-            Self::SquaredEuclidean => squared_euclidean(a, b),
-            Self::Manhattan => {
+            Self::SquaredEuclidean => squared_euclidean,
+            Self::Minkowski => |a, b| {squared_euclidean(a, b).sqrt()},
+            Self::Manhattan => |a, b| {
                 a.iter().zip(b.iter()).map(|(a_, b_)| {
                     a_.sub(b_).abs()
                 }).sum()
@@ -57,7 +61,8 @@ pub struct MeanShift {
     means: Vec<(Array1<f32>, usize, usize, usize)>,
     centers_sent: usize,
     bandwidth: f32,
-    start_time: Option<SystemTime>
+    start_time: Option<SystemTime>,
+    distance_measure: DistanceMeasure
 }
 
 impl Actor for MeanShift {
@@ -76,7 +81,8 @@ impl MeanShift {
             means: vec![],
             centers_sent: 0,
             bandwidth: 0.0,
-            start_time: None
+            start_time: None,
+            distance_measure: DistanceMeasure::SquaredEuclidean
         }
     }
 
@@ -84,8 +90,10 @@ impl MeanShift {
         let data = self.dataset.as_ref().unwrap().clone().into_shared();
         let tree = self.tree.as_ref().unwrap().clone();
         let bandwidth = self.bandwidth;
+        let distance_measure = self.distance_measure.clone();
+
         self.helpers = Some(SyncArbiter::start(self.n_threads, move || MeanShiftHelper::new(
-            data.clone(), tree.clone(), bandwidth
+            data.clone(), tree.clone(), bandwidth, distance_measure.clone()
         )))
     }
 
@@ -103,7 +111,7 @@ impl MeanShift {
                 }
 
                 let bandwidth: f32 = data.axis_iter(Axis(0)).map(|x| {
-                    let nearest = tree.nearest(x.to_slice().unwrap(), n_neighbors, &squared_euclidean).unwrap();
+                    let nearest = tree.nearest(x.to_slice().unwrap(), n_neighbors, &(self.distance_measure.call())).unwrap();
                     let sum = nearest.into_iter().map(|(dist, _)| dist).fold(f32::min_value(), f32::max);
                     sum.clone()
                 }).sum();
@@ -164,7 +172,7 @@ impl MeanShift {
                 let neighbor_idxs = self.center_tree.as_ref().unwrap().within(
                     mean.as_slice().unwrap(),
                     self.bandwidth,
-                    &squared_euclidean).unwrap();
+                    &(self.distance_measure.call())).unwrap();
                 for (_, neighbor) in neighbor_idxs {
                     match unique.get_mut(neighbor) {
                         None => {}
@@ -174,6 +182,7 @@ impl MeanShift {
                 *unique.get_mut(i).unwrap() = true;
             }
         }
+
 
         let dim = self.means[0].0.len();
 
