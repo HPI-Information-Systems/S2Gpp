@@ -15,7 +15,7 @@ use crate::training::intersection_calculation::helper::IntersectionCalculationHe
 pub use crate::training::intersection_calculation::messages::{IntersectionResultMessage, IntersectionTaskMessage, IntersectionCalculationDone};
 use crate::training::segmenter::{SegmentedPointWithId, PointWithId};
 use crate::training::Training;
-use crate::utils::PolarCoords;
+use crate::utils::{PolarCoords, HelperProtocol};
 use crate::messages::PoisonPill;
 use ndarray_stats::QuantileExt;
 use std::cmp::Ordering::Equal;
@@ -25,15 +25,13 @@ use num_integer::Integer;
 pub struct Transition(pub usize, pub usize);
 pub type SegmentID = usize;
 
-
+#[derive(Default)]
 pub struct IntersectionCalculation {
     pub intersections: HashMap<Transition, Vec<SegmentID>>,
     pub intersection_coords: HashMap<SegmentID, HashMap<Transition, Array1<f32>>>,
     pub helpers: Option<Addr<IntersectionCalculationHelper>>,
     pub pairs: Vec<(Transition, SegmentID, Array2<f32>, Array2<f32>)>,
-    pub n_total: usize,
-    pub n_sent: usize,
-    pub n_received: usize
+    pub helper_protocol: HelperProtocol
 }
 
 
@@ -117,7 +115,7 @@ impl IntersectionCalculator for Training {
 
             last = current;
         }
-        self.intersection_calculation.n_total = self.intersection_calculation.pairs.len();
+        self.intersection_calculation.helper_protocol.n_total = self.intersection_calculation.pairs.len();
 
         self.intersection_calculation.helpers = Some(SyncArbiter::start(self.parameters.n_threads, move || {IntersectionCalculationHelper {}}));
 
@@ -125,7 +123,7 @@ impl IntersectionCalculator for Training {
     }
 
     fn distribute_intersection_tasks(&mut self, rec: Recipient<IntersectionResultMessage>) {
-        for _ in 0..(self.parameters.n_threads - self.intersection_calculation.n_sent) {
+        for _ in 0..(self.parameters.n_threads - self.intersection_calculation.helper_protocol.n_sent) {
             let pair = self.intersection_calculation.pairs.pop();
             match pair {
                 None => {}
@@ -137,7 +135,7 @@ impl IntersectionCalculator for Training {
                         plane_points,
                         source: rec.clone()
                     });
-                    self.intersection_calculation.n_sent += 1;
+                    self.intersection_calculation.helper_protocol.sent();
                 }
             }
         }
@@ -149,8 +147,7 @@ impl Handler<IntersectionResultMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: IntersectionResultMessage, ctx: &mut Self::Context) -> Self::Result {
-        self.intersection_calculation.n_sent -= 1;
-        self.intersection_calculation.n_received += 1;
+        self.intersection_calculation.helper_protocol.received();
 
         match self.intersection_calculation.intersection_coords.get_mut(&msg.segment_id) {
             Some(transition_coord) => { transition_coord.insert(msg.transition, msg.intersection); },
@@ -161,7 +158,7 @@ impl Handler<IntersectionResultMessage> for Training {
             }
         };
 
-        if self.intersection_calculation.n_received < self.intersection_calculation.n_total {
+        if self.intersection_calculation.helper_protocol.is_running() {
             self.distribute_intersection_tasks(ctx.address().recipient());
         } else {
             self.intersection_calculation.helpers.as_ref().unwrap().do_send(PoisonPill);

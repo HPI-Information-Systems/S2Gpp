@@ -15,6 +15,7 @@ use crate::training::intersection_calculation::{Transition, IntersectionCalculat
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use ndarray_linalg::close_l1;
+use crate::utils::HelperProtocol;
 
 
 #[derive(Default)]
@@ -67,9 +68,7 @@ async fn test_node_estimation() {
         intersection_coords: generate_intersection_coords(),
         helpers: None,
         pairs: vec![],
-        n_total: 0,
-        n_sent: 0,
-        n_received: 0
+        helper_protocol: HelperProtocol::default()
     };
     let training_addr = training.start();
     training_addr.do_send(IntersectionCalculationDone);
