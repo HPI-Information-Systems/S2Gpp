@@ -1,6 +1,7 @@
 mod ndarray_extensions;
 mod geometry;
 mod console_logger;
+mod helper_protocol;
 
 use std::collections::HashMap;
 use actix_telepathy::{RemoteAddr, AnyAddr};
@@ -10,6 +11,7 @@ use std::collections::hash_map::Iter;
 pub use ndarray_extensions::*;
 pub use geometry::line_plane_intersection;
 pub use console_logger::ConsoleLogger;
+pub use helper_protocol::HelperProtocol;
 use ndarray::{ArcArray, Ix3};
 
 

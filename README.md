@@ -13,7 +13,7 @@
   - [x] Intersection sharing (in ring?)
 - [x] Node estimator
     - [x] MeanShift
-- [ ] Edge estimator
+- [x] Edge estimator
 - [ ] Graph creation
 - [ ] Scorer
 - [ ] Result Writing

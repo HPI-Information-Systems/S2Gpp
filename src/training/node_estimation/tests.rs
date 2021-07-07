@@ -15,6 +15,8 @@ use crate::training::intersection_calculation::{Transition, IntersectionCalculat
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use ndarray_linalg::close_l1;
+use crate::utils::HelperProtocol;
+use crate::training::edge_estimation::EdgeEstimator;
 
 
 #[derive(Default)]
@@ -67,9 +69,7 @@ async fn test_node_estimation() {
         intersection_coords: generate_intersection_coords(),
         helpers: None,
         pairs: vec![],
-        n_total: 0,
-        n_sent: 0,
-        n_received: 0
+        helper_protocol: HelperProtocol::default()
     };
     let training_addr = training.start();
     training_addr.do_send(IntersectionCalculationDone);
@@ -80,7 +80,7 @@ async fn test_node_estimation() {
 }
 
 
-fn generate_intersections() -> HashMap<Transition, Vec<SegmentID>> {
+pub fn generate_intersections() -> HashMap<Transition, Vec<SegmentID>> {
     let mut intersections = HashMap::new();
 
     intersections.insert(Transition(0, 1), vec![2, 3]);
@@ -1086,7 +1086,7 @@ fn generate_intersections() -> HashMap<Transition, Vec<SegmentID>> {
     intersections
 }
 
-fn generate_intersection_coords() -> HashMap<SegmentID, HashMap<Transition, Array1<f32>>> {
+pub(crate) fn generate_intersection_coords() -> HashMap<SegmentID, HashMap<Transition, Array1<f32>>> {
     let mut intersection_coords = HashMap::new();
 
     let distances: HashMap<Transition, Array1<f32>> = vec![(Transition(49, 50), arr1(&[51.])), (Transition(100, 101), arr1(&[102.])), (Transition(151, 152), arr1(&[153.])), (Transition(202, 203), arr1(&[204.])), (Transition(253, 254), arr1(&[255.])), (Transition(304, 305), arr1(&[306.])), (Transition(355, 356), arr1(&[357.])), (Transition(406, 407), arr1(&[408.])), (Transition(457, 458), arr1(&[459.])), (Transition(508, 509), arr1(&[510.])), (Transition(559, 560), arr1(&[561.])), (Transition(610, 611), arr1(&[612.])), (Transition(661, 662), arr1(&[663.])), (Transition(712, 713), arr1(&[714.])), (Transition(763, 764), arr1(&[765.])), (Transition(814, 815), arr1(&[816.])), (Transition(865, 866), arr1(&[867.])), (Transition(916, 917), arr1(&[918.])), (Transition(967, 968), arr1(&[969.]))].into_iter().map(|x| x).collect();

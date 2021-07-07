@@ -2,6 +2,7 @@ mod messages;
 mod segmenter;
 mod intersection_calculation;
 mod node_estimation;
+mod edge_estimation;
 
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
@@ -19,6 +20,7 @@ use crate::training::messages::{SegmentedMessage, SegmentMessage};
 use actix::dev::MessageResponse;
 use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculator, IntersectionCalculationDone};
 use crate::training::node_estimation::{NodeEstimation, NodeEstimator, NodeEstimationDone};
+use crate::training::edge_estimation::{EdgeEstimation, EdgeEstimator, EdgeEstimationDone};
 
 
 #[derive(RemoteActor)]
@@ -32,7 +34,8 @@ pub struct Training {
     rotated: Option<Array2<f32>>,
     segmentation: Segmentation,
     intersection_calculation: IntersectionCalculation,
-    node_estimation: NodeEstimation
+    node_estimation: NodeEstimation,
+    edge_estimation: EdgeEstimation
 }
 
 impl Training {
@@ -44,21 +47,10 @@ impl Training {
             dataset_stats: None,
             rotator: None,
             rotated: None,
-            segmentation: Segmentation { segments: vec![], own_segment: vec![], n_received: 0 },
-            intersection_calculation: IntersectionCalculation {
-                intersections: HashMap::new(),
-                intersection_coords: HashMap::new(),
-                helpers: None,
-                pairs: vec![],
-                n_total: 0,
-                n_sent: 0,
-                n_received: 0 },
-            node_estimation: NodeEstimation {
-                nodes: Default::default(),
-                meanshift: None,
-                current_segment_id: 0,
-                progress_bar: None
-            }
+            segmentation: Segmentation::default(),
+            intersection_calculation: IntersectionCalculation::default(),
+            node_estimation: NodeEstimation::default(),
+            edge_estimation: EdgeEstimation::default()
         }
     }
 }
@@ -138,11 +130,10 @@ impl Handler<NodeEstimationDone> for Training {
 
     fn handle(&mut self, _msg: NodeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(10, 12, "Estimating Edges".to_string()).print();
-        // TODO: edge estimation
+        self.estimate_edges_parallel(ctx.address().recipient());
     }
 }
 
-/*
 impl Handler<EdgeEstimationDone> for Training {
     type Result = ();
 
@@ -152,6 +143,7 @@ impl Handler<EdgeEstimationDone> for Training {
     }
 }
 
+/*
 impl Handler<GraphBuildingDone> for Training {
 
     type Result = ();

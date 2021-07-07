@@ -50,6 +50,7 @@ impl FromPointsWithId for Vec<SegmentedPointWithId> {
 
 pub type PointsForNodes = HashMap<usize, Vec<SegmentedPointWithId>>;
 
+#[derive(Default)]
 pub struct Segmentation {
     /// list of lists with (data ID, data point) as elements and inner list at position segment ID
     pub segments: Vec<Vec<PointWithId>>,
