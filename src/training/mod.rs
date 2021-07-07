@@ -130,11 +130,10 @@ impl Handler<NodeEstimationDone> for Training {
 
     fn handle(&mut self, _msg: NodeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(10, 12, "Estimating Edges".to_string()).print();
-        self.estimate_edges(ctx.address().recipient());
+        self.estimate_edges_parallel(ctx.address().recipient());
     }
 }
 
-/*
 impl Handler<EdgeEstimationDone> for Training {
     type Result = ();
 
@@ -144,6 +143,7 @@ impl Handler<EdgeEstimationDone> for Training {
     }
 }
 
+/*
 impl Handler<GraphBuildingDone> for Training {
 
     type Result = ();

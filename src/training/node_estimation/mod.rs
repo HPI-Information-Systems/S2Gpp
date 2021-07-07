@@ -1,6 +1,6 @@
 mod messages;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 use std::collections::HashMap;
 use crate::training::intersection_calculation::{SegmentID, Transition};
