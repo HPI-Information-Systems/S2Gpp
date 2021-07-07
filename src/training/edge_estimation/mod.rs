@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 use crate::training::Training;
 use crate::training::edge_estimation::helper::EdgeEstimationHelper;
-use crate::training::edge_estimation::messages::{EdgeEstimationHelperResponse, EdgeEstimationHelperTask, EdgeEstimationDone};
+pub use crate::training::edge_estimation::messages::{EdgeEstimationHelperResponse, EdgeEstimationHelperTask, EdgeEstimationDone};
 use crate::training::intersection_calculation::Transition;
 use crate::utils::HelperProtocol;
 use crate::meanshift::DistanceMeasure;
@@ -37,7 +37,7 @@ impl Display for Edge {
 #[derive(Default)]
 pub struct EdgeEstimation {
     edges: Vec<Edge>,
-    edge_in_time: HashMap<usize, usize>,
+    edge_in_time: Vec<usize>,
     nodes: Vec<Option<NodeName>>,
     helpers: Option<Addr<EdgeEstimationHelper>>,
     current_transition_id: usize,
@@ -87,7 +87,7 @@ impl EdgeEstimator for Training {
                         self.edge_estimation.nodes.push(Some(previous_node.as_ref().unwrap().clone()));
                     }
                     // todo: that doesn't work in a distributed case, because we have different number of global edges, we can calculate this locally and than aggregate on the main node
-                    self.edge_estimation.edge_in_time.insert(self.edge_estimation.current_transition_id, self.edge_estimation.edges.len());
+                    self.edge_estimation.edge_in_time.push(self.edge_estimation.edges.len());
                 },
                 None => ()
             }
@@ -106,6 +106,7 @@ impl EdgeEstimator for Training {
         self.edge_estimation.start_time = Some(Instant::now());
         let len = self.intersection_calculation.intersections.len();
         self.edge_estimation.helper_protocol.n_total = len;
+        self.edge_estimation.edge_in_time = vec![0; len];
         let distance_measure = DistanceMeasure::SquaredEuclidean;
         let intersections = self.intersection_calculation.intersections.clone();
         let intersection_coords = self.intersection_calculation.intersection_coords.clone();
@@ -151,13 +152,15 @@ impl Handler<EdgeEstimationHelperResponse> for Training {
     fn handle(&mut self, msg: EdgeEstimationHelperResponse, ctx: &mut Self::Context) -> Self::Result {
         self.edge_estimation.helper_protocol.received();
 
+        self.edge_estimation.edge_in_time[msg.transition.0] = msg.node_names.len() - if msg.transition.0 == 0 { 1 } else { 0 };
+
         for (i, node_name) in msg.node_names.into_iter().enumerate() {
             let task_id = msg.task_id + i;
             self.edge_estimation.nodes[task_id] = Some(node_name.clone());
 
             // incoming edge
             if task_id > 0 {
-                match self.edge_estimation.nodes.get(task_id-1) {
+                match self.edge_estimation.nodes.get(task_id - 1) {
                     Some(optional_node) => match optional_node {
                         Some(node) => {
                             self.edge_estimation.edges.push(Edge(node.clone(), node_name.clone()));
@@ -169,7 +172,7 @@ impl Handler<EdgeEstimationHelperResponse> for Training {
             }
 
             // outgoing edge
-            match self.edge_estimation.nodes.get(task_id+1) {
+            match self.edge_estimation.nodes.get(task_id + 1) {
                 Some(optional_node) => match optional_node {
                     Some(node) => {
                         self.edge_estimation.edges.push(Edge(node_name.clone(), node.clone()));
@@ -184,6 +187,12 @@ impl Handler<EdgeEstimationHelperResponse> for Training {
             self.send_next_batch();
         }
         if !self.edge_estimation.helper_protocol.is_running() {
+            self.edge_estimation.edge_in_time = self.edge_estimation.edge_in_time.iter()
+            .scan(0, |acc, &x| {
+                *acc = *acc + x;
+                Some(*acc)
+            })
+            .collect();
             let duration = self.edge_estimation.start_time.as_ref().unwrap().elapsed();
             println!("Parallel time: {:?}", duration);
             ctx.address().do_send(EdgeEstimationDone);

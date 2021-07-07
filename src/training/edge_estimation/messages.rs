@@ -8,7 +8,8 @@ use crate::training::intersection_calculation::Transition;
 #[rtype(Result = "()")]
 pub struct EdgeEstimationHelperResponse {
     pub task_id: usize,
-    pub node_names: Vec<NodeName>
+    pub node_names: Vec<NodeName>,
+    pub transition: Transition
 }
 
 

@@ -20,7 +20,7 @@ use crate::training::messages::{SegmentedMessage, SegmentMessage};
 use actix::dev::MessageResponse;
 use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculator, IntersectionCalculationDone};
 use crate::training::node_estimation::{NodeEstimation, NodeEstimator, NodeEstimationDone};
-use crate::training::edge_estimation::{EdgeEstimation, EdgeEstimator};
+use crate::training::edge_estimation::{EdgeEstimation, EdgeEstimator, EdgeEstimationDone};
 
 
 #[derive(RemoteActor)]

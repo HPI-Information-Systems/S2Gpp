@@ -62,6 +62,9 @@ impl Handler<CheckingMessage> for Training {
             }
         }
 
+        assert_eq!(self.edge_estimation.edge_in_time[192], 378);
+        assert_eq!(self.edge_estimation.edge_in_time.last().unwrap().clone(), 1958);
+
         msg.rec.unwrap().do_send(CheckingMessage { rec: None });
     }
 }
@@ -120,7 +123,8 @@ async fn test_edge_estimation() {
     };
 
     let training_addr = training.start();
-    training_addr.do_send(StartEdgeEstimation{ parallel: false });
+    // todo: compare with real-world dataset
+    training_addr.do_send(StartEdgeEstimation{ parallel: true });
     delay_for(Duration::from_millis(3000)).await;
     training_addr.do_send(CheckingMessage{ rec: Some(checker.recipient()) });
     delay_for(Duration::from_millis(200)).await;

@@ -30,7 +30,7 @@ impl EdgeEstimationHelper {
                     let nodes = (&self.nodes).get(&segment_id).unwrap().to_shared();
                     node_names.push(self.estimate_closest_node(segment_id.clone(), distance, nodes))
                 }
-                self.source.do_send(EdgeEstimationHelperResponse { task_id, node_names });
+                self.source.do_send(EdgeEstimationHelperResponse { task_id, node_names, transition});
             },
             None => ()
         }
