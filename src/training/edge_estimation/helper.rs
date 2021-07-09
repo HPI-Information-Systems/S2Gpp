@@ -6,6 +6,7 @@ use crate::training::edge_estimation::{NodeName, Edge};
 use crate::meanshift::DistanceMeasure;
 use crate::training::intersection_calculation::{Transition, SegmentID};
 use std::collections::HashMap;
+use crate::messages::PoisonPill;
 
 
 pub struct EdgeEstimationHelper {
@@ -55,5 +56,13 @@ impl Handler<EdgeEstimationHelperTask> for EdgeEstimationHelper {
 
     fn handle(&mut self, msg: EdgeEstimationHelperTask, ctx: &mut Self::Context) -> Self::Result {
         self.estimate_edges(msg.task_id, msg.transition);
+    }
+}
+
+impl Handler<PoisonPill> for EdgeEstimationHelper {
+    type Result = ();
+
+    fn handle(&mut self, _msg: PoisonPill, ctx: &mut Self::Context) -> Self::Result {
+        ctx.stop();
     }
 }

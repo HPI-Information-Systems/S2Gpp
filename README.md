@@ -15,5 +15,7 @@
     - [x] MeanShift
 - [x] Edge estimator
 - [ ] Graph creation
+  - [ ] Graph merging
+  - [ ] Graph output
 - [ ] Scorer
 - [ ] Result Writing

@@ -3,6 +3,7 @@ mod segmenter;
 mod intersection_calculation;
 mod node_estimation;
 mod edge_estimation;
+mod graph_creation;
 
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
@@ -21,6 +22,7 @@ use actix::dev::MessageResponse;
 use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculator, IntersectionCalculationDone};
 use crate::training::node_estimation::{NodeEstimation, NodeEstimator, NodeEstimationDone};
 use crate::training::edge_estimation::{EdgeEstimation, EdgeEstimator, EdgeEstimationDone};
+use crate::training::graph_creation::{GraphCreation, GraphCreator};
 
 
 #[derive(RemoteActor)]
@@ -35,7 +37,8 @@ pub struct Training {
     segmentation: Segmentation,
     intersection_calculation: IntersectionCalculation,
     node_estimation: NodeEstimation,
-    edge_estimation: EdgeEstimation
+    edge_estimation: EdgeEstimation,
+    graph_creation: GraphCreation
 }
 
 impl Training {
@@ -50,7 +53,8 @@ impl Training {
             segmentation: Segmentation::default(),
             intersection_calculation: IntersectionCalculation::default(),
             node_estimation: NodeEstimation::default(),
-            edge_estimation: EdgeEstimation::default()
+            edge_estimation: EdgeEstimation::default(),
+            graph_creation: GraphCreation::default()
         }
     }
 }
@@ -139,21 +143,21 @@ impl Handler<EdgeEstimationDone> for Training {
 
     fn handle(&mut self, _msg: EdgeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(11, 12, "Building Graph".to_string()).print();
-        // TODO: graph building
+        self.create_graph();
     }
 }
 
-/*
-impl Handler<GraphBuildingDone> for Training {
+impl Handler<GraphCreationDone> for Training {
 
     type Result = ();
 
-    fn handle(&mut self, _msg: GraphBuildingDone, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: GraphCreationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(12, 12, "Scoring".to_string()).print();
         // TODO: Scoring
     }
 }
 
+/*
 impl Handler<ScoringDone> for Training {
 
     type Result = ();

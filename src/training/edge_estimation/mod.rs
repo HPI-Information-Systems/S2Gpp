@@ -12,33 +12,18 @@ use crate::training::Training;
 use crate::training::edge_estimation::helper::EdgeEstimationHelper;
 pub use crate::training::edge_estimation::messages::{EdgeEstimationHelperResponse, EdgeEstimationHelperTask, EdgeEstimationDone};
 use crate::training::intersection_calculation::Transition;
-use crate::utils::HelperProtocol;
+use crate::utils::{HelperProtocol, Edge, NodeName};
 use crate::meanshift::DistanceMeasure;
 use std::fmt::{Display, Formatter, Result};
 use std::time::Instant;
 use std::sync::Arc;
-
-#[derive(Clone)]
-pub struct NodeName(pub usize, pub usize);
-pub struct Edge(pub NodeName, pub NodeName);
-
-impl Display for NodeName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}_{}", self.0, self.1)
-    }
-}
-
-impl Display for Edge {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "[{}, {}]", self.0, self.1)
-    }
-}
+use crate::messages::PoisonPill;
 
 #[derive(Default)]
 pub struct EdgeEstimation {
-    edges: Vec<Edge>,
-    edge_in_time: Vec<usize>,
-    nodes: Vec<Option<NodeName>>,
+    pub edges: Vec<Edge>,
+    pub edge_in_time: Vec<usize>,
+    pub nodes: Vec<Option<NodeName>>,
     helpers: Option<Addr<EdgeEstimationHelper>>,
     current_transition_id: usize,
     task_id: usize,
@@ -195,6 +180,7 @@ impl Handler<EdgeEstimationHelperResponse> for Training {
             .collect();
             let duration = self.edge_estimation.start_time.as_ref().unwrap().elapsed();
             println!("Parallel time: {:?}", duration);
+            self.edge_estimation.helpers.as_ref().unwrap().do_send(PoisonPill);
             ctx.address().do_send(EdgeEstimationDone);
         }
     }
