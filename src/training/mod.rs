@@ -21,15 +21,15 @@ use crate::training::messages::{SegmentedMessage, SegmentMessage};
 use actix::dev::MessageResponse;
 use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculator, IntersectionCalculationDone};
 use crate::training::node_estimation::{NodeEstimation, NodeEstimator, NodeEstimationDone};
-use crate::training::edge_estimation::{EdgeEstimation, EdgeEstimator, EdgeEstimationDone};
-use crate::training::graph_creation::{GraphCreation, GraphCreator};
+use crate::training::edge_estimation::{EdgeEstimation, EdgeEstimator, EdgeEstimationDone, EdgeReductionMessage};
+use crate::training::graph_creation::{GraphCreation, GraphCreator, GraphCreationDone};
 
 
 #[derive(RemoteActor)]
-#[remote_messages(SegmentMessage)]
+#[remote_messages(SegmentMessage, EdgeReductionMessage)]
 pub struct Training {
     parameters: Parameters,
-    nodes: ClusterNodes,
+    cluster_nodes: ClusterNodes,
     data_manager: Option<Addr<DataManager>>,
     dataset_stats: Option<DatasetStats>,
     rotator: Option<Addr<Rotator>>,
@@ -45,7 +45,7 @@ impl Training {
     pub fn new(parameters: Parameters) -> Self {
         Self {
             parameters,
-            nodes: ClusterNodes::default(),
+            cluster_nodes: ClusterNodes::default(),
             data_manager: None,
             dataset_stats: None,
             rotator: None,
@@ -66,13 +66,13 @@ impl Actor for Training {
         self.register(ctx.address().recipient(), "Training".to_string());
 
         self.data_manager = Some(DataManager::new(
-            self.nodes.clone(),
+            self.cluster_nodes.clone(),
             self.parameters.clone(),
             ctx.address().recipient()
         ).start());
 
         self.rotator = Some(Rotator::new(
-            self.nodes.clone(),
+            self.cluster_nodes.clone(),
             self.parameters.clone(),
             ctx.address().recipient()
         ).start());
@@ -83,7 +83,7 @@ impl Handler<StartTrainingMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: StartTrainingMessage, ctx: &mut Self::Context) -> Self::Result {
-        self.nodes = msg.nodes;
+        self.cluster_nodes = msg.nodes;
         self.data_manager.as_ref().unwrap().do_send(LoadDataMessage);
     }
 }
@@ -107,7 +107,6 @@ impl Handler<RotatedMessage> for Training {
         self.rotated = Some(msg.rotated);
         self.data_manager.as_ref().unwrap().do_send(PoisonPill);
         self.segment();
-        self.assign_segments();
     }
 }
 
@@ -134,7 +133,7 @@ impl Handler<NodeEstimationDone> for Training {
 
     fn handle(&mut self, _msg: NodeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(10, 12, "Estimating Edges".to_string()).print();
-        self.estimate_edges_parallel(ctx.address().recipient());
+        self.estimate_edges();
     }
 }
 

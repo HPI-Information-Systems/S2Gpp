@@ -2,7 +2,7 @@ use actix::prelude::*;
 use crate::training::Training;
 use crate::parameters::Parameters;
 use crate::training::messages::SegmentedMessage;
-use crate::training::segmenter::{Segmentation, SegmentedPointWithId, PointWithId};
+use crate::training::segmenter::{Segmentation, SegmentedPointWithId, PointWithId, SegmentedTransition};
 use std::f32::consts::PI;
 use ndarray::{Array1, arr1, Array2, arr2};
 use actix::dev::MessageResponse;
@@ -44,13 +44,13 @@ impl Handler<CheckingMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: CheckingMessage, ctx: &mut Self::Context) -> Self::Result {
-        assert_eq!([2, 3], self.intersection_calculation.intersections.get(&Transition(0,1)).unwrap().as_slice());
-        assert_eq!([4, 5], self.intersection_calculation.intersections.get(&Transition(1,2)).unwrap().as_slice());
-        assert_eq!([6, 7], self.intersection_calculation.intersections.get(&Transition(2,3)).unwrap().as_slice());
+        assert_eq!([2, 3], self.intersection_calculation.intersections.get(&0).unwrap().as_slice());
+        assert_eq!([4, 5], self.intersection_calculation.intersections.get(&1).unwrap().as_slice());
+        assert_eq!([6, 7], self.intersection_calculation.intersections.get(&2).unwrap().as_slice());
 
-        assert_eq!(51., self.intersection_calculation.intersection_coords.get(&0).unwrap().get(&Transition(49, 50)).unwrap()[0]);
-        assert_eq!(102., self.intersection_calculation.intersection_coords.get(&0).unwrap().get(&Transition(100, 101)).unwrap()[0]);
-        assert_eq!(153., self.intersection_calculation.intersection_coords.get(&0).unwrap().get(&Transition(151, 152)).unwrap()[0]);
+        assert_eq!(51., self.intersection_calculation.intersection_coords_by_segment.get(&0).unwrap().get(&49).unwrap()[0]);
+        assert_eq!(102., self.intersection_calculation.intersection_coords_by_segment.get(&0).unwrap().get(&100).unwrap()[0]);
+        assert_eq!(153., self.intersection_calculation.intersection_coords_by_segment.get(&0).unwrap().get(&151).unwrap()[0]);
 
         msg.rec.unwrap().do_send(CheckingMessage { rec: None });
     }
@@ -67,9 +67,9 @@ async fn get_intersections() {
     let checker = Checker { success: success.clone() }.start();
 
     training.segmentation = Segmentation {
-        segments: vec![],
-        own_segment: generate_segmented_points(),
-        n_received: 0
+        segments: generate_segmented_transitions(),
+        n_received: 0,
+        ..Default::default()
     };
     let training_addr = training.start();
     training_addr.do_send(SegmentedMessage);
@@ -80,7 +80,7 @@ async fn get_intersections() {
 }
 
 
-fn generate_segmented_points() -> Vec<SegmentedPointWithId> {
+fn generate_segmented_transitions() -> Vec<SegmentedTransition> {
     let segments = 100;
     let segment_size = (2.0 * PI) / segments as f32;
     let spin_size = 51;
@@ -94,5 +94,20 @@ fn generate_segmented_points() -> Vec<SegmentedPointWithId> {
             point_with_id: PointWithId { id: x-1, coords }
         }
     }).collect();
-    points
+
+    let mut transitions = vec![];
+    let mut last_point = None;
+
+    for point in points {
+        match last_point {
+            Some(last_point) => {
+                let transition = SegmentedTransition::new(last_point, point.clone());
+                transitions.push(transition);
+            },
+            None => ()
+        }
+        last_point = Some(point);
+    }
+
+    transitions
 }

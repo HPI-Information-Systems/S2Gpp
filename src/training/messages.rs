@@ -5,7 +5,7 @@ use serde_with::serde_as;
 use crate::utils::ClusterNodes;
 use ndarray::Array1;
 use std::collections::HashMap;
-use crate::training::segmenter::PointsForNodes;
+use crate::training::segmenter::{PointsForNodes, TransitionsForNodes};
 
 
 #[derive(Message)]
@@ -19,7 +19,8 @@ pub struct StartTrainingMessage {
 #[rtype(Result = "()")]
 pub struct SegmentMessage {
     #[serde_as(as = "Vec<(_, _)>")]
-    pub segments: PointsForNodes
+    pub segments: TransitionsForNodes
+
 }
 
 #[derive(Message)]

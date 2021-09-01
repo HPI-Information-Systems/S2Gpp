@@ -10,6 +10,7 @@ use std::fs::File;
 use std::io::Write;
 use std::fs;
 use anyhow::{Result, Error};
+pub use messages::GraphCreationDone;
 
 
 #[derive(Default)]

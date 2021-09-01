@@ -6,7 +6,7 @@ use crate::training::intersection_calculation::Transition;
 #[derive(Message)]
 #[rtype(Result = "()")]
 pub struct IntersectionTaskMessage {
-    pub transition: Transition,
+    pub transition_id: usize,
     pub segment_id: usize,
     pub line_points: Array2<f32>,
     pub plane_points: Array2<f32>,
@@ -17,7 +17,7 @@ pub struct IntersectionTaskMessage {
 #[derive(Message)]
 #[rtype(Result = "()")]
 pub struct IntersectionResultMessage {
-    pub transition: Transition,
+    pub transition_id: usize,
     pub segment_id: usize,
     pub intersection: Array1<f32>
 }

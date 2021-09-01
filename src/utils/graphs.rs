@@ -3,8 +3,10 @@ use petgraph::adj::IndexType;
 use std::fmt::{Display, Formatter, Result};
 use num_integer::Roots;
 use ndarray_linalg::Scalar;
+use serde::{Serialize, Deserialize};
 
-#[derive(Clone, Default, Debug, Copy, Hash, Ord, PartialOrd, PartialEq, Eq)]
+
+#[derive(Clone, Default, Debug, Copy, Hash, Ord, PartialOrd, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NodeName(pub usize, pub usize);
 
 /// using cantor pairing function
@@ -33,7 +35,7 @@ impl Display for NodeName {
     }
 }
 
-
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Edge(pub NodeName, pub NodeName);
 
 impl Edge {

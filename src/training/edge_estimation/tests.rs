@@ -46,9 +46,9 @@ impl Handler<CheckingMessage> for Training {
 
     fn handle(&mut self, msg: CheckingMessage, ctx: &mut Self::Context) -> Self::Result {
         println!("{} edges estimated", self.edge_estimation.edges.len());
-        /*for edge in &self.edge_estimation.edges {
+        for edge in &self.edge_estimation.edge_in_time {
             println!("{}", edge);
-        }*/
+        }
         assert_eq!(self.edge_estimation.edges.len(), 1958);
         for edge in self.edge_estimation.edges.iter() {
             if edge.0.0 == 94 && edge.0.1 == 5 {
@@ -81,18 +81,16 @@ impl Handler<StartEdgeEstimation> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: StartEdgeEstimation, ctx: &mut Self::Context) -> Self::Result {
-        if msg.parallel {
-            self.estimate_edges_parallel(ctx.address().recipient());
-        } else {
-            self.estimate_edges();
-        }
+        self.estimate_edges();
     }
 }
 
 
 #[actix_rt::test]
 async fn test_edge_estimation() {
-    let cluster = Cluster::new(format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap(), vec![]);
+    env_logger::init();
+
+    let _cluster = Cluster::new(format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap(), vec![]);
     let mut parameters = Parameters::default();
     parameters.n_threads = 20;
     let mut training = Training::new(parameters);
@@ -109,7 +107,7 @@ async fn test_edge_estimation() {
 
     training.intersection_calculation = IntersectionCalculation {
         intersections: generate_intersections(),
-        intersection_coords: generate_intersection_coords(),
+        intersection_coords_by_segment: generate_intersection_coords(),
         helpers: None,
         pairs: vec![],
         helper_protocol: HelperProtocol::default()
@@ -117,7 +115,9 @@ async fn test_edge_estimation() {
 
     training.node_estimation = NodeEstimation {
         nodes: generate_nodes(),
+        nodes_by_transition: Default::default(),
         meanshift: None,
+        last_transitions: vec![],
         current_segment_id: 0,
         progress_bar: None
     };
