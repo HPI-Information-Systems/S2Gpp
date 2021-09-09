@@ -7,6 +7,7 @@ use log::*;
 use ndarray::prelude::*;
 use ndarray_linalg::qr::*;
 use actix::prelude::*;
+use actix_telepathy::prelude::*;
 pub use crate::pca::messages::{PCAMessage, PCAMeansMessage, PCADecompositionMessage, PCAResponse, RotatedMessage, StartRotation};
 pub use crate::pca::rotator::{Rotator};
 
@@ -17,6 +18,8 @@ use crate::pca::messages::PCAComponents;
 use crate::utils::ClusterNodes;
 
 
+#[derive(RemoteActor)]
+#[remote_messages(PCAMeansMessage, PCADecompositionMessage, PCAComponents)]
 pub struct PCA {
     source: Option<Recipient<PCAResponse>>,
     id: usize,
@@ -62,10 +65,14 @@ impl PCA {
 
     fn send_to_main(&mut self) {
         match self.cluster_nodes.get(&0) {
-            Some(addr) => addr.do_send(PCAMeansMessage {
-                columns_means: self.column_means.as_ref().unwrap().clone(),
-                n: self.data.as_ref().unwrap().shape()[0]
-            }),
+            Some(addr) => {
+                let mut addr = addr.clone();
+                addr.change_id("PCA".to_string());
+                addr.do_send(PCAMeansMessage {
+                    columns_means: self.column_means.as_ref().unwrap().clone(),
+                    n: self.data.as_ref().unwrap().shape()[0],
+                })
+            },
             None => ()
         }
     }
@@ -81,9 +88,16 @@ impl PCA {
 
         if self.id >= threshold && self.id > 0 {
             let neighbor_id = self.id - threshold;
-            self.cluster_nodes.uget(&neighbor_id).do_send(PCADecompositionMessage {
-                r: self.local_r.as_ref().unwrap().clone(), count: self.r_count + 1 });
-        } else if self.r_count == 0 && (self.id + threshold) >= self.cluster_nodes.len() {
+            match self.cluster_nodes.get(&neighbor_id) {
+                Some(node) => {
+                    let mut addr = node.clone();
+                    addr.change_id("PCA".to_string());
+                    addr.do_send(PCADecompositionMessage {
+                        r: self.local_r.as_ref().unwrap().clone(), count: self.r_count + 1 });
+                },
+                None => panic!("No cluster node with id {} exists!", &neighbor_id)
+            }
+        } else if self.r_count == 0 && (self.id + threshold) >= self.cluster_nodes.len_incl_own() {
             self.r_count += 1;
             self.send_to_neighbor_or_finalize()
         } else if self.id == 0 && s == self.r_count + 1 {
@@ -143,7 +157,9 @@ impl PCA {
         let msg = PCAComponents { components: self.components.as_ref().unwrap().clone() };
 
         for (_, node) in self.cluster_nodes.iter() {
-            node.do_send(msg.clone())
+            let mut addr = node.clone();
+            addr.change_id("PCA".to_string());
+            addr.do_send(msg.clone())
         }
         match &self.own_addr {
             Some(addr) => addr.do_send(msg.clone()),
@@ -156,6 +172,7 @@ impl Actor for PCA {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
+        self.register(ctx.address().recipient(), "PCA".to_string());
         self.own_addr = Some(ctx.address());
     }
 }

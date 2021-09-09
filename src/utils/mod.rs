@@ -19,7 +19,7 @@ use ndarray::{ArcArray, Ix3};
 
 pub type ArcArray3<T> = ArcArray<T, Ix3>;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct ClusterNodes {
     nodes: HashMap<usize, RemoteAddr>
 }
