@@ -48,15 +48,9 @@ impl ClusterNodes {
     }
 
     pub fn get_own_idx(&self) -> usize {
-        let mut own_idx = 0;
-        for idx in self.nodes.keys() {
-            if own_idx.eq(idx) {
-                own_idx += 1
-            } else {
-                break
-            }
-        }
-        own_idx
+        let n_nodes: usize = (0..self.len_incl_own()).sum();
+        let keys_sum: usize = self.nodes.keys().sum();
+        n_nodes - keys_sum
     }
 
     pub fn get_next_idx(&self) -> Option<usize> {

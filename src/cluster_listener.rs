@@ -24,7 +24,8 @@ pub struct ClusterMemberListener {
     connected_nodes: HashSet<RemoteAddr>,
     main_node: Option<RemoteAddr>,
     training: Addr<Training>,
-    sorted_nodes: HashMap<usize, RemoteAddr>
+    sorted_nodes: HashMap<usize, RemoteAddr>,
+    sorted_addr_buffer: Vec<SocketAddr>
 }
 
 impl ClusterMemberListener {
@@ -34,7 +35,8 @@ impl ClusterMemberListener {
             connected_nodes: HashSet::new(),
             main_node: None,
             training,
-            sorted_nodes: HashMap::new()
+            sorted_nodes: HashMap::new(),
+            sorted_addr_buffer: vec![]
         }
     }
 
@@ -108,7 +110,10 @@ impl Handler<ClusterLog> for ClusterMemberListener {
                             self.sort_members(sorted_members);
                             self.start_training();
                         },
-                        _ => ()
+                        _ => if self.sorted_addr_buffer.len() > 0 {
+                            self.sort_members(self.sorted_addr_buffer.clone());
+                            self.start_training();
+                        }
                     }
                 }
             },
@@ -131,8 +136,12 @@ impl Handler<SortedMembersMessage> for ClusterMemberListener {
     type Result = ();
 
     fn handle(&mut self, msg: SortedMembersMessage, _ctx: &mut Self::Context) -> Self::Result {
-        self.sort_members(msg.0);
-        self.start_training();
+        if self.connected_nodes.len() == self.n_cluster_nodes - 1 {
+            self.sort_members(msg.0);
+            self.finish_intro();
+        } else {
+            self.sorted_addr_buffer = msg.0;
+        }
     }
 }
 
