@@ -28,7 +28,8 @@ pub struct TestClusterMemberListener {
     connected_nodes: HashSet<RemoteAddr>,
     main_node: Option<RemoteAddr>,
     sorted_nodes: HashMap<usize, RemoteAddr>,
-    cluster_nodes: Arc<Mutex<Option<ClusterNodes>>>
+    cluster_nodes: Arc<Mutex<Option<ClusterNodes>>>,
+    sorted_addr_buffer: Vec<SocketAddr>
 }
 
 impl TestClusterMemberListener {
@@ -42,7 +43,8 @@ impl TestClusterMemberListener {
             connected_nodes: HashSet::new(),
             main_node: None,
             sorted_nodes: HashMap::new(),
-            cluster_nodes
+            cluster_nodes,
+            sorted_addr_buffer: vec![]
         }
     }
 
@@ -65,8 +67,6 @@ impl TestClusterMemberListener {
                 None => ()
             }
         }
-
-        debug!("sorted: {:?}", self.sorted_nodes)
     }
 
     fn finish_intro(&mut self) {
@@ -79,7 +79,7 @@ impl Actor for TestClusterMemberListener {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         self.subscribe_system_async::<ClusterLog>(ctx);
-        self.register(ctx.address().recipient(), "ClusterMemberListener".to_string());
+        self.register(ctx.address().recipient(), "TestClusterMemberListener".to_string());
     }
 
     fn stopped(&mut self, _ctx: &mut Self::Context) {
@@ -107,11 +107,14 @@ impl Handler<ClusterLog> for TestClusterMemberListener {
 
                         for node in self.connected_nodes.iter() {
                             let mut remote_listener = node.clone();
-                            remote_listener.change_id("ClusterMemberListener".to_string());
+                            remote_listener.change_id("TestClusterMemberListener".to_string());
                             remote_listener.do_send(TestSortedMembersMessage(sorted_members.clone()))
                         }
 
                         self.sort_members(sorted_members);
+                        self.finish_intro();
+                    } else if self.sorted_addr_buffer.len() > 0 {
+                        self.sort_members(self.sorted_addr_buffer.clone());
                         self.finish_intro();
                     }
                 }
@@ -127,8 +130,12 @@ impl Handler<TestSortedMembersMessage> for TestClusterMemberListener {
     type Result = ();
 
     fn handle(&mut self, msg: TestSortedMembersMessage, _ctx: &mut Self::Context) -> Self::Result {
-        self.sort_members(msg.0);
-        self.finish_intro();
+        if self.connected_nodes.len() == self.n_cluster_nodes - 1 {
+            self.sort_members(msg.0);
+            self.finish_intro();
+        } else {
+            self.sorted_addr_buffer = msg.0;
+        }
     }
 }
 

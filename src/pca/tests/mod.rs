@@ -49,7 +49,7 @@ struct TestParams {
 
 #[test]
 #[ignore]
-fn test_distributed_pca() {
+fn test_distributed_pca_2() {
     let ip1: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap();
     let ip2: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap();
 
@@ -75,6 +75,49 @@ fn test_distributed_pca() {
             other_nodes: vec![(0, ip1.clone())],
             main: false,
             data: dataset.slice(s![50.., ..]).to_shared(),
+            expected: expected
+        },
+    ];
+    arr.into_par_iter().for_each(|p| run_single_pca_node(p.ip, p.seeds.clone(), p.other_nodes, p.main, p.data, p.expected));
+}
+
+#[test]
+#[ignore]
+fn test_distributed_pca_3() {
+    let ip1: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap();
+    let ip2: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap();
+    let ip3: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap();
+
+
+    let dataset = read_data_("data/test.csv");
+    let expected: Array2<f32> = arr2(&[
+        [0.7265024, -0.39373094, 0.5631784],
+        [0.57647973, -0.09682596, -0.8113543]
+    ]);
+
+    let arr = [
+        TestParams {
+            ip: ip1.clone(),
+            seeds: vec![],
+            other_nodes: vec![(1, ip2.clone()), (2, ip3.clone())],
+            main: true,
+            data: dataset.slice(s![..33, ..]).to_shared(),
+            expected: expected.clone()
+        },
+        TestParams {
+            ip: ip2.clone(),
+            seeds: vec![ip1.clone()],
+            other_nodes: vec![(0, ip1.clone()), (2, ip3.clone())],
+            main: false,
+            data: dataset.slice(s![33..66, ..]).to_shared(),
+            expected: expected.clone()
+        },
+        TestParams {
+            ip: ip3.clone(),
+            seeds: vec![ip1.clone()],
+            other_nodes: vec![(0, ip1.clone()), (1, ip2.clone())],
+            main: false,
+            data: dataset.slice(s![66.., ..]).to_shared(),
             expected: expected
         },
     ];
