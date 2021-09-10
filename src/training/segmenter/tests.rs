@@ -15,11 +15,11 @@ use num_integer::Integer;
 use crate::utils::ClusterNodes;
 use crate::utils::PolarCoords;
 use actix::dev::MessageResponse;
-use crate::pca::RotatedMessage;
 use crate::data_manager::DatasetStats;
 use crate::training::segmenter::get_segment_id;
 use std::sync::{Mutex, Arc};
 use std::ops::Deref;
+use crate::training::rotation::RotationDoneMessage;
 
 #[derive(Message)]
 #[rtype(result = "Result<usize, ()>")]
@@ -121,7 +121,7 @@ impl Supervised for OwnListener {}
 
 impl OwnListener {
     fn segment(&mut self, ctx: &mut Context<Self>) {
-        self.training_addr.do_send(RotatedMessage { rotated: self.rotated.clone() });
+        self.training_addr.do_send(RotationDoneMessage);
     }
 }
 

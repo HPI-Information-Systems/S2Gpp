@@ -2,7 +2,6 @@ mod cluster_listener;
 
 use ndarray::prelude::*;
 use actix::prelude::*;
-use crate::pca::*;
 use rayon::prelude::*;
 
 use std::sync::{Arc, Mutex};
@@ -15,26 +14,42 @@ use actix_telepathy::{Cluster, RemoteAddr};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use ndarray_linalg::close_l1;
-use crate::pca::tests::cluster_listener::TestClusterMemberListener;
+use crate::training::rotation::pca::messages::PCADoneMessage;
+use ndarray::ArcArray2;
+use crate::training::rotation::pca::tests::cluster_listener::TestClusterMemberListener;
+use crate::utils::ClusterNodes;
+use crate::training::Training;
+use crate::training::rotation::pca::{PCA, PCAnalyzer};
+use crate::parameters::Parameters;
+use crate::training::rotation::PCAComponents;
 
-struct PCAReceiver {
-    result: Arc<Mutex<Option<Array2<f32>>>>
+#[derive(Message)]
+#[rtype(Result = "()")]
+struct StartPCA {
+    data: ArcArray2<f32>
 }
 
-impl Actor for PCAReceiver {
-    type Context = Context<Self>;
+impl Handler<StartPCA> for Training {
+    type Result = ();
 
-    fn stopped(&mut self, _ctx: &mut Context<Self>) {
-        System::current().stop();
+    fn handle(&mut self, msg: StartPCA, _ctx: &mut Self::Context) -> Self::Result {
+        self.pca(msg.data);
     }
 }
 
-impl Handler<PCAResponse> for PCAReceiver {
+struct ResultChecker {
+    components: Arc<Mutex<Option<Array2<f32>>>>
+}
+
+impl Actor for ResultChecker {
+    type Context = Context<Self>;
+}
+
+impl Handler<PCAComponents> for ResultChecker {
     type Result = ();
 
-    fn handle(&mut self, msg: PCAResponse, ctx: &mut Self::Context) -> Self::Result {
-        *(self.result.lock().unwrap()) = Some(msg.components);
-        ctx.stop();
+    fn handle(&mut self, msg: PCAComponents, _ctx: &mut Self::Context) -> Self::Result {
+        *(self.components.lock().unwrap()) = Some(msg.components);
     }
 }
 
@@ -148,8 +163,13 @@ async fn run_single_pca_node(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>
 
     let id = cluster_nodes.get_own_idx();
 
-    let pca = PCA::new(cluster_nodes, Some(PCAReceiver {result: cloned}.start().recipient()), id, 2).start();
-    pca.do_send(PCAMessage { data });
+    let parameters = Parameters::default();
+    let mut training = Training::new(parameters);
+    training.cluster_nodes = cluster_nodes;
+    training.rotation.pca = PCA::new(id, 2);
+    training.rotation.pca.recipient = Some(ResultChecker { components: cloned }.start().recipient());
+    let training_addr = training.start();
+    training_addr.do_send(StartPCA { data });
 
     delay_for(Duration::from_millis(3000)).await;
 

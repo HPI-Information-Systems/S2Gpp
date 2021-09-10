@@ -136,9 +136,9 @@ impl Handler<SortedMembersMessage> for ClusterMemberListener {
     type Result = ();
 
     fn handle(&mut self, msg: SortedMembersMessage, _ctx: &mut Self::Context) -> Self::Result {
-        if self.connected_nodes.len() == self.n_cluster_nodes - 1 {
+        if self.connected_nodes.len() == self.parameters.n_cluster_nodes - 1 {
             self.sort_members(msg.0);
-            self.finish_intro();
+            self.start_training();
         } else {
             self.sorted_addr_buffer = msg.0;
         }

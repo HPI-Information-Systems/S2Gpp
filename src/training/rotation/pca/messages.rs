@@ -7,22 +7,13 @@ use crate::utils::ArcArray3;
 
 #[derive(Message)]
 #[rtype(Result = "()")]
-pub struct StartRotation {
-    pub phase_space: ArcArray3<f32>,
-    pub data_ref: ArcArray3<f32>
-}
-
-#[derive(Message)]
-#[rtype(Result = "()")]
 pub struct PCAMessage {
     pub data: ArcArray2<f32>
 }
 
 #[derive(Message)]
 #[rtype(Result = "()")]
-pub struct PCAResponse {
-    pub components: Array2<f32>
-}
+pub struct PCADoneMessage;
 
 #[derive(Message, RemoteMessage, Serialize, Deserialize)]
 #[rtype(Result = "()")]
@@ -42,16 +33,4 @@ pub struct PCAMeansMessage {
 #[rtype(Result = "()")]
 pub struct PCAComponents {
     pub components: Array2<f32>
-}
-
-#[derive(Message, RemoteMessage, Serialize, Deserialize)]
-#[rtype(Result = "()")]
-pub struct RotationMatrixMessage {
-    pub rotation_matrix: Array3<f32>
-}
-
-#[derive(Message)]
-#[rtype(Result = "()")]
-pub struct RotatedMessage {
-    pub rotated: Array2<f32>
 }

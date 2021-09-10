@@ -77,7 +77,7 @@ impl Segmenter for Training {
         let mut node_transitions = TransitionsForNodes::new();
         let segments_per_node = (self.parameters.rate as f32 / self.cluster_nodes.len_incl_own() as f32).floor() as usize;
         let mut last_point: Option<SegmentedPointWithId> = None;
-        for (id, x) in self.rotated.as_ref().unwrap().axis_iter(Axis(0)).enumerate() {
+        for (id, x) in self.rotation.rotated.as_ref().unwrap().axis_iter(Axis(0)).enumerate() {
             let polar = x.to_polar();
             let segment_id = get_segment_id(polar[1], self.parameters.rate);
             let point = SegmentedPointWithId { segment_id, point_with_id: PointWithId { id, coords: x.iter().map(|x| x.clone()).collect() } };
