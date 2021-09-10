@@ -55,7 +55,7 @@ impl Rotator for Training {
     }
 
     fn reduce(&mut self) {
-        let components = self.rotation.pca.components.as_ref().unwrap().clone();
+        let components = self.rotation.pca.components.as_ref().unwrap().clone().reversed_axes();
         let i = self.rotation.n_reduced - 1;
         self.rotation.reduced.as_mut().unwrap().index_axis_mut(Axis(2), i).assign(
             &self.rotation.phase_space.as_ref().unwrap().slice(s![.., .., i]).dot(&components)
@@ -120,8 +120,10 @@ impl Rotator for Training {
             x.view()).collect::<Vec<ArrayView2<f32>>>().as_slice()
         ).unwrap();
 
-        let rotated = rotated_3.slice(s![.., 0..2, ..])
-            .into_shape(Dim([rotated_3.shape()[0], rotated_3.shape()[2] * 2])).unwrap().to_owned();
+        let rotated = rotated_3.slice(s![0..2, .., ..])
+            .into_shape(Dim([rotated_3.shape()[1], rotated_3.shape()[2] * 2])).unwrap().to_owned();
+
+        self.rotation.rotated = Some(rotated);
     }
 }
 
