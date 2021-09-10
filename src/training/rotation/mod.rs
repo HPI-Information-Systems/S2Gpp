@@ -160,10 +160,11 @@ mod tests {
     use crate::parameters::Parameters;
     use crate::training::Training;
     use crate::utils::ClusterNodes;
+    use crate::training::rotation::Rotator;
 
     #[test]
     fn test_rotation_matrix() {
-        /*let rotation_matrix: Arc<Mutex<Option<Array3<f32>>>> = Arc::new(Mutex::new(None));
+        let rotation_matrix: Arc<Mutex<Option<Array3<f32>>>> = Arc::new(Mutex::new(None));
         let rotation_matrix_clone = rotation_matrix.clone();
 
         let expects = arr3(&[
@@ -178,26 +179,24 @@ mod tests {
               [ 1.39796979e-03,  3.42653727e-03]]]);
 
         let _system = System::run(move || {
-            let recipient = Training::new(Parameters::default()).start();
+            let mut training = Training::new(Parameters::default());
             let dummy_data = arr3(&[[[0.]]]);
 
+            training.rotation.phase_space = Some(dummy_data.to_shared());
+            training.rotation.data_ref = Some(dummy_data.to_shared());
 
-
-            rotator.phase_space = Some(dummy_data.to_shared());
-            rotator.data_ref = Some(dummy_data.to_shared());
-
-            rotator.reduced_ref = Some(arr3(&[
+            training.rotation.reduced_ref = Some(arr3(&[
                 [[-2.32510113e+01, -1.84500066e+01],
                  [ 2.19784013e-02,  1.53111935e-01],
                  [ 3.25042576e-02,  6.32221831e-02]]
             ]));
 
-            *(rotation_matrix_clone.lock().unwrap()) = Some(rotator.get_rotation_matrix());
+            *(rotation_matrix_clone.lock().unwrap()) = Some(training.get_rotation_matrix());
             System::current().stop();
         });
         let truth = rotation_matrix.lock().unwrap();
 
-        close_l1(truth.as_ref().unwrap(), &expects, 0.0005)*/
+        close_l1(truth.as_ref().unwrap(), &expects, 0.0005)
     }
 
     #[test]
