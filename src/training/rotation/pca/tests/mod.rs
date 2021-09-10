@@ -16,7 +16,7 @@ use std::iter::FromIterator;
 use ndarray_linalg::close_l1;
 use crate::training::rotation::pca::messages::PCADoneMessage;
 use ndarray::ArcArray2;
-use crate::training::rotation::pca::tests::cluster_listener::TestClusterMemberListener;
+pub use crate::training::rotation::pca::tests::cluster_listener::TestClusterMemberListener;
 use crate::utils::ClusterNodes;
 use crate::training::Training;
 use crate::training::rotation::pca::{PCA, PCAnalyzer};

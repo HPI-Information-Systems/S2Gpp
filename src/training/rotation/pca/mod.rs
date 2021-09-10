@@ -2,6 +2,7 @@ mod messages;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use tests::TestClusterMemberListener;
 use log::*;
 use ndarray::prelude::*;
 use ndarray_linalg::qr::*;
