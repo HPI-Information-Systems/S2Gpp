@@ -132,8 +132,8 @@ impl Handler<PCADoneMessage> for Training {
 
     fn handle(&mut self, _msg: PCADoneMessage, ctx: &mut Self::Context) -> Self::Result {
         if self.rotation.n_reduced < self.rotation.phase_space.as_ref().unwrap().shape()[2] {
-            self.run_pca();
             self.reduce();
+            self.run_pca();
         } else {
             self.reduce();
             self.broadcast_rotation_matrix(ctx.address());

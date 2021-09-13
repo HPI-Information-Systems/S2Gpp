@@ -70,7 +70,7 @@ async fn test_node_estimation() {
         intersection_coords_by_segment: generate_intersection_coords(),
         helpers: None,
         pairs: vec![],
-        helper_protocol: HelperProtocol::default()
+        ..Default::default()
     };
     let training_addr = training.start();
     training_addr.do_send(IntersectionCalculationDone);

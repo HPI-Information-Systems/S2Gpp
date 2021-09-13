@@ -3,17 +3,18 @@ use actix_telepathy::prelude::*;
 use std::collections::HashMap;
 use ndarray::{arr2, Array2};
 use crate::training::node_estimation::tests::{generate_intersections, generate_intersection_coords};
-use crate::parameters::Parameters;
-use crate::training::Training;
+use crate::parameters::{Parameters, Role};
+use crate::training::{Training, StartTrainingMessage};
 use port_scanner::request_open_port;
 use std::sync::{Arc, Mutex};
 use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculationDone};
-use crate::utils::HelperProtocol;
+use crate::utils::{HelperProtocol, ClusterNodes};
 use crate::training::node_estimation::{NodeEstimationDone, NodeEstimation};
 use actix_rt::time::delay_for;
 use std::time::Duration;
 use crate::data_manager::DatasetStats;
 use crate::training::edge_estimation::EdgeEstimator;
+use crate::training::segmenter::{SegmentedTransition, Segmentation};
 
 
 #[derive(Default)]
@@ -81,7 +82,7 @@ impl Handler<StartEdgeEstimation> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: StartEdgeEstimation, ctx: &mut Self::Context) -> Self::Result {
-        self.estimate_edges();
+        self.estimate_edges(ctx);
     }
 }
 
@@ -91,41 +92,22 @@ async fn test_edge_estimation() {
     env_logger::init();
 
     let _cluster = Cluster::new(format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap(), vec![]);
-    let mut parameters = Parameters::default();
-    parameters.n_threads = 20;
+    let mut parameters = Parameters {
+        role: Role::Main {
+            data_path: "data/test.csv".to_string()
+        },
+        n_threads: 20,
+        n_cluster_nodes: 1,
+        ..Default::default()
+    };
     let mut training = Training::new(parameters);
 
     let success = Arc::new(Mutex::new(false));
     let checker = Checker { success: success.clone() }.start();
 
-    training.dataset_stats = Some(DatasetStats {
-        min_col: None,
-        max_col: None,
-        std_col: None,
-        n: Some(1000)
-    });
-
-    training.intersection_calculation = IntersectionCalculation {
-        intersections: generate_intersections(),
-        intersection_coords_by_segment: generate_intersection_coords(),
-        helpers: None,
-        pairs: vec![],
-        helper_protocol: HelperProtocol::default()
-    };
-
-    training.node_estimation = NodeEstimation {
-        nodes: generate_nodes(),
-        nodes_by_transition: Default::default(),
-        meanshift: None,
-        last_transitions: vec![],
-        current_segment_id: 0,
-        progress_bar: None
-    };
-
     let training_addr = training.start();
-    // todo: compare with real-world dataset
-    training_addr.do_send(StartEdgeEstimation{ parallel: true });
-    delay_for(Duration::from_millis(3000)).await;
+    training_addr.do_send(StartTrainingMessage {nodes: ClusterNodes::new()});
+    delay_for(Duration::from_millis(10000)).await;
     training_addr.do_send(CheckingMessage{ rec: Some(checker.recipient()) });
     delay_for(Duration::from_millis(200)).await;
     assert!(*success.lock().unwrap())

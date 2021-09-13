@@ -36,4 +36,4 @@ sortedvec = "0.5.0"
 petgraph = "0.6.0"
 anyhow = "1.0.41"
 
-meanshift-rs = { git = "ssh://git@gitlab.hpi.de/phillip.wenig/meanshift-rs.git", tag = "0.2.0" }
+meanshift-rs = { git = "ssh://git@gitlab.hpi.de/phillip.wenig/meanshift-rs.git", tag = "0.2.1" }

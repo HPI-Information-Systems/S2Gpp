@@ -10,7 +10,7 @@ pub use crate::data_manager::stats_collector::messages::*;
 pub use crate::data_manager::stats_collector::minmax::{MinMaxCalculator, MinMaxCalculation};
 
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct DatasetStats {
     pub min_col: Option<Array1<f32>>,
     pub max_col: Option<Array1<f32>>,

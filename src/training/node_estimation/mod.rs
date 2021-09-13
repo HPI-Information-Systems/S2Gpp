@@ -19,7 +19,7 @@ use meanshift_rs::{MeanShiftResponse, MeanShiftMessage, MeanShiftActor};
 #[derive(Default)]
 pub struct NodeEstimation {
     pub nodes: HashMap<SegmentID, Array2<f32>>,
-    pub nodes_by_transition: HashMap<usize, IntersectionNode>,
+    pub nodes_by_transition: HashMap<usize, Vec<IntersectionNode>>,
     pub meanshift: Option<Addr<MeanShiftActor>>,
     pub(crate) last_transitions: Vec<usize>,
     pub(crate) current_segment_id: usize,
@@ -67,7 +67,11 @@ impl Handler<MeanShiftResponse> for Training {
             self.node_estimation.nodes.insert(current_segment_id, msg.cluster_centers);
 
             last_transitions.into_iter().zip(msg.labels).map(|(transition, label)| {
-                self.node_estimation.nodes_by_transition.insert(transition.clone(), IntersectionNode { segment: current_segment_id, cluster_id: label })
+                let node = IntersectionNode { segment: current_segment_id, cluster_id: label };
+                match self.node_estimation.nodes_by_transition.get_mut(&transition) {
+                    Some(nodes) => nodes.push(node),
+                    None => { self.node_estimation.nodes_by_transition.insert(transition.clone(), vec![node]); }
+                }
             });
         }
         self.node_estimation.current_segment_id += 1;

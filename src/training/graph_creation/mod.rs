@@ -1,4 +1,6 @@
 mod messages;
+#[cfg(test)]
+mod tests;
 
 use log::*;
 use petgraph::graph::{DiGraph};

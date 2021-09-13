@@ -11,7 +11,7 @@ use std::time::Duration;
 use actix_telepathy::Cluster;
 use port_scanner::request_open_port;
 use actix_rt::time::delay_for;
-use crate::training::intersection_calculation::Transition;
+use crate::training::intersection_calculation::{Transition, IntersectionCalculationDone};
 use std::sync::{Arc, Mutex};
 
 
@@ -27,8 +27,16 @@ impl Actor for Checker {
 impl Handler<CheckingMessage> for Checker {
     type Result = ();
 
-    fn handle(&mut self, msg: CheckingMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: CheckingMessage, _ctx: &mut Self::Context) -> Self::Result {
         *(self.success.lock().unwrap()) = true;
+    }
+}
+
+impl Handler<IntersectionCalculationDone> for Checker {
+    type Result = ();
+
+    fn handle(&mut self, _msg: IntersectionCalculationDone, _ctx: &mut Self::Context) -> Self::Result {
+
     }
 }
 
@@ -59,7 +67,7 @@ impl Handler<CheckingMessage> for Training {
 
 #[actix_rt::test]
 async fn get_intersections() {
-    let cluster = Cluster::new(format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap(), vec![]);
+    let _cluster = Cluster::new(format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap(), vec![]);
     let parameters = Parameters::default();
     let mut training = Training::new(parameters);
 
@@ -71,6 +79,7 @@ async fn get_intersections() {
         n_received: 0,
         ..Default::default()
     };
+    training.intersection_calculation.recipient = Some(checker.clone().recipient());
     let training_addr = training.start();
     training_addr.do_send(SegmentedMessage);
     delay_for(Duration::from_millis(3000)).await;

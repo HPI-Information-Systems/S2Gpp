@@ -34,7 +34,8 @@ pub struct IntersectionCalculation {
     pub helpers: Option<Addr<IntersectionCalculationHelper>>,
     /// Collects tasks for helper actors.
     pub pairs: Vec<(usize, SegmentID, Array2<f32>, Array2<f32>)>,
-    pub helper_protocol: HelperProtocol
+    pub helper_protocol: HelperProtocol,
+    pub recipient: Option<Recipient<IntersectionCalculationDone>>
 }
 
 
@@ -47,10 +48,16 @@ pub trait IntersectionCalculator {
 impl IntersectionCalculator for Training {
     fn calculate_intersections(&mut self, rec: Recipient<IntersectionResultMessage>) {
         let max_value = self.segmentation.segments.iter()
-            .map(|x|
-                x.from.point_with_id.coords.max().unwrap().max(x.from.point_with_id.coords.min().unwrap().abs()).max(
-                    x.to.point_with_id.coords.max().unwrap().max(x.to.point_with_id.coords.min().unwrap().abs()).abs()
-                )
+            .map(|x| {
+                x.from.point_with_id.coords
+                    .max().unwrap()
+                    .max(x.from.point_with_id.coords.min().unwrap().abs())
+                    .max(x.to.point_with_id.coords
+                        .max().unwrap()
+                        .max(x.to.point_with_id.coords.min().unwrap().abs())
+                        .abs()
+                    )
+            }
             )
             .fold(0_f32, |a, b| { a.max(b) });
 
@@ -162,7 +169,10 @@ impl Handler<IntersectionResultMessage> for Training {
             self.distribute_intersection_tasks(ctx.address().recipient());
         } else {
             self.intersection_calculation.helpers.as_ref().unwrap().do_send(PoisonPill);
-            ctx.address().do_send(IntersectionCalculationDone );
+            match &self.intersection_calculation.recipient {
+                Some(rec) => { rec.do_send(IntersectionCalculationDone); },
+                None => ctx.address().do_send(IntersectionCalculationDone)
+            }
         }
     }
 }
