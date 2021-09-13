@@ -42,16 +42,18 @@ pub trait EdgeEstimator {
 impl EdgeEstimator for Training {
     fn estimate_edges(&mut self, ctx: &mut Context<Training>) {
         let len_dataset = self.dataset_stats.as_ref().expect("DatasetStats should've been set by now!").n.unwrap();
-        println!("len dataset {}", len_dataset);
         let segments_per_node = (self.parameters.rate as f32 / self.cluster_nodes.len_incl_own() as f32).floor() as usize;
+        let has_all_segments = segments_per_node == self.parameters.rate;
 
         let mut previous_node: Option<NodeName> = None;
 
+        println!("segmentation segment index: {}", self.segmentation.segment_index.len());
         for point_id in 0..len_dataset {
             match self.segmentation.segment_index.get(&point_id) {
                 Some(transition_id) => {
                     match self.node_estimation.nodes_by_transition.get(transition_id) {
                         Some(intersection_nodes) => {
+                            println!("transition {}:\tintersection nodes: {}", transition_id, intersection_nodes.len());
                             for intersection_node in intersection_nodes {
                                 let current_node = NodeName(intersection_node.segment, intersection_node.cluster_id);
                                 match &previous_node {
@@ -59,7 +61,8 @@ impl EdgeEstimator for Training {
                                     Some(previous) => self.edge_estimation.edges.push(Edge(previous.clone(), current_node.clone()))
                                 }
 
-                                if intersection_node.segment.mod_floor(&segments_per_node).eq(&(segments_per_node - 1)) { // last segment
+                                if intersection_node.segment.mod_floor(&segments_per_node).eq(&(segments_per_node - 1)) &&
+                                    !has_all_segments { // last segment
                                     previous_node = None;
                                     let node_id = intersection_node.segment / segments_per_node;
                                     match self.edge_estimation.send_edges.get_mut(&node_id) {
@@ -69,7 +72,8 @@ impl EdgeEstimator for Training {
                                         }
                                     }
                                 } else {
-                                    if intersection_node.segment.mod_floor(&segments_per_node).eq(&0) { // first segment
+                                    if intersection_node.segment.mod_floor(&segments_per_node).eq(&0) &&
+                                        !has_all_segments{ // first segment
                                         self.edge_estimation.open_edges.insert(point_id, current_node.clone());
                                     }
                                     previous_node = Some(current_node.clone());
@@ -81,7 +85,7 @@ impl EdgeEstimator for Training {
                     }
                     self.edge_estimation.edge_in_time.push(self.edge_estimation.edges.len());
                 },
-                None =>()
+                None => ()
             }
         }
 
@@ -94,6 +98,7 @@ impl EdgeEstimator for Training {
     }
 
     fn rotate_edges(&mut self, ctx: &mut Context<Training>) {
+        println!("rotate edges | send_edges: {:?} | open_edges: {:?}", self.edge_estimation.send_edges, self.edge_estimation.open_edges);
         for (cluster_node, nodes) in self.edge_estimation.send_edges.iter() {
             let addr = self.cluster_nodes.get(cluster_node).expect(&format!("This cluster node id does not exist: {}", cluster_node));
             addr.do_send(EdgeRotationMessage { open_edges: nodes.clone() })
@@ -102,6 +107,7 @@ impl EdgeEstimator for Training {
     }
 
     fn reduce_to_main(&mut self, ctx: &mut Context<Training>) {
+        println!("reduce to main | edges {}", self.edge_estimation.edges.len());
         if self.cluster_nodes.get_own_idx().eq(&0) {
             let msg = EdgeReductionMessage {
                 own: true,

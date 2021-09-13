@@ -66,13 +66,13 @@ impl Handler<MeanShiftResponse> for Training {
             self.node_estimation.last_transitions = vec![];
             self.node_estimation.nodes.insert(current_segment_id, msg.cluster_centers);
 
-            last_transitions.into_iter().zip(msg.labels).map(|(transition, label)| {
+            for (transition, label) in last_transitions.into_iter().zip(msg.labels)  {
                 let node = IntersectionNode { segment: current_segment_id, cluster_id: label };
                 match self.node_estimation.nodes_by_transition.get_mut(&transition) {
                     Some(nodes) => nodes.push(node),
                     None => { self.node_estimation.nodes_by_transition.insert(transition.clone(), vec![node]); }
                 }
-            });
+            }
         }
         self.node_estimation.current_segment_id += 1;
 
