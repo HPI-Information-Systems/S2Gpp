@@ -2,7 +2,7 @@ mod messages;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use crate::training::rotation::pca::tests::TestClusterMemberListener;
+
 
 use ndarray::prelude::*;
 use ndarray_linalg::qr::*;
