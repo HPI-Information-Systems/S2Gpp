@@ -17,6 +17,8 @@ use crate::utils::{AnyClusterNodesIterator};
 use std::ops::Not;
 use crate::data_manager::DataManager;
 
+use log::*;
+
 
 pub struct DataReading {
     pub with_header: bool,
@@ -83,7 +85,7 @@ impl DataReader for DataManager {
         data.extend(overlap_buffer.clone());
         receiver_iterator.next().unwrap().do_send(DataPartitionMessage { data });
         bar.finish_and_clear();
-        println!("Sent data to receiver {}", receiver_iterator.get_position() - 1);
+        debug!("Sent data to receiver {}", receiver_iterator.get_position() - 1);
     }
 }
 

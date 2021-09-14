@@ -199,7 +199,8 @@ async fn start_segmentation(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>,
         latent: 6,
         rate: 100,
         n_threads: 1,
-        n_cluster_nodes: 2
+        n_cluster_nodes: 2,
+        ..Default::default()
     };
 
     let mut training = Training::new(parameters.clone());

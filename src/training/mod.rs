@@ -9,7 +9,7 @@ use crate::data_manager::{DataLoadedAndProcessed, DataManager, DatasetStats, Loa
 use crate::messages::PoisonPill;
 use crate::parameters::Parameters;
 use crate::training::edge_estimation::{EdgeEstimation, EdgeEstimationDone, EdgeEstimator, EdgeReductionMessage};
-use crate::training::graph_creation::{GraphCreation, GraphCreationDone, GraphCreator};
+use crate::training::graph_creation::{GraphCreation, GraphCreator};
 use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculationDone, IntersectionCalculator};
 use crate::training::messages::{SegmentedMessage, SegmentMessage};
 pub use crate::training::messages::StartTrainingMessage;
@@ -137,6 +137,10 @@ impl Handler<EdgeEstimationDone> for Training {
     fn handle(&mut self, _msg: EdgeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(11, 12, "Building Graph".to_string()).print();
         self.create_graph();
+        match &self.parameters.graph_output_path {
+            Some(path) => self.output_graph(path.clone()).expect("Error while outputting graph!"),
+            None => ()
+        }
         ConsoleLogger::new(12, 12, "Scoring".to_string()).print();
     }
 }

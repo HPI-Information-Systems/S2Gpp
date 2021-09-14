@@ -14,7 +14,8 @@ fn test_correct_spacing() {
         latent: 16,
         rate: 100,
         n_threads: 20,
-        n_cluster_nodes: 1
+        n_cluster_nodes: 1,
+        ..Default::default()
     };
 
     let ps = PhaseSpacer::new(data.to_shared(), parameters);

@@ -14,8 +14,8 @@
 - [x] Node estimator
     - [x] MeanShift
 - [x] Edge estimator
-- [-] Graph creation
+- [x] Graph creation
   - [x] Graph merging (edges are reduced to main node and graph is created there)
-  - [ ] Graph output
+  - [x] Graph output
 - [ ] Scorer
 - [ ] Result Writing
