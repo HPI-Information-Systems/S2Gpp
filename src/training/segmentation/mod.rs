@@ -10,7 +10,7 @@ use std::f32::consts::PI;
 use crate::training::messages::{SegmentMessage, SegmentedMessage};
 use actix::prelude::*;
 use serde::{Serialize, Deserialize};
-pub use crate::training::segmenter::data_structures::SegmentedTransition;
+pub use crate::training::segmentation::data_structures::SegmentedTransition;
 
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

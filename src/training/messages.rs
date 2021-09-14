@@ -3,7 +3,7 @@ use actix_telepathy::prelude::*;
 use serde::{Serialize, Deserialize};
 use serde_with::serde_as;
 use crate::utils::ClusterNodes;
-use crate::training::segmenter::TransitionsForNodes;
+use crate::training::segmentation::TransitionsForNodes;
 
 
 #[derive(Message)]

@@ -11,11 +11,11 @@ use crate::training::messages::{SegmentedMessage, SegmentMessage};
 pub use crate::training::messages::StartTrainingMessage;
 use crate::training::node_estimation::{NodeEstimation, NodeEstimationDone, NodeEstimator};
 use crate::training::rotation::{Rotation, Rotator, RotationDoneMessage, RotationMatrixMessage, PCAComponents, PCAMeansMessage, PCADecompositionMessage};
-use crate::training::segmenter::{Segmentation, Segmenter};
+use crate::training::segmentation::{Segmentation, Segmenter};
 use crate::utils::{ClusterNodes, ConsoleLogger};
 
 mod messages;
-mod segmenter;
+mod segmentation;
 mod intersection_calculation;
 mod node_estimation;
 mod edge_estimation;
