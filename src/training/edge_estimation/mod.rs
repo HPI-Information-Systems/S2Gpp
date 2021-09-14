@@ -3,19 +3,19 @@ mod messages;
 mod tests;
 
 use actix::prelude::*;
-use actix::dev::MessageResponse;
-use ndarray::{Dim, Axis};
+
+
 use std::collections::HashMap;
 
 use crate::training::Training;
 pub use crate::training::edge_estimation::messages::{EdgeEstimationDone, EdgeReductionMessage};
-use crate::training::intersection_calculation::Transition;
-use crate::utils::{HelperProtocol, Edge, NodeName};
-use std::fmt::{Display, Formatter, Result};
-use std::time::Instant;
-use std::sync::Arc;
-use crate::messages::PoisonPill;
-use log::*;
+
+use crate::utils::{Edge, NodeName};
+
+
+
+
+
 use num_integer::Integer;
 use crate::training::edge_estimation::messages::EdgeRotationMessage;
 

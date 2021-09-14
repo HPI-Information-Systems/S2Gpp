@@ -4,7 +4,7 @@ use crate::parameters::{Parameters, Role};
 use actix::{Supervised, Actor, Context, Handler, Addr, Message, WrapFuture, ActorFuture, ContextFutureSpawner, MailboxError};
 use actix_broker::BrokerSubscribe;
 use crate::training::Training;
-use ndarray::{Array2, Array1, arr1, Axis, ArrayView1, s, stack};
+use ndarray::{Array2, Array1, arr1, Axis, ArrayView1, stack};
 use std::net::SocketAddr;
 use port_scanner::request_open_port;
 use rayon::prelude::*;

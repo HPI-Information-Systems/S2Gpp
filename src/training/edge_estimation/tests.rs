@@ -2,19 +2,19 @@ use actix::prelude::*;
 use actix_telepathy::prelude::*;
 use std::collections::HashMap;
 use ndarray::{arr2, Array2};
-use crate::training::node_estimation::tests::{generate_intersections, generate_intersection_coords};
+
 use crate::parameters::{Parameters, Role};
 use crate::training::{Training, StartTrainingMessage};
 use port_scanner::request_open_port;
 use std::sync::{Arc, Mutex};
-use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculationDone};
-use crate::utils::{HelperProtocol, ClusterNodes};
-use crate::training::node_estimation::{NodeEstimationDone, NodeEstimation};
+
+use crate::utils::{ClusterNodes};
+
 use actix_rt::time::delay_for;
 use std::time::Duration;
-use crate::data_manager::DatasetStats;
+
 use crate::training::edge_estimation::EdgeEstimator;
-use crate::training::segmenter::{SegmentedTransition, Segmentation};
+
 
 
 #[derive(Default)]

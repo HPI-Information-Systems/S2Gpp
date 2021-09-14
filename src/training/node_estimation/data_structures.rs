@@ -1,5 +1,5 @@
-use ndarray::Array1;
-use crate::training::intersection_calculation::{Transition, SegmentID};
+
+use crate::training::intersection_calculation::{SegmentID};
 
 pub struct IntersectionNode {
     pub segment: SegmentID,

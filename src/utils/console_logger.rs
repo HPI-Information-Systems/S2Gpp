@@ -1,4 +1,4 @@
-use console::{style, Emoji};
+use console::{style};
 
 
 pub struct ConsoleLogger {

@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use crate::parameters::{Parameters, Role};
+
 use actix::{Actor, Context, System, Handler, ActorContext, AsyncContext, Addr, Message};
 use actix_telepathy::prelude::*;
 use actix_broker::{BrokerSubscribe};
@@ -8,7 +8,7 @@ use std::collections::{HashSet, HashMap};
 use serde::{Serialize, Deserialize};
 
 
-use crate::training::{Training, StartTrainingMessage};
+
 use crate::utils::ClusterNodes;
 use std::sync::{Arc, Mutex};
 

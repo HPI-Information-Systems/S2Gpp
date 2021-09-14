@@ -2,20 +2,20 @@ mod messages;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use tests::TestClusterMemberListener;
-use log::*;
+pub(crate) use crate::training::rotation::pca::tests::TestClusterMemberListener;
+
 use ndarray::prelude::*;
 use ndarray_linalg::qr::*;
 use actix::prelude::*;
-use actix_telepathy::prelude::*;
+
 
 use ndarray::{ArcArray2, concatenate};
 use std::ops::{Div};
 use ndarray_linalg::SVD;
-use crate::utils::ClusterNodes;
+
 pub use crate::training::rotation::pca::messages::{PCAMeansMessage, PCADecompositionMessage, PCAComponents, PCAMessage, PCADoneMessage};
 use crate::training::Training;
-use std::sync::Arc;
+
 
 
 #[derive(Default)]

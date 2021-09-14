@@ -1,16 +1,16 @@
-use std::ops::{Mul, Add, Sub};
+use std::ops::{Mul, Sub};
 
 use actix::{Actor, ActorContext, Addr, AsyncContext, Context, Handler, Recipient};
-use actix_telepathy::prelude::*;
+
 use ndarray::{ArcArray, arr1, Array1, Array2, Array3, ArrayBase, ArrayView2, Axis, concatenate, Dim, Ix3, s, stack};
 
-use crate::parameters::{Parameters, Role};
+use crate::parameters::{Role};
 use crate::training::Training;
-use crate::utils::{ClusterNodes, cross2d, norm, repeat};
+use crate::utils::{cross2d, norm, repeat};
 use crate::training::rotation::pca::{PCA, PCAnalyzer};
 pub use crate::training::rotation::messages::{RotationMatrixMessage, RotationDoneMessage};
 pub use crate::training::rotation::pca::*;
-use num_traits::real::Real;
+
 
 mod messages;
 mod pca;

@@ -4,14 +4,14 @@ pub(crate) mod tests;
 mod data_structures;
 
 use std::collections::HashMap;
-use crate::training::intersection_calculation::{SegmentID, Transition};
-use ndarray::{Array1, ArrayView1, stack_new_axis, Axis, Array2};
+use crate::training::intersection_calculation::{SegmentID};
+use ndarray::{ArrayView1, stack_new_axis, Axis, Array2};
 use crate::training::Training;
 use actix::{Addr, Handler, Actor, Recipient, AsyncContext};
-use actix::dev::MessageResponse;
+
 
 use indicatif::ProgressBar;
-use crate::utils::ConsoleLogger;
+
 pub use crate::training::node_estimation::messages::NodeEstimationDone;
 use crate::training::node_estimation::data_structures::IntersectionNode;
 use meanshift_rs::{MeanShiftResponse, MeanShiftMessage, MeanShiftActor};

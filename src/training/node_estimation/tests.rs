@@ -1,12 +1,12 @@
 use actix::prelude::*;
 use crate::training::Training;
 use crate::parameters::Parameters;
-use crate::training::messages::SegmentedMessage;
-use crate::training::segmenter::{Segmentation, SegmentedPointWithId, PointWithId};
-use std::f32::consts::PI;
-use ndarray::{Array1, arr1, Array2, arr2};
-use actix::dev::MessageResponse;
-use std::thread::sleep;
+
+
+
+use ndarray::{Array1, arr1, arr2};
+
+
 use std::time::Duration;
 use actix_telepathy::Cluster;
 use port_scanner::request_open_port;
@@ -15,8 +15,8 @@ use crate::training::intersection_calculation::{Transition, IntersectionCalculat
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use ndarray_linalg::close_l1;
-use crate::utils::HelperProtocol;
-use crate::training::edge_estimation::EdgeEstimator;
+
+
 
 
 #[derive(Default)]

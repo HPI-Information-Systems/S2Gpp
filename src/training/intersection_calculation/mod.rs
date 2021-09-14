@@ -5,21 +5,21 @@ mod tests;
 mod data_structures;
 
 use actix::{Addr, SyncArbiter, Handler, Recipient, AsyncContext};
-use actix::dev::MessageResponse;
+
 use ndarray::{Array1, arr1, stack_new_axis, Axis, concatenate, ArrayBase, Array2, arr2, OwnedRepr, Array, ArrayView1};
 use num_traits::real::Real;
 use std::collections::HashMap;
-use std::collections::hash_map::RandomState;
+
 use std::f32::consts::PI;
-use std::ops::{Range};
+
 use crate::training::intersection_calculation::helper::IntersectionCalculationHelper;
 pub use crate::training::intersection_calculation::messages::{IntersectionResultMessage, IntersectionTaskMessage, IntersectionCalculationDone};
-use crate::training::segmenter::{SegmentedPointWithId, PointWithId, SegmentedTransition};
+
 use crate::training::Training;
 use crate::utils::{PolarCoords, HelperProtocol};
 use crate::messages::PoisonPill;
 use ndarray_stats::QuantileExt;
-use std::cmp::Ordering::Equal;
+
 use num_integer::Integer;
 pub use crate::training::intersection_calculation::data_structures::{Transition, IntersectionsByTransition};
 

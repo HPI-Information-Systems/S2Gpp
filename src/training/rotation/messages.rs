@@ -1,7 +1,7 @@
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
 use serde::{Serialize, Deserialize};
-use ndarray::{Array2, ArcArray2, Array3};
+use ndarray::{Array3};
 use crate::utils::ArcArray3;
 
 

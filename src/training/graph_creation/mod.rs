@@ -1,14 +1,14 @@
 #[cfg(test)]
 mod tests;
 
-use log::*;
+
 use petgraph::graph::{DiGraph};
 use petgraph::dot::{Dot, Config};
 use crate::training::Training;
 use std::borrow::Borrow;
-use crate::utils::{NodeName, Edge};
-use std::fs::File;
-use std::io::Write;
+use crate::utils::{Edge};
+
+
 use std::fs;
 use anyhow::{Result, Error};
 
