@@ -45,7 +45,10 @@ pub struct Parameters {
     pub n_threads: usize,
 
     #[structopt(short = "n", long = "cluster-nodes")]
-    pub n_cluster_nodes: usize
+    pub n_cluster_nodes: usize,
+
+    #[structopt(long = "graph-output-path")]
+    pub graph_output_path: Option<String>
 }
 
 impl Parameters {
@@ -73,7 +76,8 @@ impl Default for Parameters {
             latent: 16,
             rate: 100,
             n_threads: 1,
-            n_cluster_nodes: 1
+            n_cluster_nodes: 1,
+            graph_output_path: None
         }
     }
 }

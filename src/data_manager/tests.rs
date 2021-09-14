@@ -256,7 +256,8 @@ async fn start_reading(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>, main
         latent: 6,
         rate: 100,
         n_threads: 1,
-        n_cluster_nodes: 2
+        n_cluster_nodes: 2,
+        ..Default::default()
     };
 
     let _listener = OwnListener {
