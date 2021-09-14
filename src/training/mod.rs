@@ -137,16 +137,7 @@ impl Handler<EdgeEstimationDone> for Training {
     fn handle(&mut self, _msg: EdgeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(11, 12, "Building Graph".to_string()).print();
         self.create_graph();
-    }
-}
-
-impl Handler<GraphCreationDone> for Training {
-
-    type Result = ();
-
-    fn handle(&mut self, _msg: GraphCreationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(12, 12, "Scoring".to_string()).print();
-        // TODO: Scoring
     }
 }
 
