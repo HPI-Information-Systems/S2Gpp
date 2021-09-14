@@ -22,7 +22,6 @@ pub struct Rotation {
     reduced: Option<Array3<f32>>,
     reduced_ref: Option<Array3<f32>>,
     n_reduced: usize,
-    mean: Option<Array3<f32>>,
     pub pca: PCA,
     pub rotated: Option<Array2<f32>>
 }
@@ -84,7 +83,7 @@ impl Rotator for Training {
         let s_ = norm(v.t(), Axis(0)).into_shape((1, v.shape()[0])).unwrap();
 
         let identity: Array2<f32> = ArrayBase::eye(3);
-        let I = repeat(identity.view(), v.shape()[0]).into_shape((3, 3, v.shape()[0])).unwrap();
+        let i = repeat(identity.view(), v.shape()[0]).into_shape((3, 3, v.shape()[0])).unwrap();
 
         let zeros: Array1<f32> = ArrayBase::zeros(v.shape()[0]);
         let v_ = v.t();
@@ -97,7 +96,7 @@ impl Rotator for Training {
         ).unwrap().into_shape((3, 3, v.shape()[0])).unwrap();
 
         let k_: Vec<Array2<f32>> = k.axis_iter(Axis(2)).map(|x| x.dot(&x)).collect();
-        I + k + stack(Axis(2), k_.iter().map(|x| x.view())
+        i + k + stack(Axis(2), k_.iter().map(|x| x.view())
             .collect::<Vec<ArrayView2<f32>>>().as_slice()
         ).unwrap() * ((1.0 - c) / s_.clone().mul(s_.clone()))
     }

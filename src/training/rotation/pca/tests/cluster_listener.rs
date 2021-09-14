@@ -90,7 +90,7 @@ impl Actor for TestClusterMemberListener {
 impl Handler<ClusterLog> for TestClusterMemberListener {
     type Result = ();
 
-    fn handle(&mut self, msg: ClusterLog, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: ClusterLog, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             ClusterLog::NewMember(addr, remote_addr) => {
                 debug!("new member {:?}", addr);

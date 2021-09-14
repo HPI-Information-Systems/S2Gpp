@@ -52,13 +52,6 @@ pub struct Parameters {
 }
 
 impl Parameters {
-    pub fn get_main_addr(&self) -> Option<SocketAddr> {
-        match self.role {
-            Role::Sub { mainhost} => Some(mainhost),
-            Role::Main { .. } => None
-        }
-    }
-
     pub fn is_main_addr(&self, addr: SocketAddr) -> bool {
         match &self.role {
             Role::Sub { mainhost} => addr.eq(mainhost),

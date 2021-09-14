@@ -4,14 +4,12 @@ use crate::parameters::Parameters;
 use crate::training::messages::SegmentedMessage;
 use crate::training::segmenter::{Segmentation, SegmentedPointWithId, PointWithId, SegmentedTransition};
 use std::f32::consts::PI;
-use ndarray::{Array1, arr1, Array2, arr2};
-use actix::dev::MessageResponse;
-use std::thread::sleep;
+use ndarray::arr1;
 use std::time::Duration;
 use actix_telepathy::Cluster;
 use port_scanner::request_open_port;
 use actix_rt::time::delay_for;
-use crate::training::intersection_calculation::{Transition, IntersectionCalculationDone};
+use crate::training::intersection_calculation::IntersectionCalculationDone;
 use std::sync::{Arc, Mutex};
 
 
@@ -51,7 +49,7 @@ struct CheckingMessage {
 impl Handler<CheckingMessage> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: CheckingMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: CheckingMessage, _ctx: &mut Self::Context) -> Self::Result {
         assert_eq!([2, 3], self.intersection_calculation.intersections.get(&0).unwrap().as_slice());
         assert_eq!([4, 5], self.intersection_calculation.intersections.get(&1).unwrap().as_slice());
         assert_eq!([6, 7], self.intersection_calculation.intersections.get(&2).unwrap().as_slice());
@@ -60,7 +58,7 @@ impl Handler<CheckingMessage> for Training {
         assert_eq!(102., self.intersection_calculation.intersection_coords_by_segment.get(&0).unwrap().get(&100).unwrap()[0]);
         assert_eq!(153., self.intersection_calculation.intersection_coords_by_segment.get(&0).unwrap().get(&151).unwrap()[0]);
 
-        msg.rec.unwrap().do_send(CheckingMessage { rec: None });
+        msg.rec.unwrap().do_send(CheckingMessage { rec: None }).unwrap();
     }
 }
 

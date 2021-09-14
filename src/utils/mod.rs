@@ -43,31 +43,22 @@ impl ClusterNodes {
         self.nodes.get(key)
     }
 
-    pub fn uget(&self, key: &usize) -> &RemoteAddr {
-        self.nodes.get(key).unwrap()
-    }
-
     pub fn get_own_idx(&self) -> usize {
         let n_nodes: usize = (0..self.len_incl_own()).sum();
         let keys_sum: usize = self.nodes.keys().sum();
         n_nodes - keys_sum
     }
 
-    pub fn get_next_idx(&self) -> Option<usize> {
+    pub fn get_next_idx(&self) -> usize {
         let own_idx = self.get_own_idx();
         let possible_next_idx = own_idx + 1;
         if self.nodes.contains_key(&possible_next_idx) {
-            Some(possible_next_idx)
+            possible_next_idx
         } else if self.nodes.contains_key(&0) & (own_idx != 0) {
-            Some(0)
+            0
         } else {
-            None
+            panic!("The cluster IDs weren't inserted properly!")
         }
-    }
-
-    pub fn get_next_node(&self) -> Option<&RemoteAddr> {
-        let next_id = self.get_next_idx();
-        self.get(&next_id.unwrap())
     }
 
     pub fn to_any<T: Actor>(&self, addr: Addr<T>) -> AnyClusterNodes<T> {

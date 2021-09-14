@@ -1,4 +1,4 @@
-use crate::training::segmenter::{PointWithId, SegmentedPointWithId};
+use crate::training::segmenter::SegmentedPointWithId;
 use serde::{Serialize, Deserialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

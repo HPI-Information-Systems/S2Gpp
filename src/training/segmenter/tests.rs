@@ -1,24 +1,19 @@
 use std::collections::HashMap;
 use actix_telepathy::{RemoteAddr, ClusterListener, ClusterLog, Cluster};
 use crate::parameters::{Parameters, Role};
-use actix::{Supervised, Actor, Context, Handler, Addr, Message, Response, ActorContext, WrapFuture, ActorFuture, ContextFutureSpawner, MailboxError};
+use actix::{Supervised, Actor, Context, Handler, Addr, Message, WrapFuture, ActorFuture, ContextFutureSpawner, MailboxError};
 use actix_broker::BrokerSubscribe;
 use crate::training::Training;
-use ndarray::{Array2, ArcArray, ArrayBase, ArrayView2, Array1, arr1, concatenate, Axis, ArrayView1, s, stack};
+use ndarray::{Array2, Array1, arr1, Axis, ArrayView1, s, stack};
 use std::net::SocketAddr;
 use port_scanner::request_open_port;
 use rayon::prelude::*;
 use actix::clock::delay_for;
 use std::time::Duration;
 use std::f32::consts::PI;
-use num_integer::Integer;
 use crate::utils::ClusterNodes;
-use crate::utils::PolarCoords;
-use actix::dev::MessageResponse;
 use crate::data_manager::DatasetStats;
-use crate::training::segmenter::get_segment_id;
 use std::sync::{Mutex, Arc};
-use std::ops::Deref;
 use crate::training::rotation::RotationDoneMessage;
 
 #[derive(Message)]
@@ -30,7 +25,7 @@ struct CheckSegments {
 impl Handler<CheckSegments> for Training {
     type Result = Result<usize, ()>;
 
-    fn handle(&mut self, msg: CheckSegments, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: CheckSegments, _ctx: &mut Self::Context) -> Self::Result {
         let points = self.segmentation.segments.clone();
         println!("expected received {}", &points.len());
 
@@ -66,7 +61,7 @@ impl Handler<CheckSegments> for Tester {
     fn handle(&mut self, msg: CheckSegments, ctx: &mut Self::Context) -> Self::Result {
         self.addr.send(msg)
             .into_actor(self)
-            .map(|res: Result<Result<usize, ()>, MailboxError>, act, ctx| match res {
+            .map(|res: Result<Result<usize, ()>, MailboxError>, act, _ctx| match res {
                 Ok(r) => match r {
                     Ok(_) => {
                         *(act.succeeded.lock().unwrap()) = true;
@@ -92,13 +87,12 @@ struct NodesMessage {
 impl Handler<NodesMessage> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: NodesMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: NodesMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.cluster_nodes = msg.nodes;
     }
 }
 
-fn gen_spun_ring(segments: usize, length: usize, spins: usize) -> Array2<f32> {
-    let segment_size = (2.0 * PI) / segments as f32;
+fn gen_spun_ring(length: usize, spins: usize) -> Array2<f32> {
     let spin_size = length / spins;
     let points: Vec<Array1<f32>> = (0..length).into_iter().map(|x| {
         let theta = (2.0 * PI) * ((x % spin_size) as f32 / spin_size as f32);
@@ -112,15 +106,14 @@ fn gen_spun_ring(segments: usize, length: usize, spins: usize) -> Array2<f32> {
 struct OwnListener {
     pub cluster_nodes: HashMap<usize, RemoteAddr>,
     pub parameters: Parameters,
-    pub training_addr: Addr<Training>,
-    pub rotated: Array2<f32>
+    pub training_addr: Addr<Training>
 }
 
 impl ClusterListener for OwnListener {}
 impl Supervised for OwnListener {}
 
 impl OwnListener {
-    fn segment(&mut self, ctx: &mut Context<Self>) {
+    fn segment(&mut self, _ctx: &mut Context<Self>) {
         self.training_addr.do_send(RotationDoneMessage);
     }
 }
@@ -158,7 +151,6 @@ struct TestParams {
     ip: SocketAddr,
     seeds: Vec<SocketAddr>,
     main: bool,
-    data: Array2<f32>,
     expected_segments: Vec<usize>
 }
 
@@ -171,23 +163,19 @@ fn test_segmenting() {
     let ip1: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap();
     let ip2: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap();
 
-    let timeseries = gen_spun_ring(100, 1000, 10);
-
     let arr = [
         TestParams {ip: ip1.clone(), seeds: vec![], main: true,
-            data: timeseries.slice(s![..70, ..]).to_owned(),
             expected_segments: (0..50).into_iter().collect()
         },
         TestParams {ip: ip2.clone(), seeds: vec![ip1.clone()], main: false,
-            data: timeseries.slice(s![50.., ..]).to_owned(),
             expected_segments: (50..100).into_iter().collect()
         },
     ];
-    arr.into_par_iter().for_each(|p| start_segmentation(p.ip, p.seeds.clone(), p.main, p.data.clone(), p.expected_segments.clone()));
+    arr.into_par_iter().for_each(|p| start_segmentation(p.ip, p.seeds.clone(), p.main, p.expected_segments.clone()));
 }
 
 #[actix_rt::main]
-async fn start_segmentation(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>, main: bool, data: Array2<f32>, expected_segments: Vec<usize>) {
+async fn start_segmentation(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>, main: bool, expected_segments: Vec<usize>) {
     let parameters = Parameters {
         role: if main {
             Role::Main { data_path: "data/test.csv".to_string() }
@@ -209,8 +197,7 @@ async fn start_segmentation(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>,
     let _listener = OwnListener {
         cluster_nodes: HashMap::new(),
         parameters,
-        training_addr: t_addr.clone(),
-        rotated: data
+        training_addr: t_addr.clone()
     }.start();
 
     let result = Arc::new(Mutex::new(false));

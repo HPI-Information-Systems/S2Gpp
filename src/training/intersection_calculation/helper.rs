@@ -1,6 +1,5 @@
 use actix::{Actor, ActorContext, SyncContext, Handler};
 use crate::training::intersection_calculation::messages::{IntersectionTaskMessage, IntersectionResultMessage};
-use actix::dev::MessageResponse;
 use crate::utils::line_plane_intersection;
 use log::*;
 use crate::messages::PoisonPill;

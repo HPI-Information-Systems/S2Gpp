@@ -197,7 +197,7 @@ impl Handler<PCAMeansMessage> for Training {
 impl Handler<PCADecompositionMessage> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: PCADecompositionMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: PCADecompositionMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.rotation.pca.r_count += msg.count;
         self.combine_remote_r(msg.r);
     }
@@ -210,7 +210,7 @@ impl Handler<PCAComponents> for Training {
         self.rotation.pca.components = Some(msg.clone().components);
         self.rotation.pca.global_means = Some(msg.means.clone());
         match &self.rotation.pca.recipient {
-            Some(rec) => { rec.do_send(msg); },
+            Some(rec) => { rec.do_send(msg).unwrap(); },
             None => ctx.address().do_send(PCADoneMessage)
         }
     }

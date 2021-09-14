@@ -29,7 +29,7 @@ impl Actor for Checker {
 impl Handler<CheckingMessage> for Checker {
     type Result = ();
 
-    fn handle(&mut self, msg: CheckingMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: CheckingMessage, _ctx: &mut Self::Context) -> Self::Result {
         *(self.success.lock().unwrap()) = true;
     }
 }
@@ -45,7 +45,7 @@ struct CheckingMessage {
 impl Handler<CheckingMessage> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: CheckingMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: CheckingMessage, _ctx: &mut Self::Context) -> Self::Result {
         println!("{} edges estimated", self.edge_estimation.edges.len());
         for edge in &self.edge_estimation.edge_in_time {
             println!("{}", edge);
@@ -66,22 +66,20 @@ impl Handler<CheckingMessage> for Training {
         assert_eq!(self.edge_estimation.edge_in_time[192], 378);
         assert_eq!(self.edge_estimation.edge_in_time.last().unwrap().clone(), 1958);
 
-        msg.rec.unwrap().do_send(CheckingMessage { rec: None });
+        msg.rec.unwrap().do_send(CheckingMessage { rec: None }).unwrap();
     }
 }
 
 
 #[derive(Message)]
 #[rtype(Result = "()")]
-struct StartEdgeEstimation {
-    pub parallel: bool
-}
+struct StartEdgeEstimation {}
 
 
 impl Handler<StartEdgeEstimation> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: StartEdgeEstimation, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: StartEdgeEstimation, ctx: &mut Self::Context) -> Self::Result {
         self.estimate_edges(ctx);
     }
 }
@@ -92,7 +90,7 @@ async fn test_edge_estimation() {
     env_logger::init();
 
     let _cluster = Cluster::new(format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap(), vec![]);
-    let mut parameters = Parameters {
+    let parameters = Parameters {
         role: Role::Main {
             data_path: "data/test.csv".to_string()
         },
@@ -102,7 +100,7 @@ async fn test_edge_estimation() {
         latent: 6,
         ..Default::default()
     };
-    let mut training = Training::new(parameters);
+    let training = Training::new(parameters);
 
     let success = Arc::new(Mutex::new(false));
     let checker = Checker { success: success.clone() }.start();
@@ -115,7 +113,7 @@ async fn test_edge_estimation() {
     assert!(*success.lock().unwrap())
 }
 
-
+#[allow(dead_code)]
 pub fn generate_nodes() -> HashMap<usize, Array2<f32>> {
     let mut nodes = HashMap::new();
     nodes.insert(0, arr2(&[[867.0],[714.0],[561.0],[408.0],[255.0],[127.5]]));

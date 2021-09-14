@@ -54,7 +54,7 @@ fn test_rotation_matrix() {
     close_l1(truth.as_ref().unwrap(), &expects, 0.0005)
 }
 
-struct TestParams {
+/*struct TestParams {
     ip: SocketAddr,
     seeds: Vec<SocketAddr>,
     other_nodes: Vec<(usize, SocketAddr)>,
@@ -63,7 +63,7 @@ struct TestParams {
     expected: Array2<f32>
 }
 
-/*#[test]
+#[test]
 #[ignore]
 fn test_distributed_rotation() {
     let ip1: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap();

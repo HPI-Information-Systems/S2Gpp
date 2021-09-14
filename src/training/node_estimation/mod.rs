@@ -50,7 +50,7 @@ impl NodeEstimator for Training {
                 self.node_estimation.meanshift.as_ref().unwrap().do_send(MeanShiftMessage { source: Some(source.clone()), data });
             },
             None => {
-                source.do_send(MeanShiftResponse { cluster_centers: Default::default(), labels: vec![] });
+                source.do_send(MeanShiftResponse { cluster_centers: Default::default(), labels: vec![] }).unwrap();
             }
         }
     }

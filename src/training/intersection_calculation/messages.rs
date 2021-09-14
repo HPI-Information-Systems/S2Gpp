@@ -1,6 +1,5 @@
 use actix::prelude::*;
 use ndarray::{Array2, Array1};
-use crate::training::intersection_calculation::Transition;
 
 
 #[derive(Message)]

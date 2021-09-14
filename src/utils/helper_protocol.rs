@@ -19,12 +19,4 @@ impl HelperProtocol {
     pub fn is_running(&self) -> bool {
         self.n_received < self.n_total
     }
-
-    pub fn are_tasks_left(&self) -> bool {
-        self.tasks_left() > 0
-    }
-
-    pub fn tasks_left(&self) -> usize {
-        self.n_total - (self.n_received + self.n_sent)
-    }
 }

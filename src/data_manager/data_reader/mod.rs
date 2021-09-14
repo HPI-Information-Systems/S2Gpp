@@ -76,7 +76,7 @@ impl DataReader for DataManager {
                         overlap_buffer.clear();
                     }
                 },
-                Err(e) => panic!(e)
+                Err(e) => panic!("{}", e.to_string())
             }
             bar.inc(1);
         }

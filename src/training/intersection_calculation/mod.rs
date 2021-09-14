@@ -170,7 +170,7 @@ impl Handler<IntersectionResultMessage> for Training {
         } else {
             self.intersection_calculation.helpers.as_ref().unwrap().do_send(PoisonPill);
             match &self.intersection_calculation.recipient {
-                Some(rec) => { rec.do_send(IntersectionCalculationDone); },
+                Some(rec) => { rec.do_send(IntersectionCalculationDone).unwrap() },
                 None => ctx.address().do_send(IntersectionCalculationDone)
             }
         }

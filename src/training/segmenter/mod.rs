@@ -4,18 +4,12 @@ mod data_structures;
 
 use crate::training::Training;
 use crate::utils::PolarCoords;
-use std::collections::{HashMap, HashSet};
-use ndarray::{Array1, Axis, arr1};
-use num_integer::Integer;
+use std::collections::HashMap;
+use ndarray::{Array1, Axis};
 use std::f32::consts::PI;
-use actix_telepathy::RemoteAddr;
-use num_traits::real::Real;
 use crate::training::messages::{SegmentMessage, SegmentedMessage};
 use actix::prelude::*;
-use actix::dev::MessageResponse;
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use std::hash::Hash;
-use log::*;
+use serde::{Serialize, Deserialize};
 pub use crate::training::segmenter::data_structures::SegmentedTransition;
 
 
@@ -54,7 +48,6 @@ impl FromPointsWithId for Vec<SegmentedPointWithId> {
     }
 }
 
-pub type PointsForNodes = HashMap<usize, Vec<SegmentedPointWithId>>;
 pub type TransitionsForNodes = HashMap<usize, Vec<SegmentedTransition>>;
 
 #[derive(Default)]
@@ -73,7 +66,7 @@ pub trait Segmenter {
 impl Segmenter for Training {
     fn segment(&mut self) {
         let own_id = self.cluster_nodes.get_own_idx();
-        let next_id = (own_id + 1) % (&self.cluster_nodes.len_incl_own());
+        let next_id = self.cluster_nodes.get_next_idx();
         let mut node_transitions = TransitionsForNodes::new();
         let segments_per_node = (self.parameters.rate as f32 / self.cluster_nodes.len_incl_own() as f32).floor() as usize;
         let mut last_point: Option<SegmentedPointWithId> = None;

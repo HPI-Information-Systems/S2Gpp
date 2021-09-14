@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2};
+use ndarray::Array1;
 use std::collections::HashMap;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]

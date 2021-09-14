@@ -31,7 +31,7 @@ impl Actor for Checker {
 impl Handler<CheckingMessage> for Checker {
     type Result = ();
 
-    fn handle(&mut self, msg: CheckingMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: CheckingMessage, _ctx: &mut Self::Context) -> Self::Result {
         *(self.success.lock().unwrap()) = true;
     }
 }
@@ -47,18 +47,18 @@ struct CheckingMessage {
 impl Handler<CheckingMessage> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: CheckingMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: CheckingMessage, _ctx: &mut Self::Context) -> Self::Result {
         println!("{:?}", self.node_estimation.nodes.get(&92).unwrap());
         close_l1(self.node_estimation.nodes.get(&92).unwrap(), &arr2(&[[862.44900531], [709.53277102], [556.61652615], [403.70025919], [250.78392674], [123.35325327]]), 0.0005);
 
-        msg.rec.unwrap().do_send(CheckingMessage { rec: None });
+        msg.rec.unwrap().do_send(CheckingMessage { rec: None }).unwrap();
     }
 }
 
 
 #[actix_rt::test]
 async fn test_node_estimation() {
-    let cluster = Cluster::new(format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap(), vec![]);
+    let _cluster = Cluster::new(format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap(), vec![]);
     let parameters = Parameters::default();
     let mut training = Training::new(parameters);
 

@@ -1,9 +1,5 @@
-use std::collections::HashMap;
-
-use actix::dev::MessageResponse;
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
-use ndarray::{Array1, Array2};
 
 use crate::data_manager::{DataLoadedAndProcessed, DataManager, DatasetStats, LoadDataMessage};
 use crate::messages::PoisonPill;
@@ -14,7 +10,7 @@ use crate::training::intersection_calculation::{IntersectionCalculation, Interse
 use crate::training::messages::{SegmentedMessage, SegmentMessage};
 pub use crate::training::messages::StartTrainingMessage;
 use crate::training::node_estimation::{NodeEstimation, NodeEstimationDone, NodeEstimator};
-use crate::training::rotation::{Rotation, Rotator, RotationDoneMessage, RotationMatrixMessage, PCADoneMessage, PCAComponents, PCAMeansMessage, PCADecompositionMessage};
+use crate::training::rotation::{Rotation, Rotator, RotationDoneMessage, RotationMatrixMessage, PCAComponents, PCAMeansMessage, PCADecompositionMessage};
 use crate::training::segmenter::{Segmentation, Segmenter};
 use crate::utils::{ClusterNodes, ConsoleLogger};
 
@@ -78,7 +74,7 @@ impl Actor for Training {
 impl Handler<StartTrainingMessage> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: StartTrainingMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: StartTrainingMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.cluster_nodes = msg.nodes;
         self.data_manager.as_ref().unwrap().do_send(LoadDataMessage);
     }
@@ -97,7 +93,7 @@ impl Handler<DataLoadedAndProcessed> for Training {
 impl Handler<RotationDoneMessage> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: RotationDoneMessage, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: RotationDoneMessage, _ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(7, 12, "Segmenting Data".to_string()).print();
         self.data_manager.as_ref().unwrap().do_send(PoisonPill);
         self.segment();
@@ -134,11 +130,11 @@ impl Handler<NodeEstimationDone> for Training {
 impl Handler<EdgeEstimationDone> for Training {
     type Result = ();
 
-    fn handle(&mut self, _msg: EdgeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: EdgeEstimationDone, _ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(11, 12, "Building Graph".to_string()).print();
         self.create_graph();
         match &self.parameters.graph_output_path {
-            Some(path) => self.output_graph(path.clone()).expect("Error while outputting graph!"),
+            Some(path) => { &self.output_graph(path.clone()).expect("Error while outputting graph!"); },
             None => ()
         }
         ConsoleLogger::new(12, 12, "Scoring".to_string()).print();

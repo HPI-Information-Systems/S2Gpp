@@ -39,10 +39,6 @@ impl Display for NodeName {
 pub struct Edge(pub NodeName, pub NodeName);
 
 impl Edge {
-    pub fn to_tuple(&self) -> (NodeName, NodeName) {
-        (self.0.clone(), self.1.clone())
-    }
-
     pub fn to_index_tuple(&self) -> (u32, u32) {
         (self.0.cantor_index(), self.1.cantor_index())
     }
