@@ -133,8 +133,9 @@ impl Handler<EdgeEstimationDone> for Training {
     fn handle(&mut self, _msg: EdgeEstimationDone, _ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(11, 12, "Building Graph".to_string()).print();
         self.create_graph();
-        match &self.parameters.graph_output_path {
-            Some(path) => { &self.output_graph(path.clone()).expect("Error while outputting graph!"); },
+        let graph_output_path = self.parameters.graph_output_path.clone();
+        match &graph_output_path {
+            Some(path) => { self.output_graph(path.clone()).expect("Error while outputting graph!"); },
             None => ()
         }
         ConsoleLogger::new(12, 12, "Scoring".to_string()).print();

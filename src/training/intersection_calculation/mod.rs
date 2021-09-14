@@ -6,8 +6,7 @@ mod data_structures;
 
 use actix::{Addr, SyncArbiter, Handler, Recipient, AsyncContext};
 
-use ndarray::{Array1, arr1, stack_new_axis, Axis, concatenate, ArrayBase, Array2, arr2, OwnedRepr, Array, ArrayView1};
-use num_traits::real::Real;
+use ndarray::{Array1, arr1, stack_new_axis, Axis, concatenate, Array2};
 use std::collections::HashMap;
 
 use std::f32::consts::PI;

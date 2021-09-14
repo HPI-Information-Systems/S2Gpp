@@ -1,7 +1,5 @@
 
-use petgraph::adj::IndexType;
 use std::fmt::{Display, Formatter, Result};
-use num_integer::Roots;
 use ndarray_linalg::Scalar;
 use serde::{Serialize, Deserialize};
 

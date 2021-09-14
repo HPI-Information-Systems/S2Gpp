@@ -2,7 +2,7 @@
 mod tests;
 
 
-use ndarray::{Array2, Axis, ArrayBase, Array3, s, Dimension};
+use ndarray::{Array2, Axis, ArrayBase, Array3, s};
 use crate::parameters::Parameters;
 
 use crate::utils::{linspace};

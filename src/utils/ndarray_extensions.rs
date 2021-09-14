@@ -3,7 +3,6 @@ use ndarray_linalg::Norm;
 use num_traits::Float;
 use std::fmt::Debug;
 use std::iter::FromIterator;
-use num_traits::real::Real;
 
 pub fn norm(a: ArrayView2<f32>, axis: Axis) -> Array1<f32> {
     a.axis_iter(Axis(1 - axis.0)).map(|x| x.norm()).collect()

@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use actix::{Actor, Context, System, Handler, ActorContext, AsyncContext, Addr, Message};
+use actix::{Actor, Context, System, Handler, AsyncContext, Addr, Message};
 use actix_telepathy::prelude::*;
 use actix_broker::{BrokerSubscribe};
 use log::*;

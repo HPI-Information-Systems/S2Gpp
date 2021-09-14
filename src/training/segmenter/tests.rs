@@ -92,6 +92,7 @@ impl Handler<NodesMessage> for Training {
     }
 }
 
+#[allow(dead_code)]
 fn gen_spun_ring(length: usize, spins: usize) -> Array2<f32> {
     let spin_size = length / spins;
     let points: Vec<Array1<f32>> = (0..length).into_iter().map(|x| {

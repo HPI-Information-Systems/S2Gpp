@@ -1,6 +1,6 @@
 use std::ops::{Mul, Sub};
 
-use actix::{Actor, ActorContext, Addr, AsyncContext, Context, Handler, Recipient};
+use actix::{Addr, AsyncContext, Handler};
 
 use ndarray::{ArcArray, arr1, Array1, Array2, Array3, ArrayBase, ArrayView2, Axis, concatenate, Dim, Ix3, s, stack};
 

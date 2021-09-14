@@ -1,4 +1,4 @@
-use ndarray::{Array2, Array3, s, Dim, Array1, concatenate, Axis, Ix3, ShapeError};
+use ndarray::{Array2, s, Dim, Array1, concatenate, Axis, ShapeError};
 use ndarray_linalg::solve::Inverse;
 use ndarray_linalg::error::LinalgError;
 
