@@ -98,6 +98,8 @@ async fn test_edge_estimation() {
         },
         n_threads: 20,
         n_cluster_nodes: 1,
+        pattern_length: 20,
+        latent: 6,
         ..Default::default()
     };
     let mut training = Training::new(parameters);

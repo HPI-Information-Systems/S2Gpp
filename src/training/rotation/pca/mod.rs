@@ -23,6 +23,7 @@ pub struct PCA {
     id: usize,
     n_components: usize,
     pub components: Option<Array2<f32>>,
+    pub global_means: Option<Array1<f32>>,
     data: Option<ArcArray2<f32>>,
     local_r: Option<Array2<f32>>,
     r_count: usize,
@@ -50,7 +51,7 @@ pub trait PCAnalyzer {
     fn combine_remote_r(&mut self, remote_r: Array2<f32>);
     fn finalize(&mut self);
     fn normalize(&mut self, v: &Array2<f32>) -> Array2<f32>;
-    fn share_principal_components(&mut self);
+    fn share_principal_components(&mut self, means: Array1<f32>);
 }
 
 impl PCAnalyzer for Training {
@@ -141,9 +142,8 @@ impl PCAnalyzer for Training {
         let v = v.expect("Could not calculate SVD.");
         let v_sliced = v.slice(s![0..self.rotation.pca.n_components, ..]).to_owned();
         self.rotation.pca.components = Some(self.normalize(&v_sliced));
-        debug!("Principal components: {:?}", self.rotation.pca.components.as_ref().unwrap());
 
-        self.share_principal_components();
+        self.share_principal_components(global_means);
     }
 
     fn normalize(&mut self, v: &Array2<f32>) -> Array2<f32> {
@@ -162,8 +162,9 @@ impl PCAnalyzer for Training {
         v
     }
 
-    fn share_principal_components(&mut self) {
-        let msg = PCAComponents { components: self.rotation.pca.components.as_ref().unwrap().clone() };
+    fn share_principal_components(&mut self, means: Array1<f32>) {
+        let msg = PCAComponents { components: self.rotation.pca.components.as_ref().unwrap().clone(),
+            means };
 
         for (_, node) in self.cluster_nodes.iter() {
             let mut addr = node.clone();
@@ -207,6 +208,7 @@ impl Handler<PCAComponents> for Training {
 
     fn handle(&mut self, msg: PCAComponents, ctx: &mut Self::Context) -> Self::Result {
         self.rotation.pca.components = Some(msg.clone().components);
+        self.rotation.pca.global_means = Some(msg.means.clone());
         match &self.rotation.pca.recipient {
             Some(rec) => { rec.do_send(msg); },
             None => ctx.address().do_send(PCADoneMessage)

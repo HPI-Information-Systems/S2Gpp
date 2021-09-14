@@ -25,6 +25,7 @@ impl PhaseSpacer {
                 self.data.shape()[1]
             )
         );
+
         let shape = (self.parameters.pattern_length - self.parameters.latent, self.data.shape()[1]);
         let mut current_seq: Array2<f32> = ArrayBase::zeros(shape);
         let mut tmp = ArrayBase::zeros(shape);

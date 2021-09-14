@@ -64,6 +64,29 @@ struct TestParams {
 
 #[test]
 #[ignore]
+fn test_single_pca() {
+    let ip1: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap();
+
+    let dataset = read_data_("data/test.csv");
+    let expected: Array2<f32> = arr2(&[
+        [0.7265024, -0.39373094, 0.5631784],
+        [0.57647973, -0.09682596, -0.8113543]
+    ]);
+
+    let p = TestParams {
+        ip: ip1.clone(),
+        seeds: vec![],
+        other_nodes: vec![],
+        main: true,
+        data: dataset.to_shared(),
+        expected: expected.clone()
+    };
+
+    run_single_pca_node(p.ip, p.seeds.clone(), p.other_nodes, p.main, p.data, p.expected);
+}
+
+#[test]
+#[ignore]
 fn test_distributed_pca_2() {
     let ip1: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap();
     let ip2: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap();
@@ -151,15 +174,18 @@ async fn run_single_pca_node(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>
     delay_for(Duration::from_millis(200)).await;
 
     let _cluster = Cluster::new(ip_address.clone(), seed_nodes.clone());
-    if seed_nodes.len() > 0 {
-        let _cluster_listener = TestClusterMemberListener::new(main, seed_nodes[0], other_nodes.len() + 1, ip_address, cloned_arc_cluster_nodes).start();
+
+    let cluster_nodes = if other_nodes.len() == 0 && main {
+        ClusterNodes::new()
     } else {
-        let _cluster_listener = TestClusterMemberListener::new(main, ip_address, other_nodes.len() + 1, ip_address, cloned_arc_cluster_nodes).start();
-    }
-
-    delay_for(Duration::from_millis(200)).await;
-
-    let cluster_nodes: ClusterNodes = (*arc_cluster_nodes.lock().unwrap()).as_ref().unwrap().clone();
+        if seed_nodes.len() > 0 {
+            let _cluster_listener = TestClusterMemberListener::new(main, seed_nodes[0], other_nodes.len() + 1, ip_address, cloned_arc_cluster_nodes).start();
+        } else {
+            let _cluster_listener = TestClusterMemberListener::new(main, ip_address, other_nodes.len() + 1, ip_address, cloned_arc_cluster_nodes).start();
+        }
+        delay_for(Duration::from_millis(200)).await;
+        (*arc_cluster_nodes.lock().unwrap()).as_ref().unwrap().clone()
+    };
 
     let id = cluster_nodes.get_own_idx();
 
@@ -174,5 +200,6 @@ async fn run_single_pca_node(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>
     delay_for(Duration::from_millis(3000)).await;
 
     let received = (*result.lock().unwrap()).as_ref().expect("Not yet set!").clone();
+    println!("received {}", received);
     close_l1(&received, &expected, 0.00001);
 }

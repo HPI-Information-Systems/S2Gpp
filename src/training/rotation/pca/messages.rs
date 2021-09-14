@@ -1,7 +1,7 @@
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
 use serde::{Serialize, Deserialize};
-use ndarray::{Array2, ArcArray2, Array3};
+use ndarray::{Array2, ArcArray2, Array3, Array1};
 use crate::utils::ArcArray3;
 
 
@@ -32,5 +32,6 @@ pub struct PCAMeansMessage {
 #[derive(Message, RemoteMessage, Serialize, Deserialize, Clone)]
 #[rtype(Result = "()")]
 pub struct PCAComponents {
-    pub components: Array2<f32>
+    pub components: Array2<f32>,
+    pub means: Array1<f32>
 }

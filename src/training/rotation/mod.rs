@@ -1,4 +1,4 @@
-use std::ops::Mul;
+use std::ops::{Mul, Add, Sub};
 
 use actix::{Actor, ActorContext, Addr, AsyncContext, Context, Handler, Recipient};
 use actix_telepathy::prelude::*;
@@ -10,6 +10,7 @@ use crate::utils::{ClusterNodes, cross2d, norm, repeat};
 use crate::training::rotation::pca::{PCA, PCAnalyzer};
 pub use crate::training::rotation::messages::{RotationMatrixMessage, RotationDoneMessage};
 pub use crate::training::rotation::pca::*;
+use num_traits::real::Real;
 
 mod messages;
 mod pca;
@@ -21,6 +22,7 @@ pub struct Rotation {
     reduced: Option<Array3<f32>>,
     reduced_ref: Option<Array3<f32>>,
     n_reduced: usize,
+    mean: Option<Array3<f32>>,
     pub pca: PCA,
     pub rotated: Option<Array2<f32>>
 }
@@ -57,13 +59,17 @@ impl Rotator for Training {
     fn reduce(&mut self) {
         let components = self.rotation.pca.components.as_ref().unwrap().clone().reversed_axes();
         let i = self.rotation.n_reduced - 1;
-        self.rotation.reduced.as_mut().unwrap().index_axis_mut(Axis(2), i).assign(
-            &self.rotation.phase_space.as_ref().unwrap().slice(s![.., .., i]).dot(&components)
-        );
+        self.rotation.reduced.as_mut().unwrap().index_axis_mut(Axis(2), i).assign({
+            let x = &self.rotation.phase_space.as_ref().unwrap().slice(s![.., .., i]);
+            let x = x.sub(&self.rotation.pca.global_means.as_ref().unwrap().broadcast(x.shape()).unwrap());
+            &x.dot(&components)
+        });
 
-        self.rotation.reduced_ref.as_mut().unwrap().index_axis_mut(Axis(2), i).assign(
-            &self.rotation.data_ref.as_ref().unwrap().slice(s![.., .., i]).dot(&components)
-        );
+        self.rotation.reduced_ref.as_mut().unwrap().index_axis_mut(Axis(2), i).assign({
+            let x = &self.rotation.data_ref.as_ref().unwrap().slice(s![.., .., i]);
+            let x = x.sub(&self.rotation.pca.global_means.as_ref().unwrap().broadcast(x.shape()).unwrap());
+            &x.dot(&components)
+        });
     }
 
     fn get_rotation_matrix(&mut self) -> Array3<f32> {
@@ -82,7 +88,7 @@ impl Rotator for Training {
 
         let zeros: Array1<f32> = ArrayBase::zeros(v.shape()[0]);
         let v_ = v.t();
-        let v_n = v_ .mul(-1.0);
+        let v_n = v_.mul(-1.0);
 
         let k = concatenate(Axis(0), &[
             zeros.view(), v_n.row(2), v_.row(1),
@@ -91,10 +97,9 @@ impl Rotator for Training {
         ).unwrap().into_shape((3, 3, v.shape()[0])).unwrap();
 
         let k_: Vec<Array2<f32>> = k.axis_iter(Axis(2)).map(|x| x.dot(&x)).collect();
-
-        I + k + stack(Axis(2), k_.iter().map(|x|
-            x.view()).collect::<Vec<ArrayView2<f32>>>().as_slice()
-        ).unwrap() * ((1.0 - c) / &s_ * s_)
+        I + k + stack(Axis(2), k_.iter().map(|x| x.view())
+            .collect::<Vec<ArrayView2<f32>>>().as_slice()
+        ).unwrap() * ((1.0 - c) / s_.clone().mul(s_.clone()))
     }
 
     fn broadcast_rotation_matrix(&mut self, addr: Addr<Self>) {
