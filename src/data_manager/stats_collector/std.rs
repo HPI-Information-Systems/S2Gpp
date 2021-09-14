@@ -71,15 +71,19 @@ impl Handler<StdNodeMessage> for DataManager {
                     std_calcuation.n = Some(global_n);
                     (m2 / (global_n - 1) as f32).iter().map(|x| x.sqrt()).collect()
                 },
-                _ => panic!("Some value for variance should have been set by now!")
+                _ => { // for single node case or if local message is faster than remote message
+                    let std = (msg.m2.clone() / (msg.n - 1) as f32).iter().map(|x| x.sqrt()).collect();
+                    self.set_intermediate_std(msg.n, msg.mean, msg.m2);
+                    std
+                }
             };
 
-            for node in &std_calcuation.nodes {
+            for node in self.std_calculation.as_ref().unwrap().nodes.iter() {
                 let receiving_node = match &node.network_interface {
                     Some(_) => AnyAddr::Remote(node.clone()),
                     None => AnyAddr::Local(ctx.address())
                 };
-                receiving_node.do_send(StdDoneMessage { std: std.clone(), n: std_calcuation.n.as_ref().unwrap().clone()});
+                receiving_node.do_send(StdDoneMessage { std: std.clone(), n: self.std_calculation.as_ref().unwrap().n.as_ref().unwrap().clone()});
             }
         }
     }

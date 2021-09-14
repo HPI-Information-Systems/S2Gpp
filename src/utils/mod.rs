@@ -2,6 +2,7 @@ mod ndarray_extensions;
 mod geometry;
 mod console_logger;
 mod helper_protocol;
+mod graphs;
 
 use std::collections::HashMap;
 use actix_telepathy::{RemoteAddr, AnyAddr};
@@ -12,12 +13,13 @@ pub use ndarray_extensions::*;
 pub use geometry::line_plane_intersection;
 pub use console_logger::ConsoleLogger;
 pub use helper_protocol::HelperProtocol;
+pub use graphs::*;
 use ndarray::{ArcArray, Ix3};
 
 
 pub type ArcArray3<T> = ArcArray<T, Ix3>;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct ClusterNodes {
     nodes: HashMap<usize, RemoteAddr>
 }
@@ -46,15 +48,26 @@ impl ClusterNodes {
     }
 
     pub fn get_own_idx(&self) -> usize {
-        let mut own_idx = 0;
-        for idx in self.nodes.keys() {
-            if own_idx.eq(idx) {
-                own_idx += 1
-            } else {
-                break
-            }
+        let n_nodes: usize = (0..self.len_incl_own()).sum();
+        let keys_sum: usize = self.nodes.keys().sum();
+        n_nodes - keys_sum
+    }
+
+    pub fn get_next_idx(&self) -> Option<usize> {
+        let own_idx = self.get_own_idx();
+        let possible_next_idx = own_idx + 1;
+        if self.nodes.contains_key(&possible_next_idx) {
+            Some(possible_next_idx)
+        } else if self.nodes.contains_key(&0) & (own_idx != 0) {
+            Some(0)
+        } else {
+            None
         }
-        own_idx
+    }
+
+    pub fn get_next_node(&self) -> Option<&RemoteAddr> {
+        let next_id = self.get_next_idx();
+        self.get(&next_id.unwrap())
     }
 
     pub fn to_any<T: Actor>(&self, addr: Addr<T>) -> AnyClusterNodes<T> {

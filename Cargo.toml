@@ -20,7 +20,7 @@ indicatif = "0.16.2"
 console = "0.14.1"
 
 actix = "0.10"
-actix-telepathy = "0.1.1"
+actix-telepathy = "0.1.2"
 actix-broker = "0.3.1"
 serde = "1.0"
 serde_with = "1.9.1"
@@ -33,3 +33,7 @@ kdtree = "0.6.0"
 num-traits = "0.2.14"
 num-integer = "0.1.44"
 sortedvec = "0.5.0"
+petgraph = "0.6.0"
+anyhow = "1.0.41"
+
+meanshift-rs = { git = "ssh://git@gitlab.hpi.de/phillip.wenig/meanshift-rs.git", tag = "0.2.1" }

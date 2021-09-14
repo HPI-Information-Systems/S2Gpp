@@ -2,6 +2,7 @@ mod helper;
 mod messages;
 #[cfg(test)]
 mod tests;
+mod data_structures;
 
 use actix::{Addr, SyncArbiter, Handler, Recipient, AsyncContext};
 use actix::dev::MessageResponse;
@@ -13,25 +14,28 @@ use std::f32::consts::PI;
 use std::ops::{Range};
 use crate::training::intersection_calculation::helper::IntersectionCalculationHelper;
 pub use crate::training::intersection_calculation::messages::{IntersectionResultMessage, IntersectionTaskMessage, IntersectionCalculationDone};
-use crate::training::segmenter::{SegmentedPointWithId, PointWithId};
+use crate::training::segmenter::{SegmentedPointWithId, PointWithId, SegmentedTransition};
 use crate::training::Training;
 use crate::utils::{PolarCoords, HelperProtocol};
 use crate::messages::PoisonPill;
 use ndarray_stats::QuantileExt;
 use std::cmp::Ordering::Equal;
 use num_integer::Integer;
+pub use crate::training::intersection_calculation::data_structures::{Transition, IntersectionsByTransition};
 
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
-pub struct Transition(pub usize, pub usize);
 pub type SegmentID = usize;
 
 #[derive(Default)]
 pub struct IntersectionCalculation {
-    pub intersections: HashMap<Transition, Vec<SegmentID>>,
-    pub intersection_coords: HashMap<SegmentID, HashMap<Transition, Array1<f32>>>,
+    /// Which segments are intersected by a transition?
+    pub intersections: HashMap<usize, Vec<SegmentID>>,
+    /// Which transitions cut a segment and where?
+    pub intersection_coords_by_segment: HashMap<SegmentID, IntersectionsByTransition>,
     pub helpers: Option<Addr<IntersectionCalculationHelper>>,
-    pub pairs: Vec<(Transition, SegmentID, Array2<f32>, Array2<f32>)>,
-    pub helper_protocol: HelperProtocol
+    /// Collects tasks for helper actors.
+    pub pairs: Vec<(usize, SegmentID, Array2<f32>, Array2<f32>)>,
+    pub helper_protocol: HelperProtocol,
+    pub recipient: Option<Recipient<IntersectionCalculationDone>>
 }
 
 
@@ -43,11 +47,21 @@ pub trait IntersectionCalculator {
 
 impl IntersectionCalculator for Training {
     fn calculate_intersections(&mut self, rec: Recipient<IntersectionResultMessage>) {
-        let max_value = self.segmentation.own_segment.iter()
-            .map(|x| x.point_with_id.coords.max().unwrap().max(x.point_with_id.coords.min().unwrap().abs()))
+        let max_value = self.segmentation.segments.iter()
+            .map(|x| {
+                x.from.point_with_id.coords
+                    .max().unwrap()
+                    .max(x.from.point_with_id.coords.min().unwrap().abs())
+                    .max(x.to.point_with_id.coords
+                        .max().unwrap()
+                        .max(x.to.point_with_id.coords.min().unwrap().abs())
+                        .abs()
+                    )
+            }
+            )
             .fold(0_f32, |a, b| { a.max(b) });
 
-        let dims = self.segmentation.own_segment.get(0).unwrap().point_with_id.coords.len();
+        let dims = self.segmentation.segments.get(0).expect("could not generate segments").from.point_with_id.coords.len();
 
         let origin = arr1(vec![0_f32; dims].as_slice());
         let planes_end_points: Vec<Array1<f32>> = (0..self.parameters.rate).into_iter().map(|segment_id| {
@@ -56,19 +70,17 @@ impl IntersectionCalculator for Training {
             concatenate(Axis(0), &[polar.to_cartesian().view(), other_dims.view()]).unwrap()
         }).collect();
 
-        let mut last: &SegmentedPointWithId = self.segmentation.own_segment.get(0).unwrap();
-        for current in self.segmentation.own_segment.iter().skip(1) {
-            if last.segment_id.ne(&current.segment_id) {
+        for (transition_id, transition) in self.segmentation.segments.iter().enumerate() {
+            if transition.crosses_segments() {
                 let line_points = stack_new_axis(Axis(0), &[
-                    last.point_with_id.coords.view(),
-                    current.point_with_id.coords.view()
+                    transition.from.point_with_id.coords.view(),
+                    transition.to.point_with_id.coords.view()
                 ]).unwrap();
 
-                let transition = Transition(last.point_with_id.id, current.point_with_id.id);
                 let mut segment_ids = vec![];
 
-                let raw_diff = current.segment_id as isize - last.segment_id as isize;
-                let raw_diff_counter = (self.parameters.rate + current.segment_id) as isize - last.segment_id as isize;
+                let raw_diff = transition.to.segment_id as isize - transition.from.segment_id as isize;
+                let raw_diff_counter = (self.parameters.rate + transition.to.segment_id) as isize - transition.from.segment_id as isize;
                 let mut segment_diff = raw_diff.abs() as usize;
                 let half_rate = self.parameters.rate.div_floor(&2);
 
@@ -77,16 +89,16 @@ impl IntersectionCalculator for Training {
 
                 if valid_direction {
                     if segment_diff > half_rate {
-                        if current.segment_id > half_rate {
-                            segment_diff = (last.segment_id as isize - (-(self.parameters.rate as isize) + current.segment_id as isize)).abs() as usize;
-                        } else if last.segment_id > half_rate {
-                            segment_diff = (current.segment_id as isize - (-(self.parameters.rate as isize) + last.segment_id as isize)).abs() as usize;
+                        if transition.to.segment_id > half_rate {
+                            segment_diff = (transition.from.segment_id as isize - (-(self.parameters.rate as isize) + transition.to.segment_id as isize)).abs() as usize;
+                        } else if transition.from.segment_id > half_rate {
+                            segment_diff = (transition.to.segment_id as isize - (-(self.parameters.rate as isize) + transition.from.segment_id as isize)).abs() as usize;
                         }
                     }
                     segment_diff = segment_diff.min(half_rate);
 
                     for segment_lag in 1..(segment_diff) + 1 {
-                        let segment_id = (last.segment_id + segment_lag).mod_floor(&self.parameters.rate);
+                        let segment_id = (transition.from.segment_id + segment_lag).mod_floor(&self.parameters.rate);
                         segment_ids.push(segment_id);
 
                         let mut arrays = vec![origin.view()];
@@ -100,20 +112,15 @@ impl IntersectionCalculator for Training {
                         arrays.push(planes_end_points[segment_id].view());
 
                         let plane_points = stack_new_axis(Axis(0), arrays.as_slice()).unwrap();
-                        self.intersection_calculation.pairs.push((transition.clone(), segment_id, line_points.clone(), plane_points));
+                        self.intersection_calculation.pairs.push((transition_id, segment_id, line_points.clone(), plane_points));
                     }
                 }
 
-                let transition = Transition(last.point_with_id.id, current.point_with_id.id);
-
-                match self.intersection_calculation.intersections.get_mut(&transition) {
+                match self.intersection_calculation.intersections.get_mut(&transition_id) {
                     Some(internal_segment_ids) => internal_segment_ids.extend(segment_ids),
-                    None => { self.intersection_calculation.intersections.insert(transition.clone(), segment_ids); }
+                    None => { self.intersection_calculation.intersections.insert(transition_id, segment_ids); }
                 };
             }
-
-
-            last = current;
         }
         self.intersection_calculation.helper_protocol.n_total = self.intersection_calculation.pairs.len();
 
@@ -127,9 +134,9 @@ impl IntersectionCalculator for Training {
             let pair = self.intersection_calculation.pairs.pop();
             match pair {
                 None => {}
-                Some((transition, segment_id, line_points, plane_points)) => {
+                Some((transition_id, segment_id, line_points, plane_points)) => {
                     self.intersection_calculation.helpers.as_ref().unwrap().do_send(IntersectionTaskMessage {
-                        transition,
+                        transition_id,
                         segment_id,
                         line_points,
                         plane_points,
@@ -149,12 +156,12 @@ impl Handler<IntersectionResultMessage> for Training {
     fn handle(&mut self, msg: IntersectionResultMessage, ctx: &mut Self::Context) -> Self::Result {
         self.intersection_calculation.helper_protocol.received();
 
-        match self.intersection_calculation.intersection_coords.get_mut(&msg.segment_id) {
-            Some(transition_coord) => { transition_coord.insert(msg.transition, msg.intersection); },
+        match self.intersection_calculation.intersection_coords_by_segment.get_mut(&msg.segment_id) {
+            Some(transition_coord) => { transition_coord.insert(msg.transition_id, msg.intersection); },
             None => {
                 let mut transition_coord = HashMap::new();
-                transition_coord.insert(msg.transition, msg.intersection);
-                self.intersection_calculation.intersection_coords.insert(msg.segment_id, transition_coord);
+                transition_coord.insert(msg.transition_id, msg.intersection);
+                self.intersection_calculation.intersection_coords_by_segment.insert(msg.segment_id, transition_coord);
             }
         };
 
@@ -162,7 +169,10 @@ impl Handler<IntersectionResultMessage> for Training {
             self.distribute_intersection_tasks(ctx.address().recipient());
         } else {
             self.intersection_calculation.helpers.as_ref().unwrap().do_send(PoisonPill);
-            ctx.address().do_send(IntersectionCalculationDone );
+            match &self.intersection_calculation.recipient {
+                Some(rec) => { rec.do_send(IntersectionCalculationDone); },
+                None => ctx.address().do_send(IntersectionCalculationDone)
+            }
         }
     }
 }

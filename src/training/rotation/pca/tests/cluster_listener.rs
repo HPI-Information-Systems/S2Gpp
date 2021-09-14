@@ -10,32 +10,40 @@ use serde::{Serialize, Deserialize};
 
 use crate::training::{Training, StartTrainingMessage};
 use crate::utils::ClusterNodes;
+use std::sync::{Arc, Mutex};
 
 
 #[derive(Message, RemoteMessage, Serialize, Deserialize)]
 #[rtype(Result = "()")]
-struct SortedMembersMessage(pub Vec<SocketAddr>);
+struct TestSortedMembersMessage(pub Vec<SocketAddr>);
 
 
 #[derive(RemoteActor)]
-#[remote_messages(SortedMembersMessage)]
-pub struct ClusterMemberListener {
-    parameters: Parameters,
+#[remote_messages(TestSortedMembersMessage)]
+pub struct TestClusterMemberListener {
+    is_main: bool,
+    main_socket_addr: SocketAddr,
+    n_cluster_nodes: usize,
+    local_host: SocketAddr,
     connected_nodes: HashSet<RemoteAddr>,
     main_node: Option<RemoteAddr>,
-    training: Addr<Training>,
     sorted_nodes: HashMap<usize, RemoteAddr>,
+    cluster_nodes: Arc<Mutex<Option<ClusterNodes>>>,
     sorted_addr_buffer: Vec<SocketAddr>
 }
 
-impl ClusterMemberListener {
-    pub fn new(parameters: Parameters, training: Addr<Training>) -> Self {
+impl TestClusterMemberListener {
+    pub fn new(is_main: bool, main_socket_addr: SocketAddr, n_cluster_nodes: usize, local_host: SocketAddr,
+               cluster_nodes: Arc<Mutex<Option<ClusterNodes>>>) -> Self {
         Self {
-            parameters,
+            is_main,
+            main_socket_addr,
+            n_cluster_nodes,
+            local_host,
             connected_nodes: HashSet::new(),
             main_node: None,
-            training,
             sorted_nodes: HashMap::new(),
+            cluster_nodes,
             sorted_addr_buffer: vec![]
         }
     }
@@ -59,22 +67,19 @@ impl ClusterMemberListener {
                 None => ()
             }
         }
-
-        debug!("sorted: {:?}", self.sorted_nodes)
     }
 
-    fn start_training(&mut self) {
-        let nodes = ClusterNodes::from(self.sorted_nodes.clone());
-        self.training.do_send(StartTrainingMessage { nodes });
+    fn finish_intro(&mut self) {
+        *(self.cluster_nodes.lock().unwrap()) = Some(ClusterNodes::from(self.sorted_nodes.clone()));
     }
 }
 
-impl Actor for ClusterMemberListener {
+impl Actor for TestClusterMemberListener {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
         self.subscribe_system_async::<ClusterLog>(ctx);
-        self.register(ctx.address().recipient(), "ClusterMemberListener".to_string());
+        self.register(ctx.address().recipient(), "TestClusterMemberListener".to_string());
     }
 
     fn stopped(&mut self, _ctx: &mut Self::Context) {
@@ -82,7 +87,7 @@ impl Actor for ClusterMemberListener {
     }
 }
 
-impl Handler<ClusterLog> for ClusterMemberListener {
+impl Handler<ClusterLog> for TestClusterMemberListener {
     type Result = ();
 
     fn handle(&mut self, msg: ClusterLog, ctx: &mut Self::Context) -> Self::Result {
@@ -90,59 +95,48 @@ impl Handler<ClusterLog> for ClusterMemberListener {
             ClusterLog::NewMember(addr, remote_addr) => {
                 debug!("new member {:?}", addr);
 
-                if self.parameters.is_main_addr(addr) {
+                if self.main_socket_addr.eq(&addr) {
                     self.main_node = Some(remote_addr.clone());
                 }
                 self.connected_nodes.insert(remote_addr);
 
-                if self.connected_nodes.len() == self.parameters.n_cluster_nodes - 1 {
-                    match &self.parameters.role {
-                        Role::Main { .. } => {
-                            let mut sorted_members = vec![self.parameters.local_host.clone()];
-                            sorted_members.append(&mut self.connected_nodes.iter().map(|x| x.socket_addr.clone()).collect());
+                if self.connected_nodes.len() == self.n_cluster_nodes - 1 {
+                    if self.is_main {
+                        let mut sorted_members = vec![self.local_host.clone()];
+                        sorted_members.append(&mut self.connected_nodes.iter().map(|x| x.socket_addr.clone()).collect());
 
-                            for node in self.connected_nodes.iter() {
-                                let mut remote_listener = node.clone();
-                                remote_listener.change_id("ClusterMemberListener".to_string());
-                                remote_listener.do_send(SortedMembersMessage(sorted_members.clone()))
-                            }
-
-                            self.sort_members(sorted_members);
-                            self.start_training();
-                        },
-                        _ => if self.sorted_addr_buffer.len() > 0 {
-                            self.sort_members(self.sorted_addr_buffer.clone());
-                            self.start_training();
+                        for node in self.connected_nodes.iter() {
+                            let mut remote_listener = node.clone();
+                            remote_listener.change_id("TestClusterMemberListener".to_string());
+                            remote_listener.do_send(TestSortedMembersMessage(sorted_members.clone()))
                         }
+
+                        self.sort_members(sorted_members);
+                        self.finish_intro();
+                    } else if self.sorted_addr_buffer.len() > 0 {
+                        self.sort_members(self.sorted_addr_buffer.clone());
+                        self.finish_intro();
                     }
                 }
             },
             ClusterLog::MemberLeft(addr) => {
                 debug!("member left {:?}", addr);
-                match &self.parameters.role {
-                    Role::Sub { mainhost } => {
-                        if addr.eq(mainhost) {
-                            ctx.stop();
-                        }
-                    },
-                    _ => ()
-                }
             }
         }
     }
 }
 
-impl Handler<SortedMembersMessage> for ClusterMemberListener {
+impl Handler<TestSortedMembersMessage> for TestClusterMemberListener {
     type Result = ();
 
-    fn handle(&mut self, msg: SortedMembersMessage, _ctx: &mut Self::Context) -> Self::Result {
-        if self.connected_nodes.len() == self.parameters.n_cluster_nodes - 1 {
+    fn handle(&mut self, msg: TestSortedMembersMessage, _ctx: &mut Self::Context) -> Self::Result {
+        if self.connected_nodes.len() == self.n_cluster_nodes - 1 {
             self.sort_members(msg.0);
-            self.start_training();
+            self.finish_intro();
         } else {
             self.sorted_addr_buffer = msg.0;
         }
     }
 }
 
-impl ClusterListener for ClusterMemberListener {}
+impl ClusterListener for TestClusterMemberListener {}

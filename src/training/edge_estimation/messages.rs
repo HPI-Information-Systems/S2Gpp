@@ -1,23 +1,25 @@
 use actix::prelude::*;
+use actix_telepathy::prelude::*;
+use serde::{Deserialize, Serialize};
 use ndarray::{Array2, Array1, ArcArray1, ArcArray2};
 use crate::training::edge_estimation::{NodeName, Edge};
 use crate::training::intersection_calculation::Transition;
 
 
-#[derive(Message)]
+#[derive(Message, RemoteMessage, Serialize, Deserialize, Default)]
 #[rtype(Result = "()")]
-pub struct EdgeEstimationHelperResponse {
-    pub task_id: usize,
-    pub node_names: Vec<NodeName>,
-    pub transition: Transition
+pub struct EdgeReductionMessage {
+    pub edges: Vec<Edge>,
+    pub edge_in_time: Vec<usize>,
+    pub nodes: Vec<NodeName>,
+    pub own: bool
 }
 
 
-#[derive(Message)]
+#[derive(Message, RemoteMessage, Serialize, Deserialize, Default)]
 #[rtype(Result = "()")]
-pub struct EdgeEstimationHelperTask {
-    pub task_id: usize,
-    pub transition: Transition
+pub struct EdgeRotationMessage {
+    pub open_edges: Vec<(usize, NodeName)>
 }
 
 

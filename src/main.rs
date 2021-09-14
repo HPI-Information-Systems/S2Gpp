@@ -8,8 +8,6 @@ use crate::cluster_listener::ClusterMemberListener;
 use actix_telepathy::Cluster;
 use crate::training::Training;
 
-mod meanshift;
-mod pca;
 mod data_manager;
 mod parameters;
 mod cluster_listener;
