@@ -25,6 +25,7 @@ pub struct ClusterNodes {
 }
 
 impl ClusterNodes {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self::default()
     }
@@ -49,15 +50,15 @@ impl ClusterNodes {
         n_nodes - keys_sum
     }
 
-    pub fn get_next_idx(&self) -> usize {
+    pub fn get_next_idx(&self) -> Option<usize> {
         let own_idx = self.get_own_idx();
         let possible_next_idx = own_idx + 1;
         if self.nodes.contains_key(&possible_next_idx) {
-            possible_next_idx
+            Some(possible_next_idx)
         } else if self.nodes.contains_key(&0) & (own_idx != 0) {
-            0
+            Some(0)
         } else {
-            panic!("The cluster IDs weren't inserted properly!")
+            None
         }
     }
 

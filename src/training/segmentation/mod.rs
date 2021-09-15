@@ -93,11 +93,12 @@ impl Segmenter for Training {
             last_point = Some(point);
         }
 
-        if self.cluster_nodes.len() > 0 {
-            self.cluster_nodes.get(&next_id).unwrap().do_send(SegmentMessage { segments: node_transitions });
-        } else {
-            self.build_segment_index();
-            self.own_addr.as_ref().expect("Should be set by now").do_send(SegmentedMessage);
+        match next_id {
+            Some(next_id) => self.cluster_nodes.get(&next_id).unwrap().do_send(SegmentMessage { segments: node_transitions }),
+            None => {
+                self.build_segment_index();
+                self.own_addr.as_ref().expect("Should be set by now").do_send(SegmentedMessage);
+            }
         }
     }
 

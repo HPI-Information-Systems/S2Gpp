@@ -29,25 +29,25 @@ pub struct Parameters {
     #[structopt(subcommand)]
     pub role: Role,
 
-    #[structopt(short = "l", long = "local-host")]
+    #[structopt(short = "l", long = "local-host", default_value = "127.0.0.1:8000")]
     pub local_host: SocketAddr,
 
-    #[structopt(short = "p", long = "pattern-length")]
+    #[structopt(short = "p", long = "pattern-length", default_value = "50")]
     pub pattern_length: usize,
 
-    #[structopt(long = "latent")]
+    #[structopt(long = "latent", default_value = "16")]
     pub latent: usize,
 
-    #[structopt(long = "rate")]
+    #[structopt(long = "rate", default_value = "100")]
     pub rate: usize,
 
-    #[structopt(short = "t", long = "threads")]
+    #[structopt(short = "t", long = "threads", default_value = "1")]
     pub n_threads: usize,
 
-    #[structopt(short = "n", long = "cluster-nodes")]
+    #[structopt(short = "n", long = "cluster-nodes", default_value = "1")]
     pub n_cluster_nodes: usize,
 
-    #[structopt(short = "q", long = "query-length")]
+    #[structopt(short = "q", long = "query-length", default_value = "75")]
     pub query_length: usize,
 
     #[structopt(long = "graph-output-path")]

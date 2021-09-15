@@ -10,6 +10,7 @@ use std::ops::Range;
 use anyhow::Result;
 use std::fs::File;
 use csv::WriterBuilder;
+use log::*;
 
 #[derive(Default)]
 pub struct Scoring {
@@ -27,6 +28,7 @@ pub trait Scorer {
 
 impl Scorer for Training {
     fn count_edges_in_time(&mut self) -> Vec<usize> {
+        debug!("edges number {}", self.edge_estimation.edges.len());
         let mut edges_in_time = vec![];
         let mut last_point_id = None;
         for (i, (point_id, _edge)) in self.edge_estimation.edges.iter().enumerate() {
@@ -76,6 +78,11 @@ impl Scorer for Training {
         let node_degrees = self.calculate_node_degrees();
 
         let mut all_score = vec![0_f32];
+
+        if edges_in_time.len() < (self.parameters.query_length - 1) {
+            panic!("There are less edges than the given 'query_length'!");
+        }
+
         let end_iteration = edges_in_time.len() - (self.parameters.query_length - 1);
 
         for i in 0..end_iteration {

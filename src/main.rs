@@ -6,7 +6,8 @@ use crate::parameters::{Parameters, Role};
 
 use crate::cluster_listener::ClusterMemberListener;
 use actix_telepathy::Cluster;
-use crate::training::Training;
+use crate::training::{Training, StartTrainingMessage};
+use crate::utils::ClusterNodes;
 
 mod data_manager;
 mod parameters;
@@ -31,8 +32,13 @@ fn main() {
 
 
     let training = Training::new(params.clone()).start();
-    let _cluster = Cluster::new(host, seed_nodes);
-    let _cluster_listener = ClusterMemberListener::new(params, training).start();
+    if params.n_cluster_nodes > 1 {
+        let _cluster = Cluster::new(host, seed_nodes);
+        let _cluster_listener = ClusterMemberListener::new(params, training).start();
+    } else {
+        let nodes = ClusterNodes::new();
+        training.do_send(StartTrainingMessage { nodes });
+    }
 
     system.run().unwrap();
 }

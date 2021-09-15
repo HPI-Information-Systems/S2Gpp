@@ -9,6 +9,7 @@ pub struct NodeName(pub usize, pub usize);
 
 /// using cantor pairing function
 impl NodeName {
+    #[allow(dead_code)]
     pub fn inv_cantor(x: u32) -> Self {
         let z = x as f32;
         let w = (((8.0*z+1.0).sqrt() - 1.0) / 2.0).floor();

@@ -89,6 +89,7 @@ impl DataReader for DataManager {
     }
 }
 
+#[allow(dead_code)]
 pub fn read_data_(file_path: &str) -> Array2<f32> {
     let file = File::open(file_path).unwrap();
     let count_reader = BufReader::new(file);

@@ -19,6 +19,7 @@ pub struct DatasetStats {
 }
 
 impl DatasetStats {
+    #[allow(dead_code)]
     pub fn new(std_col: Array1<f32>, min_col: Array1<f32>, max_col: Array1<f32>, n: usize) -> Self {
         Self {
             min_col: Some(min_col),
