@@ -15,7 +15,7 @@ use anyhow::{Result, Error};
 
 #[derive(Default)]
 pub struct GraphCreation {
-    graph: Option<DiGraph<u32, f32>>
+    pub graph: Option<DiGraph<u32, f32>>
 }
 
 
@@ -27,9 +27,9 @@ pub trait GraphCreator {
 
 impl GraphCreator for Training {
     fn create_graph(&mut self) {
-        let edges: &[Edge] = self.edge_estimation.edges.borrow();
+        let edges: &[(usize, Edge)] = self.edge_estimation.edges.borrow();
 
-        self.graph_creation.graph = Some(DiGraph::from_edges(edges.into_iter().map(|e| {
+        self.graph_creation.graph = Some(DiGraph::from_edges(edges.into_iter().map(|(_, e)| {
             e.to_index_tuple()
         }).collect::<Vec<(u32, u32)>>()));
     }

@@ -13,6 +13,7 @@ use crate::training::node_estimation::{NodeEstimation, NodeEstimationDone, NodeE
 use crate::training::rotation::{Rotation, Rotator, RotationDoneMessage, RotationMatrixMessage, PCAComponents, PCAMeansMessage, PCADecompositionMessage};
 use crate::training::segmentation::{Segmentation, Segmenter};
 use crate::utils::{ClusterNodes, ConsoleLogger};
+use crate::training::scoring::{Scoring, Scorer};
 
 mod messages;
 mod segmentation;
@@ -21,6 +22,7 @@ mod node_estimation;
 mod edge_estimation;
 mod graph_creation;
 mod rotation;
+mod scoring;
 
 #[derive(RemoteActor)]
 #[remote_messages(SegmentMessage, EdgeReductionMessage, PCAMeansMessage, PCADecompositionMessage, PCAComponents, RotationMatrixMessage)]
@@ -35,7 +37,8 @@ pub struct Training {
     intersection_calculation: IntersectionCalculation,
     node_estimation: NodeEstimation,
     edge_estimation: EdgeEstimation,
-    graph_creation: GraphCreation
+    graph_creation: GraphCreation,
+    scoring: Scoring
 }
 
 impl Training {
@@ -51,7 +54,8 @@ impl Training {
             intersection_calculation: IntersectionCalculation::default(),
             node_estimation: NodeEstimation::default(),
             edge_estimation: EdgeEstimation::default(),
-            graph_creation: GraphCreation::default()
+            graph_creation: GraphCreation::default(),
+            scoring: Scoring::default()
         }
     }
 }
@@ -139,17 +143,11 @@ impl Handler<EdgeEstimationDone> for Training {
             None => ()
         }
         ConsoleLogger::new(12, 12, "Scoring".to_string()).print();
+        self.score();
+        let score_output_path = self.parameters.score_output_path.clone();
+        match &score_output_path {
+            Some(path) => { self.output_score(path.clone()).expect("Error while outputting scores!"); },
+            None => ()
+        }
     }
 }
-
-/*
-impl Handler<ScoringDone> for Training {
-
-    type Result = ();
-
-    fn handle(&mut self, _msg: GraphBuildingDone, ctx: &mut Self::Context) -> Self::Result {
-        ConsoleLogger::new(12, 12, "Writing Results".to_string()).print();
-        // TODO: Write Result
-    }
-}
-*/

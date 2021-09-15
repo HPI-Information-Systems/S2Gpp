@@ -3,27 +3,18 @@ mod messages;
 mod tests;
 
 use actix::prelude::*;
-
-
 use std::collections::HashMap;
-
 use crate::training::Training;
 pub use crate::training::edge_estimation::messages::{EdgeEstimationDone, EdgeReductionMessage};
-
 use crate::utils::{Edge, NodeName};
-
-
-
-
-
 use num_integer::Integer;
 use crate::training::edge_estimation::messages::EdgeRotationMessage;
 
 
 #[derive(Default)]
 pub struct EdgeEstimation {
-    pub edges: Vec<Edge>,
-    pub edge_in_time: Vec<usize>,
+    /// [(point_id, Edge)]
+    pub edges: Vec<(usize, Edge)>,
     pub nodes: Vec<NodeName>,
     /// point id -> node
     open_edges: HashMap<usize, NodeName>,
@@ -56,7 +47,7 @@ impl EdgeEstimator for Training {
                                 let current_node = NodeName(intersection_node.segment, intersection_node.cluster_id);
                                 match &previous_node {
                                     None => (),
-                                    Some(previous) => self.edge_estimation.edges.push(Edge(previous.clone(), current_node.clone()))
+                                    Some(previous) => self.edge_estimation.edges.push((point_id, Edge(previous.clone(), current_node.clone())))
                                 }
 
                                 if intersection_node.segment.mod_floor(&segments_per_node).eq(&(segments_per_node - 1)) &&
@@ -71,7 +62,8 @@ impl EdgeEstimator for Training {
                                     }
                                 } else {
                                     if intersection_node.segment.mod_floor(&segments_per_node).eq(&0) &&
-                                        !has_all_segments{ // first segment
+                                        !has_all_segments
+                                    { // first segment
                                         self.edge_estimation.open_edges.insert(point_id, current_node.clone());
                                     }
                                     previous_node = Some(current_node.clone());
@@ -81,7 +73,6 @@ impl EdgeEstimator for Training {
                         },
                         None => ()  // transition did not cross a segment
                     }
-                    self.edge_estimation.edge_in_time.push(self.edge_estimation.edges.len());
                 },
                 None => ()
             }
@@ -114,7 +105,6 @@ impl EdgeEstimator for Training {
         } else {
             let msg = EdgeReductionMessage {
                 edges: self.edge_estimation.edges.clone(),
-                edge_in_time: self.edge_estimation.edge_in_time.clone(),
                 nodes: self.edge_estimation.nodes.clone(),
                 own: false
             };
@@ -130,20 +120,11 @@ impl EdgeEstimator for Training {
         for msg in &self.edge_estimation.received_reduction_messages {
             if !msg.own {
                 self.edge_estimation.edges.extend(msg.edges.clone());
-                self.edge_estimation.edge_in_time.extend(msg.edge_in_time.clone());
                 self.edge_estimation.nodes.extend(msg.nodes.clone());
             }
         }
         self.edge_estimation.received_reduction_messages = vec![];
-
-        let mut edges = self.edge_estimation.edges.iter().zip(self.edge_estimation.edge_in_time.iter()).collect::<Vec<_>>();
-        edges.sort_by(|(_, time_a), (_, time_b)| time_a.clone().partial_cmp(time_b.clone()).unwrap());
-        let (edges, edge_in_time) = edges.into_iter()
-            .enumerate()
-            .map(|(i, (edge, _))| (edge.clone(), i))
-            .unzip();
-        self.edge_estimation.edges = edges;
-        self.edge_estimation.edge_in_time = edge_in_time;
+        self.edge_estimation.edges.sort_by(|(point_id_a, _), (point_id_b, _)| point_id_a.partial_cmp(point_id_b).unwrap());
 
         ctx.address().do_send(EdgeEstimationDone);
     }
@@ -173,7 +154,7 @@ impl Handler<EdgeRotationMessage> for Training {
                         next_point = next_point + 1;
                     },
                     Some(next_node) => {
-                        self.edge_estimation.edges.push(Edge(node, next_node));
+                        self.edge_estimation.edges.push((point_id, Edge(node, next_node)));
                         self.edge_estimation.nodes.push(node);
                     }
                 }

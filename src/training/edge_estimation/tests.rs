@@ -47,24 +47,18 @@ impl Handler<CheckingMessage> for Training {
 
     fn handle(&mut self, msg: CheckingMessage, _ctx: &mut Self::Context) -> Self::Result {
         println!("{} edges estimated", self.edge_estimation.edges.len());
-        for edge in &self.edge_estimation.edge_in_time {
-            println!("{}", edge);
-        }
         assert_eq!(self.edge_estimation.edges.len(), 1958);
         for edge in self.edge_estimation.edges.iter() {
-            if edge.0.0 == 94 && edge.0.1 == 5 {
-                assert_eq!(edge.1.0, 95);
-                assert_eq!(edge.1.1, 5);
+            if edge.1.0.0 == 94 && edge.1.0.1 == 5 {
+                assert_eq!(edge.1.1.0, 95);
+                assert_eq!(edge.1.1.1, 5);
             }
 
-            if edge.0.0 == 57 && edge.0.1 == 3 {
-                assert_eq!(edge.1.0, 58);
-                assert_eq!(edge.1.1, 3);
+            if edge.1.0.0 == 57 && edge.1.0.1 == 3 {
+                assert_eq!(edge.1.1.0, 58);
+                assert_eq!(edge.1.1.1, 3);
             }
         }
-
-        assert_eq!(self.edge_estimation.edge_in_time[192], 378);
-        assert_eq!(self.edge_estimation.edge_in_time.last().unwrap().clone(), 1958);
 
         msg.rec.unwrap().do_send(CheckingMessage { rec: None }).unwrap();
     }
