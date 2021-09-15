@@ -33,7 +33,7 @@ impl Display for NodeName {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct Edge(pub NodeName, pub NodeName);
 
 impl Edge {

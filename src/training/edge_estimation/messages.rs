@@ -9,8 +9,7 @@ use crate::training::edge_estimation::{NodeName, Edge};
 #[derive(Message, RemoteMessage, Serialize, Deserialize, Default)]
 #[rtype(Result = "()")]
 pub struct EdgeReductionMessage {
-    pub edges: Vec<Edge>,
-    pub edge_in_time: Vec<usize>,
+    pub edges: Vec<(usize, Edge)>,
     pub nodes: Vec<NodeName>,
     pub own: bool
 }
