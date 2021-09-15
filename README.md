@@ -17,5 +17,5 @@
 - [x] Graph creation
   - [x] Graph merging (edges are reduced to main node and graph is created there)
   - [x] Graph output
-- [ ] Scorer
-- [ ] Result Writing
+- [x] Scorer
+- [x] Result Writing
