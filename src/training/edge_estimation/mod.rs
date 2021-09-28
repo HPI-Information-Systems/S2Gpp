@@ -1,6 +1,7 @@
 mod messages;
 #[cfg(test)]
 mod tests;
+mod edges_orderer;
 
 use actix::prelude::*;
 use std::collections::HashMap;
@@ -8,6 +9,7 @@ use crate::training::Training;
 pub use crate::training::edge_estimation::messages::{EdgeEstimationDone, EdgeReductionMessage};
 use crate::utils::{Edge, NodeName};
 use num_integer::Integer;
+use crate::training::edge_estimation::edges_orderer::EdgesOrderer;
 use crate::training::edge_estimation::messages::EdgeRotationMessage;
 
 
@@ -43,12 +45,10 @@ impl EdgeEstimator for Training {
                 Some(transition_id) => {
                     match self.node_estimation.nodes_by_transition.get(transition_id) {
                         Some(intersection_nodes) => {
+                            let mut edges = EdgesOrderer::new(point_id, previous_node.is_some());
                             for intersection_node in intersection_nodes {
                                 let current_node = NodeName(intersection_node.segment, intersection_node.cluster_id);
-                                match &previous_node {
-                                    None => (),
-                                    Some(previous) => self.edge_estimation.edges.push((point_id, Edge(previous.clone(), current_node.clone())))
-                                }
+                                edges.add_node(&previous_node, &current_node);
 
                                 if intersection_node.segment.mod_floor(&segments_per_node).eq(&(segments_per_node - 1)) &&
                                     !has_all_segments { // last segment
@@ -70,6 +70,9 @@ impl EdgeEstimator for Training {
                                 }
                                 self.edge_estimation.nodes.push(current_node);
                             }
+                            previous_node = edges.last_node.or(previous_node);
+                            let edges = edges.to_vec();
+                            self.edge_estimation.edges.extend(edges.into_iter());
                         },
                         None => ()  // transition did not cross a segment
                     }
