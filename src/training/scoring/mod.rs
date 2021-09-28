@@ -28,18 +28,28 @@ pub trait Scorer {
 
 impl Scorer for Training {
     fn count_edges_in_time(&mut self) -> Vec<usize> {
-        debug!("edges number {}", self.edge_estimation.edges.len());
+        let pseudo_edge = (0, Edge(NodeName(0, 0), NodeName(0, 0)));
         let mut edges_in_time = vec![];
         let mut last_point_id = None;
-        for (i, (point_id, _edge)) in self.edge_estimation.edges.iter().enumerate() {
+        let mut last_len: usize = 0;
+        for (i, (point_id, _edge)) in self.edge_estimation.edges.iter().chain(&[pseudo_edge]).enumerate() {
             match last_point_id {
                 None => { last_point_id = Some(point_id); }
                 Some(last_point_id_ref) => if point_id.ne(last_point_id_ref) {
+                    while edges_in_time.len().lt(last_point_id_ref) {
+                        edges_in_time.push(last_len);
+                    }
                     last_point_id = Some(point_id);
+                    last_len = i;
                     edges_in_time.push(i);
                 }
             }
         }
+
+        while edges_in_time.len().lt(&(self.rotation.rotated.as_ref().unwrap().shape()[0] - 1)) {
+            edges_in_time.push(last_len);
+        }
+
         edges_in_time
     }
 
