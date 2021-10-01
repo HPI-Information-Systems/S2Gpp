@@ -3,14 +3,13 @@ mod tests;
 
 use ndarray::Array1;
 use crate::training::Training;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use crate::utils::{Edge, NodeName};
 use ndarray_stats::QuantileExt;
 use std::ops::Range;
 use anyhow::Result;
 use std::fs::File;
 use csv::WriterBuilder;
-use log::*;
 
 #[derive(Default)]
 pub struct Scoring {
@@ -28,18 +27,28 @@ pub trait Scorer {
 
 impl Scorer for Training {
     fn count_edges_in_time(&mut self) -> Vec<usize> {
-        debug!("edges number {}", self.edge_estimation.edges.len());
+        let pseudo_edge = (0, Edge(NodeName(0, 0), NodeName(0, 0)));
         let mut edges_in_time = vec![];
         let mut last_point_id = None;
-        for (i, (point_id, _edge)) in self.edge_estimation.edges.iter().enumerate() {
+        let mut last_len: usize = 0;
+        for (i, (point_id, _edge)) in self.edge_estimation.edges.iter().chain(&[pseudo_edge]).enumerate() {
             match last_point_id {
                 None => { last_point_id = Some(point_id); }
                 Some(last_point_id_ref) => if point_id.ne(last_point_id_ref) {
+                    while edges_in_time.len().lt(last_point_id_ref) {
+                        edges_in_time.push(last_len);
+                    }
                     last_point_id = Some(point_id);
+                    last_len = i;
                     edges_in_time.push(i);
                 }
             }
         }
+
+        while edges_in_time.len().lt(&(self.rotation.rotated.as_ref().unwrap().shape()[0] - 1)) {
+            edges_in_time.push(last_len);
+        }
+
         edges_in_time
     }
 
@@ -56,16 +65,19 @@ impl Scorer for Training {
 
     fn calculate_node_degrees(&mut self) -> HashMap<NodeName, usize> {
         let mut node_degrees = HashMap::new();
+        let mut seen_edges = HashSet::new();
 
         for (_, edge) in self.edge_estimation.edges.iter() {
-            match node_degrees.get_mut(&edge.0) {
-                Some(degree) => { *degree += 1; }
-                None => { node_degrees.insert(edge.0.clone(), 1); }
-            }
+            if seen_edges.insert(edge.clone()) {
+                match node_degrees.get_mut(&edge.0) {
+                    Some(degree) => { *degree += 1; }
+                    None => { node_degrees.insert(edge.0.clone(), 1); }
+                }
 
-            match node_degrees.get_mut(&edge.1) {
-                Some(degree) => { *degree += 1; }
-                None => { node_degrees.insert(edge.1.clone(), 1); }
+                match node_degrees.get_mut(&edge.1) {
+                    Some(degree) => { *degree += 1; }
+                    None => { node_degrees.insert(edge.1.clone(), 1); }
+                }
             }
         }
 
@@ -77,7 +89,7 @@ impl Scorer for Training {
         let edge_weight = self.calculate_edge_weight();
         let node_degrees = self.calculate_node_degrees();
 
-        let mut all_score = vec![0_f32];
+        let mut all_score = vec![];
 
         if edges_in_time.len() < (self.parameters.query_length - 1) {
             panic!("There are less edges than the given 'query_length'!");
@@ -91,7 +103,7 @@ impl Scorer for Training {
 
             let (score, len_score) = self.score_p_degree(&edge_weight, from_edge_idx..to_edge_idx, &node_degrees);
             if len_score == 0 {
-                all_score.push(all_score.last().expect("Empty scores found!").clone());
+                all_score.push(all_score.last().unwrap_or(&0_f32).clone());
             } else {
                 all_score.push(score);
             }
@@ -106,7 +118,7 @@ impl Scorer for Training {
     fn score_p_degree(&mut self, edge_weight: &HashMap<Edge, usize>, edge_range: Range<usize>, node_degrees: &HashMap<NodeName, usize>) -> (f32, usize) {
         let p_edge = &self.edge_estimation.edges[edge_range];
         let len_score = p_edge.len();
-        let alpha = 0.00000001 / p_edge.len() as f32;
+        let alpha = 0.00000001 + (len_score as f32);
         let score: f32 = p_edge.iter().map(|(_, edge)| {
             (edge_weight.get(edge).unwrap() * (node_degrees.get(&edge.0).expect("Edge with unknown Node found!") - 1)) as f32
         }).sum();

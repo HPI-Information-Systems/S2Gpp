@@ -41,7 +41,7 @@ pub struct Parameters {
     #[structopt(long = "rate", default_value = "100")]
     pub rate: usize,
 
-    #[structopt(short = "t", long = "threads", default_value = "1")]
+    #[structopt(short = "t", long = "threads", default_value = "8")]
     pub n_threads: usize,
 
     #[structopt(short = "n", long = "cluster-nodes", default_value = "1")]

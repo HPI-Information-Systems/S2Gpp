@@ -21,6 +21,9 @@ use ndarray_stats::QuantileExt;
 
 use num_integer::Integer;
 pub use crate::training::intersection_calculation::data_structures::{Transition, IntersectionsByTransition};
+use indicatif::ProgressBar;
+use ndarray_linalg::Norm;
+use log::*;
 
 pub type SegmentID = usize;
 
@@ -34,7 +37,8 @@ pub struct IntersectionCalculation {
     /// Collects tasks for helper actors.
     pub pairs: Vec<(usize, SegmentID, Array2<f32>, Array2<f32>)>,
     pub helper_protocol: HelperProtocol,
-    pub recipient: Option<Recipient<IntersectionCalculationDone>>
+    pub recipient: Option<Recipient<IntersectionCalculationDone>>,
+    pub(crate) progress_bar: Option<ProgressBar>
 }
 
 
@@ -59,12 +63,15 @@ impl IntersectionCalculator for Training {
             }
             )
             .fold(0_f32, |a, b| { a.max(b) });
+        let radius = arr1(&[max_value, max_value]).norm();
+
+        debug!("max value {} radius {}", max_value, radius);
 
         let dims = self.segmentation.segments.get(0).expect("could not generate segments").from.point_with_id.coords.len();
 
         let origin = arr1(vec![0_f32; dims].as_slice());
         let planes_end_points: Vec<Array1<f32>> = (0..self.parameters.rate).into_iter().map(|segment_id| {
-            let polar = arr1(&[max_value, (2.0 * PI * segment_id as f32) / self.parameters.rate as f32]);
+            let polar = arr1(&[radius, (2.0 * PI * segment_id as f32) / self.parameters.rate as f32]);
             let other_dims = arr1((2..dims).into_iter().map(|_| max_value).collect::<Vec<f32>>().as_slice());
             concatenate(Axis(0), &[polar.to_cartesian().view(), other_dims.view()]).unwrap()
         }).collect();
@@ -122,6 +129,7 @@ impl IntersectionCalculator for Training {
             }
         }
         self.intersection_calculation.helper_protocol.n_total = self.intersection_calculation.pairs.len();
+        self.intersection_calculation.progress_bar = Some(ProgressBar::new(self.intersection_calculation.helper_protocol.n_total as u64));
 
         self.intersection_calculation.helpers = Some(SyncArbiter::start(self.parameters.n_threads, move || {IntersectionCalculationHelper {}}));
 
@@ -154,6 +162,8 @@ impl Handler<IntersectionResultMessage> for Training {
 
     fn handle(&mut self, msg: IntersectionResultMessage, ctx: &mut Self::Context) -> Self::Result {
         self.intersection_calculation.helper_protocol.received();
+        let pb = self.intersection_calculation.progress_bar.as_ref().unwrap();
+        pb.inc(1);
 
         match self.intersection_calculation.intersection_coords_by_segment.get_mut(&msg.segment_id) {
             Some(transition_coord) => { transition_coord.insert(msg.transition_id, msg.intersection); },
@@ -167,6 +177,8 @@ impl Handler<IntersectionResultMessage> for Training {
         if self.intersection_calculation.helper_protocol.is_running() {
             self.distribute_intersection_tasks(ctx.address().recipient());
         } else {
+            pb.finish_and_clear();
+
             self.intersection_calculation.helpers.as_ref().unwrap().do_send(PoisonPill);
             match &self.intersection_calculation.recipient {
                 Some(rec) => { rec.do_send(IntersectionCalculationDone).unwrap() },

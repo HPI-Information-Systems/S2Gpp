@@ -117,17 +117,16 @@ impl Rotator for Training {
         let rotations: Vec<Array2<f32>> = rotation_matrix.axis_iter(Axis(2))
             .zip(self.rotation.reduced.as_ref().unwrap().axis_iter(Axis(2)))
             .map(|(a, b)| {
-                a.dot(&b.t())
+                b.dot(&a.t())
             }).collect();
 
         let rotated_3 = stack(Axis(2), rotations.iter().map(|x|
             x.view()).collect::<Vec<ArrayView2<f32>>>().as_slice()
         ).unwrap();
 
-        let rotated = rotated_3.slice(s![0..2, .., ..])
-            .into_shape(Dim([rotated_3.shape()[1], rotated_3.shape()[2] * 2])).unwrap().to_owned();
-
-        self.rotation.rotated = Some(rotated);
+        let rotated = rotated_3.slice(s![.., 0..2, ..]).to_owned();
+        let shape = Dim([rotated.shape()[0], rotated.shape()[2] * 2]);
+        self.rotation.rotated = Some(rotated.into_shape(shape).unwrap());
     }
 }
 

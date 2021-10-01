@@ -19,3 +19,6 @@
   - [x] Graph output
 - [x] Scorer
 - [x] Result Writing
+
+## Nice to Have
+- [ ] Python Binding
