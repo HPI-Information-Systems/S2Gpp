@@ -6,6 +6,8 @@ use crate::parameters::{Parameters, Role};
 
 use crate::cluster_listener::ClusterMemberListener;
 use actix_telepathy::Cluster;
+use env_logger::Env;
+use std::io::Write;
 use crate::training::{Training, StartTrainingMessage};
 use crate::utils::ClusterNodes;
 
@@ -18,7 +20,12 @@ mod messages;
 
 
 fn main() {
-    env_logger::init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info"))
+        .format(|buf, record| {
+            writeln!(buf, "{} [S2G++]: {}", record.level(), record.args())
+        })
+        .init();
+
     let params: Parameters = Parameters::from_args();
     debug!("Parameters: {:?}", params);
 

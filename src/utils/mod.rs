@@ -1,21 +1,21 @@
-mod ndarray_extensions;
-mod geometry;
-mod console_logger;
-mod helper_protocol;
-mod graphs;
-
-use std::collections::HashMap;
-use actix_telepathy::{RemoteAddr, AnyAddr};
-use actix::{Addr, Actor};
-
 use std::collections::hash_map::Iter;
-pub use ndarray_extensions::*;
-pub use geometry::line_plane_intersection;
-pub use console_logger::ConsoleLogger;
-pub use helper_protocol::HelperProtocol;
-pub use graphs::*;
+use std::collections::HashMap;
+
+use actix::{Actor, Addr};
+use actix_telepathy::{AnyAddr, RemoteAddr};
 use ndarray::{ArcArray, Ix3};
 
+pub use geometry::line_plane_intersection;
+pub use graphs::*;
+pub use helper_protocol::HelperProtocol;
+pub use logging::console_logger::ConsoleLogger;
+pub use ndarray_extensions::*;
+
+mod ndarray_extensions;
+mod geometry;
+mod helper_protocol;
+mod graphs;
+pub(crate) mod logging;
 
 pub type ArcArray3<T> = ArcArray<T, Ix3>;
 
