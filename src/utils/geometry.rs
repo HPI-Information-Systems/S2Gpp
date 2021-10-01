@@ -55,4 +55,24 @@ mod tests {
 
         close_l1(&intersections, &expected, 0.00001)
     }
+
+    #[test]
+    fn calculate_other_intersection() {
+         let line_points = arr2(&[
+            [ -98.65812059, -124.84558959, 1651.54856079, 2040.20758329],
+            [  55.95630676,   66.28093514, 1627.71221924, 2012.29968274]
+        ]);
+
+        let plane_points = arr2(&[
+            [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  0.00000000e+00],
+            [-1.79167760e+03, -2.46603266e+03,  0.00000000e+00,  2.15539158e+03],
+            [-1.79167760e+03, -2.46603266e+03,  2.15539158e+03,  0.00000000e+00],
+            [-1.79167760e+03, -2.46603266e+03,  2.15539158e+03,  2.15539158e+03]
+        ]);
+
+        let intersections = line_plane_intersection(line_points, plane_points).unwrap();
+        let expected = arr1(&[-2.06044680e+01, -2.83596173e+01,  1.63951531e+03,  2.02611890e+03]);
+
+        close_l1(&intersections, &expected, 0.00001)
+    }
 }

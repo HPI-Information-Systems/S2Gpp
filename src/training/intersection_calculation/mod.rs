@@ -22,6 +22,8 @@ use ndarray_stats::QuantileExt;
 use num_integer::Integer;
 pub use crate::training::intersection_calculation::data_structures::{Transition, IntersectionsByTransition};
 use indicatif::ProgressBar;
+use ndarray_linalg::Norm;
+use log::*;
 
 pub type SegmentID = usize;
 
@@ -61,12 +63,15 @@ impl IntersectionCalculator for Training {
             }
             )
             .fold(0_f32, |a, b| { a.max(b) });
+        let radius = arr1(&[max_value, max_value]).norm();
+
+        debug!("max value {} radius {}", max_value, radius);
 
         let dims = self.segmentation.segments.get(0).expect("could not generate segments").from.point_with_id.coords.len();
 
         let origin = arr1(vec![0_f32; dims].as_slice());
         let planes_end_points: Vec<Array1<f32>> = (0..self.parameters.rate).into_iter().map(|segment_id| {
-            let polar = arr1(&[max_value, (2.0 * PI * segment_id as f32) / self.parameters.rate as f32]);
+            let polar = arr1(&[radius, (2.0 * PI * segment_id as f32) / self.parameters.rate as f32]);
             let other_dims = arr1((2..dims).into_iter().map(|_| max_value).collect::<Vec<f32>>().as_slice());
             concatenate(Axis(0), &[polar.to_cartesian().view(), other_dims.view()]).unwrap()
         }).collect();

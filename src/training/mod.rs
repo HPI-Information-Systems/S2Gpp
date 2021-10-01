@@ -136,9 +136,6 @@ impl Handler<EdgeEstimationDone> for Training {
     type Result = ();
 
     fn handle(&mut self, _msg: EdgeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
-        /*for (i, e) in self.edge_estimation.edges.iter() {
-            println!("{}: ({}, {})->({}, {})", i, e.0.0, e.0.1, e.1.0, e.1.1);
-        }*/
         ConsoleLogger::new(11, 12, "Building Graph".to_string()).print();
         self.create_graph();
         let graph_output_path = self.parameters.graph_output_path.clone();
@@ -154,7 +151,7 @@ impl Handler<EdgeEstimationDone> for Training {
             None => ()
         }
 
-        println!("score {}", self.scoring.score.as_ref().unwrap());
+        debug!("score {}", self.scoring.score.as_ref().unwrap());
         ctx.stop();
         System::current().stop();
     }
