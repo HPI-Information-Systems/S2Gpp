@@ -1,4 +1,5 @@
 use console::{style};
+use log::*;
 
 
 pub struct ConsoleLogger {
@@ -21,7 +22,7 @@ impl ConsoleLogger {
     }
 
     pub fn print(&self) {
-        println!(
+        info!(
             "{} {}...",
             style(self.format_step()).bold().dim(),
             self.title

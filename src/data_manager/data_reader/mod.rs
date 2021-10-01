@@ -11,13 +11,13 @@ use actix::{Addr, Actor};
 pub use crate::data_manager::data_reader::messages::DataPartitionMessage;
 use std::io::{BufReader, BufRead};
 use num_integer::Integer;
-use indicatif::ProgressBar;
 
 use crate::utils::{AnyClusterNodesIterator};
 use std::ops::Not;
 use crate::data_manager::DataManager;
 
 use log::*;
+use crate::utils::logging::progress_bar::S2GppProgressBar;
 
 
 pub struct DataReading {
@@ -53,7 +53,7 @@ impl DataReader for DataManager {
         let mut buffer = vec![];
         let mut overlap_buffer = vec![];
 
-        let bar = ProgressBar::new(n_lines as u64);
+        let bar = S2GppProgressBar::new_from_len("info", n_lines);
         for record in reader.records() {
             match record {
                 Ok(r) => {
@@ -78,7 +78,7 @@ impl DataReader for DataManager {
                 },
                 Err(e) => panic!("{}", e.to_string())
             }
-            bar.inc(1);
+            bar.inc();
         }
 
         let mut data = buffer.clone();

@@ -21,9 +21,9 @@ use ndarray_stats::QuantileExt;
 
 use num_integer::Integer;
 pub use crate::training::intersection_calculation::data_structures::{Transition, IntersectionsByTransition};
-use indicatif::ProgressBar;
 use ndarray_linalg::Norm;
 use log::*;
+use crate::utils::logging::progress_bar::S2GppProgressBar;
 
 pub type SegmentID = usize;
 
@@ -38,7 +38,7 @@ pub struct IntersectionCalculation {
     pub pairs: Vec<(usize, SegmentID, Array2<f32>, Array2<f32>)>,
     pub helper_protocol: HelperProtocol,
     pub recipient: Option<Recipient<IntersectionCalculationDone>>,
-    pub(crate) progress_bar: Option<ProgressBar>
+    pub(crate) progress_bar: S2GppProgressBar
 }
 
 
@@ -129,7 +129,7 @@ impl IntersectionCalculator for Training {
             }
         }
         self.intersection_calculation.helper_protocol.n_total = self.intersection_calculation.pairs.len();
-        self.intersection_calculation.progress_bar = Some(ProgressBar::new(self.intersection_calculation.helper_protocol.n_total as u64));
+        self.intersection_calculation.progress_bar = S2GppProgressBar::new_from_len("info", self.intersection_calculation.helper_protocol.n_total);
 
         self.intersection_calculation.helpers = Some(SyncArbiter::start(self.parameters.n_threads, move || {IntersectionCalculationHelper {}}));
 
@@ -162,8 +162,7 @@ impl Handler<IntersectionResultMessage> for Training {
 
     fn handle(&mut self, msg: IntersectionResultMessage, ctx: &mut Self::Context) -> Self::Result {
         self.intersection_calculation.helper_protocol.received();
-        let pb = self.intersection_calculation.progress_bar.as_ref().unwrap();
-        pb.inc(1);
+        self.intersection_calculation.progress_bar.inc();
 
         match self.intersection_calculation.intersection_coords_by_segment.get_mut(&msg.segment_id) {
             Some(transition_coord) => { transition_coord.insert(msg.transition_id, msg.intersection); },
@@ -177,7 +176,7 @@ impl Handler<IntersectionResultMessage> for Training {
         if self.intersection_calculation.helper_protocol.is_running() {
             self.distribute_intersection_tasks(ctx.address().recipient());
         } else {
-            pb.finish_and_clear();
+            self.intersection_calculation.progress_bar.finish_and_clear();
 
             self.intersection_calculation.helpers.as_ref().unwrap().do_send(PoisonPill);
             match &self.intersection_calculation.recipient {

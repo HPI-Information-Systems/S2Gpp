@@ -9,12 +9,10 @@ use ndarray::{ArrayView1, stack_new_axis, Axis, Array2};
 use crate::training::Training;
 use actix::{Addr, Handler, Actor, Recipient, AsyncContext};
 
-
-use indicatif::ProgressBar;
-
 pub use crate::training::node_estimation::messages::NodeEstimationDone;
 use crate::training::node_estimation::data_structures::IntersectionNode;
 use meanshift_rs::{MeanShiftResponse, MeanShiftMessage, MeanShiftActor};
+use crate::utils::logging::progress_bar::S2GppProgressBar;
 
 #[derive(Default)]
 pub struct NodeEstimation {
@@ -23,7 +21,7 @@ pub struct NodeEstimation {
     pub meanshift: Option<Addr<MeanShiftActor>>,
     pub(crate) last_transitions: Vec<usize>,
     pub(crate) current_segment_id: usize,
-    pub(crate) progress_bar: Option<ProgressBar>
+    pub(crate) progress_bar: S2GppProgressBar
 }
 
 pub trait NodeEstimator {
@@ -32,12 +30,7 @@ pub trait NodeEstimator {
 
 impl NodeEstimator for Training {
     fn estimate_nodes(&mut self, source: Recipient<MeanShiftResponse>) {
-        match &self.node_estimation.progress_bar {
-            None => {
-                self.node_estimation.progress_bar = Some(ProgressBar::new(self.parameters.rate as u64));
-            }
-            Some(pb) => {pb.inc(1)}
-        }
+        self.node_estimation.progress_bar.inc_or_set(self.parameters.rate);
 
         let segment_id = self.node_estimation.current_segment_id;
 
@@ -79,9 +72,8 @@ impl Handler<MeanShiftResponse> for Training {
         if self.node_estimation.current_segment_id < self.parameters.rate {
             self.estimate_nodes(ctx.address().recipient());
         } else {
-            let pb = self.node_estimation.progress_bar.as_ref().unwrap();
-            pb.inc(1);
-            pb.finish_and_clear();
+            self.node_estimation.progress_bar.inc();
+            self.node_estimation.progress_bar.finish_and_clear();
             ctx.address().do_send(NodeEstimationDone);
         }
     }
