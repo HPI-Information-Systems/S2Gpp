@@ -21,15 +21,16 @@ pub struct NodeEstimation {
     pub meanshift: Option<Addr<MeanShiftActor>>,
     pub(crate) last_transitions: Vec<usize>,
     pub(crate) current_segment_id: usize,
-    pub(crate) progress_bar: S2GppProgressBar
+    pub(crate) progress_bar: S2GppProgressBar,
+    pub(crate) source: Option<Recipient<NodeEstimationDone>>
 }
 
 pub trait NodeEstimator {
-    fn estimate_nodes(&mut self, source: Recipient<MeanShiftResponse>);
+    fn estimate_nodes(&mut self, mean_shift_recipient: Recipient<MeanShiftResponse>);
 }
 
 impl NodeEstimator for Training {
-    fn estimate_nodes(&mut self, source: Recipient<MeanShiftResponse>) {
+    fn estimate_nodes(&mut self, mean_shift_recipient: Recipient<MeanShiftResponse>) {
         self.node_estimation.progress_bar.inc_or_set(self.parameters.rate);
 
         let segment_id = self.node_estimation.current_segment_id;
@@ -40,10 +41,10 @@ impl NodeEstimator for Training {
                 let intersections: Vec<ArrayView1<f32>> = segment.values().map(|x| x.view()).collect();
                 let data = stack_new_axis(Axis(0), intersections.as_slice()).unwrap();
                 self.node_estimation.meanshift = Some(MeanShiftActor::new(self.parameters.n_threads).start());
-                self.node_estimation.meanshift.as_ref().unwrap().do_send(MeanShiftMessage { source: Some(source.clone()), data });
+                self.node_estimation.meanshift.as_ref().unwrap().do_send(MeanShiftMessage { source: Some(mean_shift_recipient.clone()), data });
             },
             None => {
-                source.do_send(MeanShiftResponse { cluster_centers: Default::default(), labels: vec![] }).unwrap();
+                mean_shift_recipient.do_send(MeanShiftResponse { cluster_centers: Default::default(), labels: vec![] }).unwrap();
             }
         }
     }
@@ -74,7 +75,10 @@ impl Handler<MeanShiftResponse> for Training {
         } else {
             self.node_estimation.progress_bar.inc();
             self.node_estimation.progress_bar.finish_and_clear();
-            ctx.address().do_send(NodeEstimationDone);
+            match &self.node_estimation.source {
+                Some(source) => source.clone(),
+                None => ctx.address().recipient()
+            }.do_send(NodeEstimationDone).unwrap();
         }
     }
 }
