@@ -12,8 +12,6 @@ use std::fs::remove_file;
 
 #[actix_rt::test]
 async fn show_graph_output() {
-    env_logger::init();
-
     let _cluster = Cluster::new(format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap(), vec![]);
     let graph_path = "data/_test_graph.dot";
     let parameters = Parameters {
