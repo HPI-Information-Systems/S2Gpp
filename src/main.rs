@@ -17,6 +17,8 @@ mod cluster_listener;
 mod training;
 mod utils;
 mod messages;
+#[cfg(test)]
+mod tests;
 
 
 fn main() {
