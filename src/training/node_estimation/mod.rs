@@ -1,7 +1,6 @@
 mod messages;
 #[cfg(test)]
 pub(crate) mod tests;
-mod data_structures;
 
 use std::collections::HashMap;
 use crate::training::intersection_calculation::{SegmentID};
@@ -10,14 +9,14 @@ use crate::training::Training;
 use actix::{Addr, Handler, Actor, Recipient, AsyncContext};
 
 pub use crate::training::node_estimation::messages::NodeEstimationDone;
-use crate::training::node_estimation::data_structures::IntersectionNode;
 use meanshift_rs::{MeanShiftResponse, MeanShiftMessage, MeanShiftActor};
 use crate::utils::logging::progress_bar::S2GppProgressBar;
+use crate::utils::NodeName;
 
 #[derive(Default)]
 pub struct NodeEstimation {
-    pub nodes: HashMap<SegmentID, Array2<f32>>,
-    pub nodes_by_transition: HashMap<usize, Vec<IntersectionNode>>,
+    pub nodes: HashMap<SegmentID, Array2<f32>>, //todo remove and build a smarter node index
+    pub nodes_by_transition: HashMap<usize, Vec<NodeName>>,
     pub meanshift: Option<Addr<MeanShiftActor>>,
     pub(crate) last_transitions: Vec<usize>,
     pub(crate) current_segment_id: usize,
@@ -61,7 +60,7 @@ impl Handler<MeanShiftResponse> for Training {
             self.node_estimation.nodes.insert(current_segment_id, msg.cluster_centers);
 
             for (transition, label) in last_transitions.into_iter().zip(msg.labels)  {
-                let node = IntersectionNode { segment: current_segment_id, cluster_id: label };
+                let node = NodeName(current_segment_id, label);
                 match self.node_estimation.nodes_by_transition.get_mut(&transition) {
                     Some(nodes) => nodes.push(node),
                     None => { self.node_estimation.nodes_by_transition.insert(transition.clone(), vec![node]); }

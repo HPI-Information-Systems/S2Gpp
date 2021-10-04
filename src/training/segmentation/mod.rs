@@ -54,6 +54,7 @@ pub type TransitionsForNodes = HashMap<usize, Vec<SegmentedTransition>>;
 pub struct Segmentation {
     /// list of transitions of segmented points
     pub segments: Vec<SegmentedTransition>,
+    /// {point_id: transition_id}
     pub segment_index: HashMap<usize, usize>,
     pub n_received: usize
 }
