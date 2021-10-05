@@ -1,15 +1,13 @@
-image: "rust:latest"
+image: "mut:5000/rust:latest"
 
 test:cargo:
   tags:
     - akita
   before_script:
     - rustc --version && cargo --version
-    - sed -i "s/ssh:\/\/git/https:\/\/gitlab-ci-token:${CI_JOB_TOKEN}/" Cargo.toml
-    - sed -i 's/\.git//' Cargo.toml
+    - sed -i "s/ssh:\/\/git/https:\/\/gitlab-ci-token:$CI_JOB_TOKEN/" Cargo.toml
+    - apt-get update
+    - apt-get install -y gfortran
+    - apt-get install -y build-essential
   script:
-    - cargo install cargo-tarpaulin --vers "^0.18"
-    - RUST_LOG=warn cargo tarpaulin --out Xml --verbose
-  artifacts:
-    reports:
-      cobertura: coverage.xml
+    - RUST_LOG=warn cargo test
