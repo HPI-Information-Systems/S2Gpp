@@ -54,19 +54,26 @@ pub type TransitionsForNodes = HashMap<usize, Vec<SegmentedTransition>>;
 pub struct Segmentation {
     /// list of transitions of segmented points
     pub segments: Vec<SegmentedTransition>,
+    /// {point_id: transition_id}
     pub segment_index: HashMap<usize, usize>,
     pub n_received: usize
 }
 
 pub trait Segmenter {
     fn segment(&mut self);
+    fn build_segments(&mut self) -> HashMap<usize, Vec<SegmentedTransition>>;
+    fn distribute_segments(&mut self, node_transitions: HashMap<usize, Vec<SegmentedTransition>>);
     fn build_segment_index(&mut self);
 }
 
 impl Segmenter for Training {
     fn segment(&mut self) {
+        let node_transitions = self.build_segments();
+        self.distribute_segments(node_transitions);
+    }
+
+    fn build_segments(&mut self) -> HashMap<usize, Vec<SegmentedTransition>>{
         let own_id = self.cluster_nodes.get_own_idx();
-        let next_id = self.cluster_nodes.get_next_idx();
         let mut node_transitions = TransitionsForNodes::new();
         let segments_per_node = (self.parameters.rate as f32 / self.cluster_nodes.len_incl_own() as f32).floor() as usize;
         let mut last_point: Option<SegmentedPointWithId> = None;
@@ -93,7 +100,11 @@ impl Segmenter for Training {
             last_point = Some(point);
         }
 
-        match next_id {
+        node_transitions
+    }
+
+    fn distribute_segments(&mut self, node_transitions: HashMap<usize, Vec<SegmentedTransition>>) {
+        match self.cluster_nodes.get_next_idx() {
             Some(next_id) => self.cluster_nodes.get(&next_id).unwrap().do_send(SegmentMessage { segments: node_transitions }),
             None => {
                 self.build_segment_index();

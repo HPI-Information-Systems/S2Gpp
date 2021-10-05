@@ -1,12 +1,7 @@
 use actix::prelude::*;
 use crate::training::Training;
 use crate::parameters::Parameters;
-
-
-
 use ndarray::{Array1, arr1, arr2};
-
-
 use std::time::Duration;
 use actix_telepathy::Cluster;
 use port_scanner::request_open_port;
@@ -15,8 +10,7 @@ use crate::training::intersection_calculation::{Transition, IntersectionCalculat
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use ndarray_linalg::close_l1;
-
-
+use crate::training::node_estimation::{NodeEstimationDone};
 
 
 #[derive(Default)]
@@ -26,6 +20,14 @@ struct Checker {
 
 impl Actor for Checker {
     type Context = Context<Self>;
+}
+
+impl Handler<NodeEstimationDone> for Checker {
+    type Result = ();
+
+    fn handle(&mut self, _msg: NodeEstimationDone, _ctx: &mut Self::Context) -> Self::Result {
+        // nothing to do here
+    }
 }
 
 impl Handler<CheckingMessage> for Checker {
@@ -72,6 +74,9 @@ async fn test_node_estimation() {
         pairs: vec![],
         ..Default::default()
     };
+
+    training.node_estimation.source = Some(checker.clone().recipient());
+
     let training_addr = training.start();
     training_addr.do_send(IntersectionCalculationDone);
     delay_for(Duration::from_millis(3000)).await;

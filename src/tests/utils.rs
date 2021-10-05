@@ -27,10 +27,11 @@ pub struct TestClusterMemberListener {
     local_host: SocketAddr,
     connected_nodes: HashSet<RemoteAddr>,
     main_node: Option<RemoteAddr>,
-    sorted_nodes: HashMap<usize, RemoteAddr>,
-    cluster_nodes: Arc<Mutex<Option<ClusterNodes>>>,
+    pub(crate) sorted_nodes: HashMap<usize, RemoteAddr>,
+    pub(crate) cluster_nodes: Arc<Mutex<Option<ClusterNodes>>>,
     sorted_addr_buffer: Vec<SocketAddr>
 }
+
 
 impl TestClusterMemberListener {
     pub fn new(is_main: bool, main_socket_addr: SocketAddr, n_cluster_nodes: usize, local_host: SocketAddr,
@@ -73,6 +74,7 @@ impl TestClusterMemberListener {
         *(self.cluster_nodes.lock().unwrap()) = Some(ClusterNodes::from(self.sorted_nodes.clone()));
     }
 }
+
 
 impl Actor for TestClusterMemberListener {
     type Context = Context<Self>;

@@ -17,7 +17,6 @@ use crate::training::edge_estimation::messages::EdgeRotationMessage;
 pub struct EdgeEstimation {
     /// [(point_id, Edge)]
     pub edges: Vec<(usize, Edge)>,
-    pub nodes: Vec<NodeName>,
     /// point id -> node
     open_edges: HashMap<usize, NodeName>,
     /// cluster node -> [(point_id, node), ...]
@@ -27,6 +26,7 @@ pub struct EdgeEstimation {
 
 pub trait EdgeEstimator {
     fn estimate_edges(&mut self, ctx: &mut Context<Training>);
+    fn connect_nodes(&mut self);
     fn rotate_edges(&mut self, ctx: &mut Context<Training>);
     fn reduce_to_main(&mut self, ctx: &mut Context<Training>);
     fn finalize_edge_estimation(&mut self, ctx: &mut Context<Training>);
@@ -34,6 +34,11 @@ pub trait EdgeEstimator {
 
 impl EdgeEstimator for Training {
     fn estimate_edges(&mut self, ctx: &mut Context<Training>) {
+        self.connect_nodes();
+        self.rotate_edges(ctx);
+    }
+
+    fn connect_nodes(&mut self) {
         let len_dataset = self.dataset_stats.as_ref().expect("DatasetStats should've been set by now!").n.unwrap();
         let segments_per_node = (self.parameters.rate as f32 / self.cluster_nodes.len_incl_own() as f32).floor() as usize;
         let has_all_segments = segments_per_node == self.parameters.rate;
@@ -46,14 +51,13 @@ impl EdgeEstimator for Training {
                     match self.node_estimation.nodes_by_transition.get(transition_id) {
                         Some(intersection_nodes) => {
                             let mut edges = EdgesOrderer::new(point_id, previous_node.is_some());
-                            for intersection_node in intersection_nodes {
-                                let current_node = NodeName(intersection_node.segment, intersection_node.cluster_id);
-                                edges.add_node(&previous_node, &current_node);
+                            for current_node in intersection_nodes {
+                                edges.add_node(&previous_node, current_node);
 
-                                if intersection_node.segment.mod_floor(&segments_per_node).eq(&(segments_per_node - 1)) &&
+                                if current_node.0.mod_floor(&segments_per_node).eq(&(segments_per_node - 1)) &&
                                     !has_all_segments { // last segment
                                     previous_node = None;
-                                    let node_id = intersection_node.segment / segments_per_node;
+                                    let node_id = current_node.0 / segments_per_node;
                                     match self.edge_estimation.send_edges.get_mut(&node_id) {
                                         Some(open_edges) => open_edges.push((point_id, current_node.clone())),
                                         None => {
@@ -61,14 +65,13 @@ impl EdgeEstimator for Training {
                                         }
                                     }
                                 } else {
-                                    if intersection_node.segment.mod_floor(&segments_per_node).eq(&0) &&
+                                    if current_node.0.mod_floor(&segments_per_node).eq(&0) &&
                                         !has_all_segments
                                     { // first segment
                                         self.edge_estimation.open_edges.insert(point_id, current_node.clone());
                                     }
                                     previous_node = Some(current_node.clone());
                                 }
-                                self.edge_estimation.nodes.push(current_node);
                             }
                             previous_node = edges.last_node.or(previous_node);
                             let edges = edges.to_vec();
@@ -80,13 +83,6 @@ impl EdgeEstimator for Training {
                 None => ()
             }
         }
-
-        match previous_node {
-            Some(previous) => self.edge_estimation.nodes.push(previous),
-            None => ()
-        }
-
-        self.rotate_edges(ctx);
     }
 
     fn rotate_edges(&mut self, ctx: &mut Context<Training>) {
@@ -108,7 +104,6 @@ impl EdgeEstimator for Training {
         } else {
             let msg = EdgeReductionMessage {
                 edges: self.edge_estimation.edges.clone(),
-                nodes: self.edge_estimation.nodes.clone(),
                 own: false
             };
 
@@ -123,7 +118,6 @@ impl EdgeEstimator for Training {
         for msg in &self.edge_estimation.received_reduction_messages {
             if !msg.own {
                 self.edge_estimation.edges.extend(msg.edges.clone());
-                self.edge_estimation.nodes.extend(msg.nodes.clone());
             }
         }
         self.edge_estimation.received_reduction_messages = vec![];
@@ -158,7 +152,6 @@ impl Handler<EdgeRotationMessage> for Training {
                     },
                     Some(next_node) => {
                         self.edge_estimation.edges.push((point_id, Edge(node, next_node)));
-                        self.edge_estimation.nodes.push(node);
                     }
                 }
             }
