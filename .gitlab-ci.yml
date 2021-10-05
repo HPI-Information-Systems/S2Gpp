@@ -3,6 +3,13 @@ image: "rust:latest"
 test:cargo:
   tags:
     - akita
+  before_script:
+    - rustc --version && cargo --version
+    - sed -i "s/ssh:\/\/git/https:\/\/gitlab-ci-token:${CI_JOB_TOKEN}/" Cargo.toml
+    - sed -i 's/\.git//' Cargo.toml
   script:
-    - rustc --version && cargo --version  # Print version info for debugging
-    - cargo test --workspace --verbose
+    - cargo install cargo-tarpaulin --vers "^0.18"
+    - RUST_LOG=warn cargo tarpaulin --out Xml --verbose
+  artifacts:
+    reports:
+      cobertura: coverage.xml

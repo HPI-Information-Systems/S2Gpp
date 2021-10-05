@@ -1,5 +1,6 @@
 pub mod utils;
 
+use std::fs::remove_file;
 use actix::prelude::*;
 use actix_rt::System;
 use actix_telepathy::Cluster;
@@ -45,5 +46,7 @@ fn global_comut_not_distributed() {
     let expected_scores = read_data_(EXPECTED_SCORES_PATH);
     let estimated_scores = read_data_(ESTIMATED_SCORES_PATH);
 
-    close_l1(&estimated_scores, &expected_scores, 0.000001)
+    close_l1(&estimated_scores, &expected_scores, 0.000001);
+
+    remove_file(ESTIMATED_SCORES_PATH).expect("Could not delete test file!");
 }
