@@ -1,3 +1,5 @@
+pub mod utils;
+
 use actix::prelude::*;
 use actix_rt::System;
 use actix_telepathy::Cluster;

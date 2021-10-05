@@ -1,5 +1,3 @@
-mod cluster_listener;
-
 use ndarray::prelude::*;
 use actix::prelude::*;
 use rayon::prelude::*;
@@ -16,11 +14,11 @@ use actix_telepathy::{Cluster};
 use ndarray_linalg::close_l1;
 
 use ndarray::ArcArray2;
-pub use crate::training::rotation::pca::tests::cluster_listener::TestClusterMemberListener;
 use crate::utils::ClusterNodes;
 use crate::training::Training;
 use crate::training::rotation::pca::{PCA, PCAnalyzer};
 use crate::parameters::Parameters;
+use crate::tests::utils::TestClusterMemberListener;
 use crate::training::rotation::PCAComponents;
 
 #[derive(Message)]
@@ -118,6 +116,7 @@ fn test_distributed_pca_2() {
     ];
     arr.into_par_iter().for_each(|p| run_single_pca_node(p.ip, p.seeds.clone(), p.other_nodes, p.main, p.data, p.expected));
 }
+
 
 #[test]
 #[ignore]
