@@ -79,7 +79,7 @@ async fn test_node_estimation() {
 
     let training_addr = training.start();
     training_addr.do_send(IntersectionCalculationDone);
-    delay_for(Duration::from_millis(3000)).await;
+    delay_for(Duration::from_millis(4000)).await;
     training_addr.do_send(CheckingMessage{ rec: Some(checker.recipient()) });
     delay_for(Duration::from_millis(200)).await;
     assert!(*success.lock().unwrap())

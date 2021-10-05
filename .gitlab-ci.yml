@@ -1,8 +1,13 @@
-image: "rust:latest"
+image: "mut:5000/rust:latest"
 
 test:cargo:
   tags:
     - akita
+  before_script:
+    - rustc --version && cargo --version
+    - sed -i "s/ssh:\/\/git/https:\/\/gitlab-ci-token:$CI_JOB_TOKEN/" Cargo.toml
+    - apt-get update
+    - apt-get install -y gfortran
+    - apt-get install -y build-essential
   script:
-    - rustc --version && cargo --version  # Print version info for debugging
-    - cargo test --workspace --verbose
+    - RUST_LOG=warn cargo test

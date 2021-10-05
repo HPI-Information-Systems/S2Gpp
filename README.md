@@ -1,7 +1,6 @@
 # S2G++
 
-[![pipeline status](https://gitlab.hpi.de/phillip.wenig/s2gpp/badges/main/pipeline.svg)](https://gitlab.hpi.de/bp2020fn1/timeeval/-/commits/main)
-[![coverage report](https://gitlab.hpi.de/phillip.wenig/s2gpp/badges/main/coverage.svg)](https://gitlab.hpi.de/bp2020fn1/timeeval/-/commits/main)
+[![pipeline status](https://gitlab.hpi.de/akita/s2gpp/badges/main/pipeline.svg)](https://gitlab.hpi.de/akita/s2gpp/-/commits/main)
 [![release info](https://img.shields.io/badge/Release-0.1.0-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/v0.1.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
