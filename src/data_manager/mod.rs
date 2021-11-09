@@ -31,7 +31,7 @@ mod stats_collector;
 #[remote_messages(DataPartitionMessage, StdNodeMessage, StdDoneMessage, MinMaxNodeMessage, MinMaxDoneMessage)]
 pub struct DataManager {
     data: Option<Array2<f32>>,
-    nodes: ClusterNodes,
+    cluster_nodes: ClusterNodes,
     parameters: Parameters,
     data_reading: Option<DataReading>,
     minmax_calculation: Option<MinMaxCalculation>,
@@ -49,7 +49,7 @@ impl DataManager {
 
         Self {
             data: None,
-            nodes,
+            cluster_nodes: nodes,
             parameters,
             data_reading: None,
             minmax_calculation: None,
@@ -129,8 +129,9 @@ impl Actor for DataManager {
 impl Handler<LoadDataMessage> for DataManager {
     type Result = ();
 
-    fn handle(&mut self, _msg: LoadDataMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: LoadDataMessage, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(1, 12, "Reading Data".to_string()).print();
+        self.cluster_nodes = msg.nodes;
         self.data_reading = Some(DataReading { with_header: true, overlap: self.parameters.pattern_length - 1 });
 
         let role = self.parameters.role.clone();

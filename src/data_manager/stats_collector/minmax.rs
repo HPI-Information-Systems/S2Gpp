@@ -28,9 +28,13 @@ impl MinMaxCalculator for DataManager {
         let min = self.data.as_ref().unwrap().to_shared().min_axis(Axis(0));
         let max = self.data.as_ref().unwrap().to_shared().max_axis(Axis(0));
 
-        let main = match self.nodes.get_main_node() {
+        let main = match self.cluster_nodes.get_main_node() {
             None => AnyAddr::Local(addr.clone()),
-            Some(any_addr) => AnyAddr::Remote(any_addr.clone())
+            Some(remote_addr) => {
+                let mut remote_addr = remote_addr.clone();
+                remote_addr.change_id("DataManager".to_string());
+                AnyAddr::Remote(remote_addr)
+            }
         };
         main.do_send(MinMaxNodeMessage { min, max, source: RemoteAddr::new_from_id(self.parameters.local_host, "DataManager") });
     }

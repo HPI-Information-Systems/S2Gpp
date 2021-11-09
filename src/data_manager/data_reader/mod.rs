@@ -41,7 +41,7 @@ impl DataReader for DataManager {
             count_reader.lines().count()
         };
 
-        let mut nodes = self.nodes.clone();
+        let mut nodes = self.cluster_nodes.clone();
         nodes.change_ids("DataManager");
         let receivers = nodes.to_any(addr);
         let file = File::open(&file_path).unwrap();

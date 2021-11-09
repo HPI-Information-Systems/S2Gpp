@@ -50,6 +50,7 @@ impl Rotator for Training {
     }
 
     fn run_pca(&mut self) {
+        self.rotation.pca.clear();
         let data = self.rotation.phase_space.as_ref().unwrap().slice(s![.., .., self.rotation.n_reduced]).to_shared();
         self.pca(data);
         self.rotation.n_reduced += 1
@@ -105,7 +106,7 @@ impl Rotator for Training {
         match &self.parameters.role {
             Role::Main { .. } => {
                 let rotation_matrix = self.get_rotation_matrix();
-                for nodes in self.cluster_nodes.to_any(addr) {
+                for nodes in self.cluster_nodes.to_any_as(addr, "Training") {
                     nodes.do_send(RotationMatrixMessage { rotation_matrix: rotation_matrix.clone() })
                 }
             },

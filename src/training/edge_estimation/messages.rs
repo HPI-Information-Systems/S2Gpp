@@ -1,9 +1,10 @@
+use std::collections::HashMap;
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 
 use crate::training::edge_estimation::{NodeName, Edge};
-
 
 
 #[derive(Message, RemoteMessage, Serialize, Deserialize, Default)]
@@ -14,10 +15,14 @@ pub struct EdgeReductionMessage {
 }
 
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize, Default)]
+pub type PointNodeName = (usize, NodeName);
+
+#[serde_as]
+#[derive(Message, RemoteMessage, Serialize, Deserialize, Default, Debug, Clone)]
 #[rtype(Result = "()")]
 pub struct EdgeRotationMessage {
-    pub open_edges: Vec<(usize, NodeName)>
+    #[serde_as(as = "Vec<(_, _)>")]
+    pub open_edges: HashMap<usize, Vec<PointNodeName>>
 }
 
 

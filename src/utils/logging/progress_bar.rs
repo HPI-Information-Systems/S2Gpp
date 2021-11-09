@@ -10,7 +10,7 @@ pub struct S2GppProgressBar {
 
 impl S2GppProgressBar {
     pub fn new(env: &str) -> Self {
-        let correct_env = std::env::var("RUST_LOG").unwrap_or(String::from("info")).eq(env);
+        let correct_env = Self::check_correct_env(env);
         Self {
             progress_bar: None,
             correct_env
@@ -23,13 +23,18 @@ impl S2GppProgressBar {
         this
     }
 
+    pub fn check_correct_env(env: &str) -> bool {
+        std::env::var("RUST_LOG").unwrap_or(String::from("info")).eq(env)
+    }
+
     pub fn create_pb(&mut self, len: usize) {
         if self.correct_env {
             self.progress_bar = Some(ProgressBar::new(len as u64));
         }
     }
 
-    pub fn inc_or_set(&mut self, len: usize) {
+    pub fn inc_or_set(&mut self, env: &str, len: usize) {
+        self.correct_env = Self::check_correct_env(env);
         if self.correct_env {
             match &self.progress_bar {
                 None => self.create_pb(len),
