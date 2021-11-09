@@ -1,8 +1,7 @@
 use actix::prelude::*;
 use crate::training::Training;
 use crate::parameters::Parameters;
-use crate::training::messages::SegmentedMessage;
-use crate::training::segmentation::{Segmentation, SegmentedPointWithId, PointWithId, SegmentedTransition};
+use crate::training::segmentation::{Segmentation, SegmentedPointWithId, PointWithId, SegmentedTransition, SegmentedMessage};
 use std::f32::consts::PI;
 use ndarray::arr1;
 use std::time::Duration;

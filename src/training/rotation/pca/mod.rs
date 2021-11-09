@@ -40,7 +40,12 @@ impl PCA {
             ..Default::default()
         }
     }
+
+    pub fn clear(&mut self) {
+        *self = Self::new(self.id, self.n_components);
+    }
 }
+
 
 pub trait PCAnalyzer {
     fn pca(&mut self, data: ArcArray2<f32>);

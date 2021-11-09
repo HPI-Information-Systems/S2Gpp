@@ -1,6 +1,6 @@
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
-use ndarray::{Array1, Axis};
+use ndarray::{Array1, Axis, s};
 use crate::data_manager::stats_collector::messages::{StdNodeMessage, StdDoneMessage};
 
 use crate::data_manager::DataManager;
@@ -26,16 +26,27 @@ impl StdCalculator for DataManager {
     }
 
     fn calculate_std(&mut self, addr: Addr<Self>) {
-        let data = self.data.as_ref().unwrap().view();
+        let is_last_node = self.cluster_nodes.get_own_idx() == self.cluster_nodes.len();
+        let cutoff = if is_last_node {
+            0
+        } else {
+            self.parameters.pattern_length - 1
+        };
+        let end_slice = self.data.as_ref().unwrap().nrows() - cutoff;
+        let data = self.data.as_ref().unwrap().slice(s![0..end_slice, ..]);
         let n = data.nrows();
         let mean = data.mean_axis(Axis(0)).unwrap();
         let delta = data.to_owned() - mean.broadcast((data.nrows(), mean.len())).unwrap().to_owned();
         let delta_n = delta.clone() / (n as f32);
         let m2 = (delta * delta_n * (n as f32)).sum_axis(Axis(0));
 
-        let main = match self.nodes.get_main_node() {
+        let main = match self.cluster_nodes.get_main_node() {
             None => AnyAddr::Local(addr.clone()),
-            Some(any_addr) => { AnyAddr::Remote(any_addr.clone()) }
+            Some(remote_addr) => {
+                let mut remote_addr = remote_addr.clone();
+                remote_addr.change_id("DataManager".to_string());
+                AnyAddr::Remote(remote_addr)
+            }
         };
         main.do_send(StdNodeMessage { n, mean, m2, source: RemoteAddr::new_from_id(self.parameters.local_host, "DataManager") });
     }

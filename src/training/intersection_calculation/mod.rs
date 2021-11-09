@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 
 use crate::training::intersection_calculation::helper::IntersectionCalculationHelper;
-pub use crate::training::intersection_calculation::messages::{IntersectionResultMessage, IntersectionTaskMessage, IntersectionCalculationDone};
+pub use crate::training::intersection_calculation::messages::{IntersectionResultMessage, IntersectionTaskMessage, IntersectionCalculationDone, IntersectionRotationMessage};
 
 use crate::training::Training;
 use crate::utils::{PolarCoords, HelperProtocol};
@@ -24,6 +24,7 @@ pub use crate::training::intersection_calculation::data_structures::{Transition,
 use ndarray_linalg::Norm;
 use log::*;
 use crate::utils::logging::progress_bar::S2GppProgressBar;
+use crate::utils::rotation_protocol::RotationProtocol;
 
 pub type SegmentID = usize;
 
@@ -33,18 +34,23 @@ pub struct IntersectionCalculation {
     pub intersections: HashMap<usize, Vec<SegmentID>>,
     /// Which transitions cut a segment and where?
     pub intersection_coords_by_segment: HashMap<SegmentID, IntersectionsByTransition>,
+    /// Intersections belonging to another cluster node
+    pub foreign_intersections: HashMap<SegmentID, IntersectionsByTransition>,
     pub helpers: Option<Addr<IntersectionCalculationHelper>>,
     /// Collects tasks for helper actors.
     pub pairs: Vec<(usize, SegmentID, Array2<f32>, Array2<f32>)>,
     pub helper_protocol: HelperProtocol,
     pub recipient: Option<Recipient<IntersectionCalculationDone>>,
-    pub(crate) progress_bar: S2GppProgressBar
+    pub(crate) progress_bar: S2GppProgressBar,
+    pub rotation_protocol: RotationProtocol<IntersectionRotationMessage>,
 }
 
 
 pub trait IntersectionCalculator {
     fn calculate_intersections(&mut self, rec: Recipient<IntersectionResultMessage>);
-    fn distribute_intersection_tasks(&mut self, rec: Recipient<IntersectionResultMessage>);
+    fn parallel_intersection_tasks(&mut self, rec: Recipient<IntersectionResultMessage>);
+    fn rotate_foreign_assignments(&mut self, rec: Recipient<IntersectionCalculationDone>);
+    fn assign_received_intersection(&mut self, segment_id: SegmentID, point_id: usize, intersection: Array1<f32>);
 }
 
 
@@ -76,7 +82,8 @@ impl IntersectionCalculator for Training {
             concatenate(Axis(0), &[polar.to_cartesian().view(), other_dims.view()]).unwrap()
         }).collect();
 
-        for (transition_id, transition) in self.segmentation.segments.iter().enumerate() {
+        for transition in self.segmentation.segments.iter() {
+            let point_id = transition.from.point_with_id.id;
             if transition.crosses_segments() {
                 let line_points = stack_new_axis(Axis(0), &[
                     transition.from.point_with_id.coords.view(),
@@ -118,13 +125,13 @@ impl IntersectionCalculator for Training {
                         arrays.push(planes_end_points[segment_id].view());
 
                         let plane_points = stack_new_axis(Axis(0), arrays.as_slice()).unwrap();
-                        self.intersection_calculation.pairs.push((transition_id, segment_id, line_points.clone(), plane_points));
+                        self.intersection_calculation.pairs.push((point_id, segment_id, line_points.clone(), plane_points));
                     }
                 }
 
-                match self.intersection_calculation.intersections.get_mut(&transition_id) {
+                match self.intersection_calculation.intersections.get_mut(&point_id) {
                     Some(internal_segment_ids) => internal_segment_ids.extend(segment_ids),
-                    None => { self.intersection_calculation.intersections.insert(transition_id, segment_ids); }
+                    None => { self.intersection_calculation.intersections.insert(point_id, segment_ids); }
                 };
             }
         }
@@ -133,17 +140,17 @@ impl IntersectionCalculator for Training {
 
         self.intersection_calculation.helpers = Some(SyncArbiter::start(self.parameters.n_threads, move || {IntersectionCalculationHelper {}}));
 
-        self.distribute_intersection_tasks(rec);
+        self.parallel_intersection_tasks(rec);
     }
 
-    fn distribute_intersection_tasks(&mut self, rec: Recipient<IntersectionResultMessage>) {
+    fn parallel_intersection_tasks(&mut self, rec: Recipient<IntersectionResultMessage>) {
         for _ in 0..(self.parameters.n_threads - self.intersection_calculation.helper_protocol.n_sent) {
             let pair = self.intersection_calculation.pairs.pop();
             match pair {
                 None => {}
-                Some((transition_id, segment_id, line_points, plane_points)) => {
+                Some((point_id, segment_id, line_points, plane_points)) => {
                     self.intersection_calculation.helpers.as_ref().unwrap().do_send(IntersectionTaskMessage {
-                        transition_id,
+                        point_id,
                         segment_id,
                         line_points,
                         plane_points,
@@ -153,6 +160,38 @@ impl IntersectionCalculator for Training {
                 }
             }
         }
+    }
+
+    fn rotate_foreign_assignments(&mut self, rec: Recipient<IntersectionCalculationDone>) {
+        match &self.cluster_nodes.get_next_idx() {
+            Some(next_idx) => {
+                let next_node = self.cluster_nodes.get_as(next_idx, "Training").unwrap();
+                let intersection_coords_by_segment = self.intersection_calculation.foreign_intersections.clone();
+                self.intersection_calculation.foreign_intersections.clear();
+                next_node.do_send(IntersectionRotationMessage { intersection_coords_by_segment });
+                self.intersection_calculation.rotation_protocol.sent();
+            },
+            None => { rec.do_send(IntersectionCalculationDone).unwrap(); }
+        }
+    }
+
+    fn assign_received_intersection(&mut self, segment_id: SegmentID, point_id: usize, intersection: Array1<f32>) {
+        let own_id = self.cluster_nodes.get_own_idx();
+        let assigned_id = self.segment_id_to_assignment(segment_id);
+        let intersection_coords_by_segment = if own_id.eq(&assigned_id) {
+            &mut self.intersection_calculation.intersection_coords_by_segment
+        } else {
+            &mut self.intersection_calculation.foreign_intersections
+        };
+
+        match intersection_coords_by_segment.get_mut(&segment_id) {
+            Some(transition_coord) => { transition_coord.insert(point_id, intersection); },
+            None => {
+                let mut transition_coord = HashMap::new();
+                transition_coord.insert(point_id, intersection);
+                intersection_coords_by_segment.insert(segment_id, transition_coord);
+            }
+        };
     }
 }
 
@@ -164,25 +203,55 @@ impl Handler<IntersectionResultMessage> for Training {
         self.intersection_calculation.helper_protocol.received();
         self.intersection_calculation.progress_bar.inc();
 
-        match self.intersection_calculation.intersection_coords_by_segment.get_mut(&msg.segment_id) {
-            Some(transition_coord) => { transition_coord.insert(msg.transition_id, msg.intersection); },
-            None => {
-                let mut transition_coord = HashMap::new();
-                transition_coord.insert(msg.transition_id, msg.intersection);
-                self.intersection_calculation.intersection_coords_by_segment.insert(msg.segment_id, transition_coord);
-            }
-        };
+        self.assign_received_intersection(msg.segment_id, msg.point_id, msg.intersection);
 
         if self.intersection_calculation.helper_protocol.is_running() {
-            self.distribute_intersection_tasks(ctx.address().recipient());
+            self.parallel_intersection_tasks(ctx.address().recipient());
         } else {
             self.intersection_calculation.progress_bar.finish_and_clear();
 
             self.intersection_calculation.helpers.as_ref().unwrap().do_send(PoisonPill);
             match &self.intersection_calculation.recipient {
                 Some(rec) => { rec.do_send(IntersectionCalculationDone).unwrap() },
-                None => ctx.address().do_send(IntersectionCalculationDone)
+                None => {
+                    self.intersection_calculation.rotation_protocol.start(self.cluster_nodes.len());
+                    self.intersection_calculation.rotation_protocol.resolve_buffer(ctx.address().recipient());
+                    self.rotate_foreign_assignments(ctx.address().recipient())
+                }
             }
+        }
+    }
+}
+
+
+impl Handler<IntersectionRotationMessage> for Training {
+    type Result = ();
+
+    fn handle(&mut self, msg: IntersectionRotationMessage, ctx: &mut Self::Context) -> Self::Result {
+        if !self.intersection_calculation.rotation_protocol.received(&msg) {
+            return
+        }
+
+        let own_id = self.cluster_nodes.get_own_idx();
+        for (segment_id, intersection_by_point) in msg.intersection_coords_by_segment.into_iter() {
+            let intersection_coords_by_segment = if own_id.eq(&self.segment_id_to_assignment(segment_id.clone())) {
+                &mut self.intersection_calculation.intersection_coords_by_segment
+            } else {
+                &mut self.intersection_calculation.foreign_intersections
+            };
+
+            match intersection_coords_by_segment.get_mut(&segment_id) {
+                Some(transition_coord) => { transition_coord.extend(intersection_by_point) },
+                None => {
+                    intersection_coords_by_segment.insert(segment_id, intersection_by_point);
+                }
+            };
+        }
+
+        if self.intersection_calculation.rotation_protocol.is_running() {
+            self.rotate_foreign_assignments(ctx.address().recipient());
+        } else {
+            ctx.address().do_send(IntersectionCalculationDone);
         }
     }
 }

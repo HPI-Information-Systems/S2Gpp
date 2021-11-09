@@ -23,7 +23,12 @@
   - [x] Graph merging (edges are reduced to main node and graph is created there)
   - [x] Graph output
 - [x] Scorer
+  - [ ] distributed Scorer
 - [x] Result Writing
 
 ## Nice to Have
+- [ ] Node storage
+- [ ] Edge storage
+- [ ] No need to build Graph
 - [ ] Python Binding
+- [ ] Dimension responsibility

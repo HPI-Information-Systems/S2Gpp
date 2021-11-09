@@ -42,11 +42,11 @@ impl OwnListener {
     fn load_data(&mut self, ctx: &mut Context<Self>) {
         let cluster_nodes = ClusterNodes::from(self.cluster_nodes.clone());
         let dm = DataManager::new(
-            cluster_nodes,
+            cluster_nodes.clone(),
             self.parameters.clone(),
             ctx.address().recipient()
         ).start();
-        dm.do_send(LoadDataMessage);
+        dm.do_send(LoadDataMessage { nodes: cluster_nodes });
     }
 }
 

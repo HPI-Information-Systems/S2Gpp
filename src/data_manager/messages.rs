@@ -3,11 +3,14 @@ use actix::prelude::Message;
 
 use ndarray::{ArcArray, Ix3};
 use crate::data_manager::DatasetStats;
+use crate::utils::ClusterNodes;
 
 
 #[derive(Message)]
 #[rtype(Result = "()")]
-pub struct LoadDataMessage;
+pub struct LoadDataMessage {
+    pub nodes: ClusterNodes
+}
 
 #[derive(Message)]
 #[rtype(Result = "()")]
