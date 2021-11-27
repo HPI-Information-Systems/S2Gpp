@@ -31,4 +31,4 @@
 - [ ] Edge storage
 - [ ] No need to build Graph
 - [ ] Python Binding
-- [ ] Dimension responsibility
+- [ ] Dimension responsibility (check how far off a node is from the mean of all other nodes, per dimension, use this as indicator)

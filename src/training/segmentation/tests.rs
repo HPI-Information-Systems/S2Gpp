@@ -6,7 +6,7 @@ use ndarray::{arr1, arr2};
 use std::iter::FromIterator;
 use crate::utils::ClusterNodes;
 use crate::data_manager::DatasetStats;
-use crate::training::segmentation::Segmenter;
+use crate::training::segmentation::{PointWithId, Segmentation, SegmentedPointWithId, SegmentedTransition, Segmenter};
 
 
 #[test]
@@ -143,4 +143,39 @@ fn test_segment_transitions_main() {
     let _node_transitions = training.build_segments();
 
     assert!(training.segmentation.send_point.is_none());
+}
+
+
+#[test]
+fn test_node_questions() {
+    let parameters = Parameters {
+        n_cluster_nodes: 2,
+        rate: 8,
+        ..Default::default()
+    };
+
+    let mut training = Training::new(parameters.clone());
+
+    training.dataset_stats = Some(DatasetStats::new(arr1(&[1.0]), arr1(&[1.0]), arr1(&[1.0]), 20));
+
+    training.rotation.rotated = Some(arr2(&[
+        [-1., -2.],
+        [1., -2.], // get this
+        [1., 2.],
+        [0.5, 2.5],
+        [-0.5, 2.5],
+        [2., -0.5], // get this
+        [2., 1.],
+        [3., 2.],
+        [2.8, 3.],
+        [2., -3.],
+        [3., -2.]
+    ]));
+    training.build_segments();
+
+    assert!(training.segmentation.node_questions.get(&1).is_some());
+    let node_questions = training.segmentation.node_questions.get(&0).unwrap().get(&1).unwrap();
+    assert_eq!(node_questions.len(), 2);
+    assert_eq!(node_questions[0], (1, 7, 1, 0));
+    assert_eq!(node_questions[1], (3, 2, 5, 0));
 }

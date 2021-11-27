@@ -1,5 +1,6 @@
 use structopt::StructOpt;
 use std::net::SocketAddr;
+use num_integer::Integer;
 
 #[derive(Debug, StructOpt, Clone)]
 #[structopt(name = "Role")]
@@ -63,6 +64,10 @@ impl Parameters {
             Role::Sub { mainhost} => addr.eq(mainhost),
             Role::Main { .. } => addr.eq(&self.local_host)
         }
+    }
+
+    pub fn segments_per_node(&self) -> usize {
+        self.rate.div_floor(&self.n_cluster_nodes)
     }
 }
 
