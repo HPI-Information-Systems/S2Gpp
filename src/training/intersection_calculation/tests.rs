@@ -71,11 +71,8 @@ async fn get_intersections() {
     let success = Arc::new(Mutex::new(false));
     let checker = Checker { success: success.clone() }.start();
 
-    training.segmentation = Segmentation {
-        segments: generate_segmented_transitions(),
-        n_received: 0,
-        ..Default::default()
-    };
+    training.segmentation = Segmentation::default();
+    training.segmentation.segments = generate_segmented_transitions();
     training.intersection_calculation.recipient = Some(checker.clone().recipient());
     let training_addr = training.start();
     training_addr.do_send(SegmentedMessage);

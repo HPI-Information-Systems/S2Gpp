@@ -1,5 +1,6 @@
-use std::collections::hash_map::Iter;
+use std::collections::hash_map::{Iter, IterMut};
 use std::collections::HashMap;
+use std::iter::Map;
 
 use actix::{Actor, Addr};
 use actix_telepathy::{AnyAddr, RemoteAddr};

@@ -42,12 +42,6 @@ pub trait Scorer {
 }
 
 
-// todo: do distributedly
-// - rotation already done beforehand by transposition (x)
-// - all reduce node degrees (x)
-// - count local edges in time, first cluster node sends last count to next to add to own local count and further sends on
-// - calculate local scores
-// - collect local scores at main cluster node
 impl Scorer for Training {
     fn init_scoring(&mut self, ctx: &mut Context<Training>) {
         self.scoring.edges_in_time = self.count_edges_in_time();
@@ -157,6 +151,7 @@ impl Scorer for Training {
     }
 
     fn score(&mut self, ctx: &mut Context<Training>) {
+        // todo: parallelize
         let mut all_score = vec![];
 
         /*for (node, degree) in self.scoring.node_degrees.iter() {

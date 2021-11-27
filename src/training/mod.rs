@@ -2,15 +2,16 @@ use actix::prelude::*;
 use actix_telepathy::prelude::*;
 use log::*;
 use ndarray::arr1;
+use num_integer::Integer;
 
 use crate::data_manager::{DataLoadedAndProcessed, DataManager, DatasetStats, LoadDataMessage};
 use crate::messages::PoisonPill;
 use crate::parameters::{Parameters};
-use crate::training::edge_estimation::{EdgeEstimation, EdgeEstimationDone, EdgeEstimator, EdgeReductionMessage, EdgeRotationMessage};
+use crate::training::edge_estimation::{EdgeEstimation, EdgeEstimationDone, EdgeEstimator};
 use crate::training::graph_creation::{GraphCreation};
 use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculationDone, IntersectionCalculator, SegmentID, IntersectionRotationMessage};
 pub use crate::training::messages::StartTrainingMessage;
-use crate::training::node_estimation::{NodeEstimation, NodeEstimationDone, NodeEstimator};
+use crate::training::node_estimation::{NodeEstimation, NodeEstimationDone, NodeEstimator, AskForForeignNodes, ForeignNodesAnswer};
 use crate::training::rotation::{Rotation, Rotator, RotationDoneMessage, RotationMatrixMessage, PCAComponents, PCAMeansMessage, PCADecompositionMessage};
 use crate::training::segmentation::{Segmentation, SegmentedMessage, Segmenter};
 use crate::training::segmentation::messages::{SegmentMessage, SendFirstPointMessage};
@@ -30,7 +31,7 @@ mod scoring;
 mod transposition;
 
 #[derive(RemoteActor)]
-#[remote_messages(NodeDegrees, SubScores, EdgeWeights, OverlapRotation, TranspositionRotationMessage, IntersectionRotationMessage, SegmentMessage, SendFirstPointMessage, EdgeReductionMessage, EdgeRotationMessage, PCAMeansMessage, PCADecompositionMessage, PCAComponents, RotationMatrixMessage)]
+#[remote_messages(ForeignNodesAnswer, AskForForeignNodes, NodeDegrees, SubScores, EdgeWeights, OverlapRotation, TranspositionRotationMessage, IntersectionRotationMessage, SegmentMessage, SendFirstPointMessage, PCAMeansMessage, PCADecompositionMessage, PCAComponents, RotationMatrixMessage)]
 pub struct Training {
     own_addr: Option<Addr<Self>>,
     parameters: Parameters,
@@ -47,6 +48,8 @@ pub struct Training {
     scoring: Scoring
 }
 
+// todo: run parts on different threads actix telepathy sometimes sends messages later than other local
+// messages and distributedly other nodes are waiting while one node already continued with the task
 impl Training {
     pub fn new(parameters: Parameters) -> Self {
         Self {
@@ -69,6 +72,11 @@ impl Training {
     fn segment_id_to_assignment(&self, segment_id: SegmentID) -> usize {
         let segments_per_node = self.parameters.rate / self.cluster_nodes.len_incl_own();
         segment_id / segments_per_node
+    }
+
+    fn is_own_segment(&self, segment_id: SegmentID) -> bool {
+        let assigned_id = self.segment_id_to_assignment(segment_id);
+        assigned_id.eq(&self.cluster_nodes.get_own_idx())
     }
 }
 
@@ -109,10 +117,10 @@ impl Handler<DataLoadedAndProcessed> for Training {
 impl Handler<RotationDoneMessage> for Training {
     type Result = ();
 
-    fn handle(&mut self, _msg: RotationDoneMessage, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: RotationDoneMessage, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(7, 12, "Segmenting Data".to_string()).print();
         self.data_manager.as_ref().unwrap().do_send(PoisonPill);
-        self.segment();
+        self.segment(ctx);
     }
 }
 
@@ -121,6 +129,7 @@ impl Handler<SegmentedMessage> for Training {
 
     fn handle(&mut self, _msg: SegmentedMessage, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(8, 12, "Calculating Intersections".to_string()).print();
+        //println!("questions:\n{:?}\n", self.segmentation.node_questions);
         self.calculate_intersections(ctx.address().recipient());
     }
 }
@@ -130,6 +139,7 @@ impl Handler<IntersectionCalculationDone> for Training {
 
     fn handle(&mut self, _msg: IntersectionCalculationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(9, 12, "Estimating Nodes".to_string()).print();
+        self.node_estimation.current_segment_id = self.parameters.rate.div_floor(&self.cluster_nodes.len_incl_own()) * self.cluster_nodes.get_own_idx();
         self.estimate_nodes(ctx.address().recipient());
     }
 }
@@ -140,7 +150,7 @@ impl Handler<NodeEstimationDone> for Training {
     fn handle(&mut self, _msg: NodeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(10, 12, "Estimating Edges".to_string()).print();
         //nodes are same for single and dist
-
+        //println!("455 nodes:\n{:?}", self.node_estimation.nodes_by_point.get(&455).unwrap());
         self.estimate_edges(ctx);
     }
 }
@@ -151,9 +161,12 @@ impl Handler<EdgeEstimationDone> for Training {
     fn handle(&mut self, _msg: EdgeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(11, 12, "Transpose Distributed Data".to_string()).print();
 
-        /*for (point, edge) in self.edge_estimation.edges.iter() {
-            println!("{} -> {}", point, edge);
-        }*/
+        for (point, edge) in self.edge_estimation.edges.iter() {
+            //if 455.eq(point) {
+                //println!("{} -> {}", point, edge);
+            //}
+        }
+        //println!("\n");
 
         self.scoring.node_degrees = self.calculate_node_degrees();
 

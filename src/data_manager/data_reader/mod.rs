@@ -53,6 +53,7 @@ impl DataReader for DataManager {
         let mut buffer = vec![];
         let mut overlap_buffer = vec![];
 
+        // todo: repair progress bar split
         let bar = S2GppProgressBar::new_from_len("info", n_lines);
         for record in reader.records() {
             match record {
