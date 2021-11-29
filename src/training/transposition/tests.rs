@@ -21,7 +21,7 @@ fn test_assignments() {
     ];
 
     let assignments = training.assign_edges_to_neighbours();
-    println!("{:?}", assignments);
-    assert_eq!(assignments.get(&0).unwrap().len(), 3);
+    let edges = training.transposition.edges;
+    assert_eq!(edges.len(), 3);
     assert_eq!(assignments.get(&1).unwrap().len(), 2);
 }

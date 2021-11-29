@@ -41,10 +41,6 @@ impl SegmentedTransition {
         self.from.point_with_id.id
     }
 
-    pub fn get_to_id(&self) -> usize {
-        self.to.point_with_id.id
-    }
-
     pub fn get_from_segment(&self) -> usize {
         self.from.segment_id
     }

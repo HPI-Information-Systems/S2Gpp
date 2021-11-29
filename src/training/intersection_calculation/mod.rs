@@ -22,7 +22,6 @@ use ndarray_stats::QuantileExt;
 use num_integer::Integer;
 pub use crate::training::intersection_calculation::data_structures::{Transition, IntersectionsByTransition};
 use ndarray_linalg::Norm;
-use log::*;
 use crate::utils::logging::progress_bar::S2GppProgressBar;
 use crate::utils::rotation_protocol::RotationProtocol;
 
@@ -225,11 +224,6 @@ impl Handler<IntersectionRotationMessage> for Training {
 
         let own_id = self.cluster_nodes.get_own_idx();
         for (segment_id, intersection_by_point) in msg.intersection_coords_by_segment.into_iter() {
-            for (point_id, intersection) in intersection_by_point.iter() {
-                if point_id.eq(&2008) {
-                    println!("received 2008: {}", segment_id);
-                }
-            }
             let intersection_coords_by_segment = if own_id.eq(&self.segment_id_to_assignment(segment_id.clone())) {
                 &mut self.intersection_calculation.intersection_coords_by_segment
             } else {
