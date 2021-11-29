@@ -1,7 +1,6 @@
 
 use std::fmt::{Display, Formatter, Result};
 use ndarray_linalg::Scalar;
-use num_integer::Integer;
 use serde::{Serialize, Deserialize};
 
 
@@ -27,18 +26,6 @@ impl NodeName {
         let b = self.1 as u32;
 
         return (((a + b) * (a + b + 1)) / 2) + b
-    }
-
-    pub fn local_segment_id(&self, segments_per_node: &usize) -> usize {
-        self.0.mod_floor(segments_per_node)
-    }
-
-    pub fn is_locally_last(&self, segments_per_node: &usize) -> bool {
-        self.local_segment_id(segments_per_node).eq(&(segments_per_node - 1))
-    }
-
-    pub fn is_locally_first(&self, segments_per_node: &usize) -> bool {
-        self.local_segment_id(segments_per_node).eq(&0)
     }
 }
 

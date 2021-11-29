@@ -73,11 +73,6 @@ impl Training {
         let segments_per_node = self.parameters.rate / self.cluster_nodes.len_incl_own();
         segment_id / segments_per_node
     }
-
-    fn is_own_segment(&self, segment_id: SegmentID) -> bool {
-        let assigned_id = self.segment_id_to_assignment(segment_id);
-        assigned_id.eq(&self.cluster_nodes.get_own_idx())
-    }
 }
 
 impl Actor for Training {
@@ -160,13 +155,6 @@ impl Handler<EdgeEstimationDone> for Training {
 
     fn handle(&mut self, _msg: EdgeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(11, 12, "Transpose Distributed Data".to_string()).print();
-
-        for (point, edge) in self.edge_estimation.edges.iter() {
-            //if 455.eq(point) {
-                //println!("{} -> {}", point, edge);
-            //}
-        }
-        //println!("\n");
 
         self.scoring.node_degrees = self.calculate_node_degrees();
 

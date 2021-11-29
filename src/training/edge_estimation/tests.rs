@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use actix_telepathy::RemoteAddr;
 use ndarray::{arr1};
 use crate::parameters::{Parameters};
 use crate::training::{Training};
-use crate::utils::{ClusterNodes, Edge, NodeName};
+use crate::utils::{Edge, NodeName};
 use crate::data_manager::DatasetStats;
 use crate::training::edge_estimation::EdgeEstimator;
 

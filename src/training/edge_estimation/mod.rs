@@ -4,14 +4,11 @@ mod tests;
 mod edges_orderer;
 
 use actix::prelude::*;
-use std::collections::HashMap;
 use crate::training::Training;
 pub use crate::training::edge_estimation::messages::{EdgeEstimationDone};
 use crate::utils::{Edge, NodeName};
-use num_integer::Integer;
 use crate::training::edge_estimation::edges_orderer::EdgesOrderer;
 use crate::utils::logging::progress_bar::S2GppProgressBar;
-use crate::utils::rotation_protocol::RotationProtocol;
 
 
 #[derive(Default)]
@@ -34,8 +31,6 @@ impl EdgeEstimator for Training {
 
     fn connect_nodes(&mut self) {
         let len_dataset = self.dataset_stats.as_ref().expect("DatasetStats should've been set by now!").n.unwrap();
-        let segments_per_node = (self.parameters.rate as f32 / self.parameters.n_cluster_nodes as f32).floor() as usize;
-        let has_all_segments = segments_per_node == self.parameters.rate;
 
         // todo: do not copy into previous_node
         let mut previous_node: Option<NodeName> = None;

@@ -36,6 +36,7 @@ pub trait Scorer {
     fn calculate_node_degrees(&mut self) -> HashMap<NodeName, usize>;
     fn send_overlap_to_neighbor(&mut self, ctx: &mut Context<Training>);
     fn score(&mut self, ctx: &mut Context<Training>);
+    fn normalize_score(&mut self, score: &mut Array1<f32>);
     fn score_p_degree(&mut self, edge_range: Range<usize>) -> (f32, usize);
     fn finalize_scoring(&mut self, ctx: &mut Context<Training>);
     fn output_score(&mut self, output_path: String) -> Result<()>;
@@ -152,19 +153,8 @@ impl Scorer for Training {
 
     fn score(&mut self, ctx: &mut Context<Training>) {
         // todo: parallelize
+        // todo: progress bar
         let mut all_score = vec![];
-
-        /*for (node, degree) in self.scoring.node_degrees.iter() {
-            if node.0 == 64 {
-                println!("node {} -> {}", node, degree);
-            }
-        }*/
-
-        /*for (edge, weight) in self.scoring.edge_weight.iter() {
-            if edge.0.0 == 64 {
-                println!("edge {} -> {}", edge, weight);
-            }
-        }*/
 
         if self.scoring.edges_in_time.len() < (self.parameters.query_length - 1) {
             panic!("There are less edges than the given 'query_length'!");
@@ -176,6 +166,7 @@ impl Scorer for Training {
             let from_edge_idx = self.scoring.edges_in_time[i];
             let to_edge_idx = self.scoring.edges_in_time[i + self.parameters.query_length - 1];
 
+
             let (score, len_score) = self.score_p_degree(from_edge_idx..to_edge_idx);
             if len_score == 0 {
                 all_score.push(all_score.last().unwrap_or(&0_f32).clone());
@@ -184,10 +175,7 @@ impl Scorer for Training {
             }
         }
 
-        let all_score: Array1<f32> = all_score.into_iter().map(|x| -x).collect();
-        let all_score_max = all_score.max().unwrap().clone();
-        let all_score_min = all_score.min().unwrap().clone();
-        let scores = (all_score - all_score_min) / (all_score_max - all_score_min);
+        let mut scores: Array1<f32> = all_score.into_iter().map(|x| -x).collect();
 
         if self.cluster_nodes.len() > 0 {
             let own_idx = self.cluster_nodes.get_own_idx();
@@ -198,9 +186,17 @@ impl Scorer for Training {
                 .do_send(SubScores { cluster_node_id: own_idx, scores });
             self.scoring.score_rotation_protocol.sent();
         } else {
+            self.normalize_score(&mut scores);
             self.scoring.score = Some(scores);
             self.finalize_scoring(ctx);
         }
+    }
+
+    fn normalize_score(&mut self, scores: &mut Array1<f32>) {
+        // todo: make part of score
+        let all_score_max = scores.max().unwrap().clone();
+        let all_score_min = scores.min().unwrap().clone();
+        *scores = scores.into_iter().map(|x| (*x - all_score_min) / (all_score_max - all_score_min)).collect();
     }
 
     fn score_p_degree(&mut self, edge_range: Range<usize>) -> (f32, usize) {
@@ -216,12 +212,13 @@ impl Scorer for Training {
     fn finalize_scoring(&mut self, ctx: &mut Context<Training>) {
         match &self.scoring.score {
             None => {
-                let score: Vec<ArrayView1<f32>> = (0..self.parameters.n_cluster_nodes).into_iter()
+                let scores: Vec<ArrayView1<f32>> = (0..self.parameters.n_cluster_nodes).into_iter()
                     .map(|i| self.scoring.subscores.get(&i).expect("A subscore is missing!").view()).collect();
-                let score = concatenate(Axis(0),score.as_slice())
+                let mut scores = concatenate(Axis(0),scores.as_slice())
                     .expect("Could not concatenate subscores!");
                 self.scoring.subscores.clear();
-                self.scoring.score = Some(score);
+                self.normalize_score(&mut scores);
+                self.scoring.score = Some(scores);
             },
             _ => ()
         }

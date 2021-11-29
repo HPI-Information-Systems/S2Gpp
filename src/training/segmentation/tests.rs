@@ -6,7 +6,7 @@ use ndarray::{arr1, arr2};
 use std::iter::FromIterator;
 use crate::utils::ClusterNodes;
 use crate::data_manager::DatasetStats;
-use crate::training::segmentation::{PointWithId, Segmentation, SegmentedPointWithId, SegmentedTransition, Segmenter};
+use crate::training::segmentation::{Segmenter};
 
 
 #[test]

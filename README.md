@@ -23,7 +23,8 @@
   - [x] Graph merging (edges are reduced to main node and graph is created there)
   - [x] Graph output
 - [x] Scorer
-  - [ ] distributed Scorer
+  - [x] distributed Scorer
+  - [ ] parallel scoring
 - [x] Result Writing
 
 ## Nice to Have
