@@ -9,8 +9,8 @@ use tokio::time::{Duration, sleep};
 use std::path::Path;
 use std::fs::remove_file;
 
-
 #[actix_rt::test]
+#[ignore]
 async fn show_graph_output() {
     let _cluster = Cluster::new(format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap(), vec![]);
     let graph_path = &format!("{}/data/_test_graph.dot", current_dir().unwrap().to_str().unwrap());
