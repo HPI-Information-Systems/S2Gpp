@@ -13,8 +13,7 @@ use crate::utils::ClusterNodes;
 use std::sync::{Arc, Mutex};
 
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize)]
 struct TestSortedMembersMessage(pub Vec<SocketAddr>);
 
 
@@ -81,7 +80,7 @@ impl Actor for TestClusterMemberListener {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         self.subscribe_system_async::<ClusterLog>(ctx);
-        self.register(ctx.address().recipient(), "TestClusterMemberListener".to_string());
+        self.register(ctx.address().recipient());
     }
 
     fn stopped(&mut self, _ctx: &mut Self::Context) {

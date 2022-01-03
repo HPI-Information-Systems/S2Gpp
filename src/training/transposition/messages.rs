@@ -7,8 +7,7 @@ use serde_with::serde_as;
 
 
 #[serde_as]
-#[derive(Message, RemoteMessage, Serialize, Deserialize, Default, Clone)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize, Default, Clone)]
 pub struct TranspositionRotationMessage {
     #[serde_as(as = "Vec<(_, _)>")]
     pub assignments: HashMap<usize, Vec<(usize, Edge)>>

@@ -7,13 +7,14 @@ use crate::training::intersection_calculation::{SegmentID};
 use ndarray::{ArrayView1, stack_new_axis, Axis, Array2};
 use crate::training::Training;
 use actix::{Addr, Handler, Actor, Recipient, AsyncContext, Context};
+use meanshift_rs::{MeanShiftActor, MeanShiftMessage, MeanShiftResponse};
 
 pub use crate::training::node_estimation::messages::{NodeEstimationDone, AskForForeignNodes, ForeignNodesAnswer};
-use meanshift_rs::{MeanShiftResponse, MeanShiftMessage, MeanShiftActor};
 use num_integer::Integer;
 use crate::utils::logging::progress_bar::S2GppProgressBar;
 use crate::utils::NodeName;
 use crate::utils::rotation_protocol::RotationProtocol;
+
 
 #[derive(Default)]
 pub struct NodeEstimation {

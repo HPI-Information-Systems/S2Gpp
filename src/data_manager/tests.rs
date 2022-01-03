@@ -9,8 +9,7 @@ use std::net::SocketAddr;
 use actix_broker::BrokerSubscribe;
 use std::collections::HashMap;
 
-use actix::clock::delay_for;
-use std::time::Duration;
+use tokio::time::{Duration, sleep};
 use port_scanner::request_open_port;
 use rayon::prelude::*;
 use log::*;
@@ -266,11 +265,11 @@ async fn start_reading(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>, main
         result: result.clone()
     }.start();
 
-    delay_for(Duration::from_millis(200)).await;
+    sleep(Duration::from_millis(200)).await;
 
     let _cluster = Cluster::new(ip_address, seed_nodes.clone());
 
-    delay_for(Duration::from_millis(200)).await;
+    sleep(Duration::from_millis(200)).await;
 
     let data_result = result.lock().unwrap();
 

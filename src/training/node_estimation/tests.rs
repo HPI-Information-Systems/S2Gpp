@@ -2,10 +2,9 @@ use actix::prelude::*;
 use crate::training::Training;
 use crate::parameters::Parameters;
 use ndarray::{Array1, arr1, arr2};
-use std::time::Duration;
 use actix_telepathy::Cluster;
 use port_scanner::request_open_port;
-use actix_rt::time::delay_for;
+use tokio::time::{Duration, sleep};
 use crate::training::intersection_calculation::{Transition, IntersectionCalculation, SegmentID, IntersectionCalculationDone};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
@@ -79,9 +78,9 @@ async fn test_node_estimation() {
 
     let training_addr = training.start();
     training_addr.do_send(IntersectionCalculationDone);
-    delay_for(Duration::from_millis(4000)).await;
+    sleep(Duration::from_millis(4000)).await;
     training_addr.do_send(CheckingMessage{ rec: Some(checker.recipient()) });
-    delay_for(Duration::from_millis(200)).await;
+    sleep(Duration::from_millis(200)).await;
     assert!(*success.lock().unwrap())
 }
 

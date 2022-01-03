@@ -18,8 +18,7 @@ pub struct ScoringDone;
 
 
 #[serde_as]
-#[derive(Message, RemoteMessage, Serialize, Deserialize, Default, Clone)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize, Default, Clone)]
 pub struct NodeDegrees {
     #[serde_as(as = "Vec<(_, _)>")]
     pub degrees: HashMap<NodeName, usize>
@@ -27,23 +26,20 @@ pub struct NodeDegrees {
 
 
 #[serde_as]
-#[derive(Message, RemoteMessage, Serialize, Deserialize, Default, Clone)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize, Default, Clone)]
 pub struct EdgeWeights {
     #[serde_as(as = "Vec<(_, _)>")]
     pub weights: HashMap<Edge, usize>
 }
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize, Default, Clone)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize, Default, Clone)]
 pub struct OverlapRotation {
     pub edges: Vec<(usize, Edge)>,
     pub edges_in_time: Vec<usize>
 }
 
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize, Default, Clone)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize, Default, Clone)]
 pub struct SubScores {
     pub cluster_node_id: usize,
     pub scores: Array1<f32>

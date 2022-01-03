@@ -79,7 +79,7 @@ impl Actor for Training {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        self.register(ctx.address().recipient(), "Training".to_string());
+        self.register(ctx.address().recipient());
         self.own_addr = Some(ctx.address());
 
         self.data_manager = Some(DataManager::new(

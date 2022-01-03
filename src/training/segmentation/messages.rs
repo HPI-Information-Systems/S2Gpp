@@ -5,16 +5,14 @@ use serde_with::serde_as;
 use crate::training::segmentation::{SegmentedPointWithId, TransitionsForNodes};
 
 #[serde_as]
-#[derive(Message, RemoteMessage, Serialize, Deserialize, Clone, Default)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize, Clone, Default)]
 pub struct SegmentMessage {
     #[serde_as(as = "Vec<(_, _)>")]
     pub segments: TransitionsForNodes
 
 }
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize)]
 pub struct SendFirstPointMessage {
     pub point: SegmentedPointWithId
 }

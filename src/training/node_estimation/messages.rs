@@ -13,16 +13,14 @@ pub struct NodeEstimationDone;
 
 
 #[serde_as]
-#[derive(Message, RemoteMessage, Serialize, Deserialize, Clone, Default)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize, Clone, Default)]
 pub struct AskForForeignNodes {
     #[serde_as(as = "Vec<(_, _)>")]
     pub asked_nodes: HashMap<usize, Vec<NodeInQuestion>>
 }
 
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize, Clone, Default)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize, Clone, Default)]
 pub struct ForeignNodesAnswer {
     /// (prev_point_id, prev_segment_id, point_id, node)
     pub foreign_nodes: Vec<(usize, usize, usize, NodeName)>

@@ -10,8 +10,7 @@ pub struct DatasetStatsMessage {
     pub dataset_stats: DatasetStats
 }
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize)]
 #[with_source(source)]
 pub struct StdNodeMessage {
     pub n: usize,
@@ -21,15 +20,13 @@ pub struct StdNodeMessage {
 }
 
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize)]
 pub struct StdDoneMessage {
     pub std: Array1<f32>,
     pub n: usize
 }
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize)]
 #[with_source(source)]
 pub struct MinMaxNodeMessage {
     pub min: Array1<f32>,
@@ -38,8 +35,7 @@ pub struct MinMaxNodeMessage {
 }
 
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize)]
 pub struct MinMaxDoneMessage {
     pub min: Array1<f32>,
     pub max: Array1<f32>

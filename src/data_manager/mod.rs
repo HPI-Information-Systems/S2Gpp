@@ -122,7 +122,7 @@ impl Actor for DataManager {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        self.register(ctx.address().recipient(), "DataManager".to_string());
+        self.register(ctx.address().recipient());
     }
 }
 
