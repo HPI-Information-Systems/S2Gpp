@@ -62,22 +62,24 @@ fn global_comut_distributed() {
 
 
 fn run_single_global_comut(params: Parameters) {
-    let system = System::new("S2G++");
+    let system = System::new();
 
-    let host = params.local_host;
-    let seed_nodes = match &params.role {
-        Role::Sub { mainhost } => vec![mainhost.clone()],
-        _ => vec![]
-    };
+    system.block_on(async {
+        let host = params.local_host;
+        let seed_nodes = match &params.role {
+            Role::Sub { mainhost } => vec![mainhost.clone()],
+            _ => vec![]
+        };
 
-    let training = Training::new(params.clone()).start();
-    if params.n_cluster_nodes > 1 {
-        let _cluster = Cluster::new(host, seed_nodes);
-        let _cluster_listener = ClusterMemberListener::new(params, training).start();
-    } else {
-        let nodes = ClusterNodes::new();
-        training.do_send(StartTrainingMessage { nodes });
-    }
+        let training = Training::new(params.clone()).start();
+        if params.n_cluster_nodes > 1 {
+            let _cluster = Cluster::new(host, seed_nodes);
+            let _cluster_listener = ClusterMemberListener::new(params, training).start();
+        } else {
+            let nodes = ClusterNodes::new();
+            training.do_send(StartTrainingMessage { nodes });
+        }
+    });
 
     system.run().unwrap();
 }

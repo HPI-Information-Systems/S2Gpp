@@ -12,8 +12,7 @@ use crate::training::{Training, StartTrainingMessage};
 use crate::utils::ClusterNodes;
 
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize)]
 struct SortedMembersMessage(pub Vec<SocketAddr>);
 
 
@@ -74,7 +73,7 @@ impl Actor for ClusterMemberListener {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         self.subscribe_system_async::<ClusterLog>(ctx);
-        self.register(ctx.address().recipient(), "ClusterMemberListener".to_string());
+        self.register(ctx.address().recipient());
     }
 
     fn stopped(&mut self, _ctx: &mut Self::Context) {

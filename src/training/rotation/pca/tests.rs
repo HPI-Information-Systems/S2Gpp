@@ -6,8 +6,7 @@ use std::sync::{Arc, Mutex};
 use crate::data_manager::data_reader::read_data_;
 use std::net::SocketAddr;
 use port_scanner::request_open_port;
-use actix_rt::time::delay_for;
-use actix::clock::Duration;
+use tokio::time::{Duration, sleep};
 use actix_telepathy::{Cluster};
 
 
@@ -170,7 +169,7 @@ async fn run_single_pca_node(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>
     let cloned = Arc::clone(&result);
 
 
-    delay_for(Duration::from_millis(200)).await;
+    sleep(Duration::from_millis(200)).await;
 
     let _cluster = Cluster::new(ip_address.clone(), seed_nodes.clone());
 
@@ -182,7 +181,7 @@ async fn run_single_pca_node(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>
         } else {
             let _cluster_listener = TestClusterMemberListener::new(main, ip_address, other_nodes.len() + 1, ip_address, cloned_arc_cluster_nodes).start();
         }
-        delay_for(Duration::from_millis(200)).await;
+        sleep(Duration::from_millis(200)).await;
         (*arc_cluster_nodes.lock().unwrap()).as_ref().unwrap().clone()
     };
 
@@ -196,7 +195,7 @@ async fn run_single_pca_node(ip_address: SocketAddr, seed_nodes: Vec<SocketAddr>
     let training_addr = training.start();
     training_addr.do_send(StartPCA { data });
 
-    delay_for(Duration::from_millis(3000)).await;
+    sleep(Duration::from_millis(3000)).await;
 
     let received = (*result.lock().unwrap()).as_ref().expect("Not yet set!").clone();
     println!("received {}", received);

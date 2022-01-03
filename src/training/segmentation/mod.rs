@@ -202,8 +202,7 @@ impl Segmenter for Training {
         let node_in_question = if let Some(prev) = prev_transition {
             if within_transition {
                 let wanted_segment = transition.get_from_segment().div_ceil(segments_per_node).mul(segments_per_node);
-                let segment_before_wanted = (wanted_segment - 1).mod_floor(&self.parameters.rate);
-
+                let segment_before_wanted = (wanted_segment as isize - 1).mod_floor(&(self.parameters.rate as isize)) as usize;
 
                 let (prev_point_id, prev_segment_id) = if wanted_segment.mod_floor(&self.parameters.rate) == transition.get_first_intersection_segment(&self.parameters.rate) {
                     (prev.get_from_id(), prev.get_to_segment())
@@ -228,7 +227,7 @@ impl Segmenter for Training {
         } else {
             if within_transition {
                 let wanted_segment = transition.get_from_segment().div_ceil(segments_per_node).mul(segments_per_node);
-                let segment_before_wanted = (wanted_segment - 1).mod_floor(&self.parameters.rate);
+                let segment_before_wanted = (wanted_segment as isize - 1).mod_floor(&(self.parameters.rate as isize)) as usize;
 
                 (
                     point_id,

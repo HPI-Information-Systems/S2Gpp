@@ -4,10 +4,9 @@ use crate::parameters::Parameters;
 use crate::training::segmentation::{Segmentation, SegmentedPointWithId, PointWithId, SegmentedTransition, SegmentedMessage};
 use std::f32::consts::PI;
 use ndarray::arr1;
-use std::time::Duration;
 use actix_telepathy::Cluster;
 use port_scanner::request_open_port;
-use actix_rt::time::delay_for;
+use tokio::time::{Duration, sleep};
 use crate::training::intersection_calculation::IntersectionCalculationDone;
 use std::sync::{Arc, Mutex};
 
@@ -76,9 +75,9 @@ async fn get_intersections() {
     training.intersection_calculation.recipient = Some(checker.clone().recipient());
     let training_addr = training.start();
     training_addr.do_send(SegmentedMessage);
-    delay_for(Duration::from_millis(3000)).await;
+    sleep(Duration::from_millis(3000)).await;
     training_addr.do_send(CheckingMessage{ rec: Some(checker.recipient()) });
-    delay_for(Duration::from_millis(200)).await;
+    sleep(Duration::from_millis(200)).await;
     assert!(*success.lock().unwrap())
 }
 

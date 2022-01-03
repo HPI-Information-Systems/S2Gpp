@@ -27,8 +27,7 @@ pub struct IntersectionResultMessage {
 }
 
 #[serde_as]
-#[derive(Message, RemoteMessage, Serialize, Deserialize, Default, Debug, Clone)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize, Default, Debug, Clone)]
 pub struct IntersectionRotationMessage {
     #[serde_as(as = "Vec<(_, Vec<(_, _)>)>")]
     pub intersection_coords_by_segment: HashMap<SegmentID, IntersectionsByTransition>

@@ -15,22 +15,19 @@ pub struct PCAMessage {
 #[rtype(Result = "()")]
 pub struct PCADoneMessage;
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize)]
 pub struct PCADecompositionMessage {
     pub r: Array2<f32>,
     pub count: usize
 }
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize)]
 pub struct PCAMeansMessage {
     pub columns_means: Array2<f32>,
     pub n: usize
 }
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize, Clone)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize, Clone)]
 pub struct PCAComponents {
     pub components: Array2<f32>,
     pub means: Array1<f32>

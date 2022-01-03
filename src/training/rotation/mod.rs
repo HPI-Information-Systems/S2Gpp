@@ -22,6 +22,8 @@ pub struct Rotation {
     reduced: Option<Array3<f32>>,
     reduced_ref: Option<Array3<f32>>,
     n_reduced: usize,
+    broadcasted: bool,
+    rotation_matrix_buffer: Option<RotationMatrixMessage>,
     pub pca: PCA,
     pub rotated: Option<Array2<f32>>
 }
@@ -106,11 +108,14 @@ impl Rotator for Training {
         match &self.parameters.role {
             Role::Main { .. } => {
                 let rotation_matrix = self.get_rotation_matrix();
-                for nodes in self.cluster_nodes.to_any_as(addr, "Training") {
+                for nodes in self.cluster_nodes.to_any_as(addr.clone(), "Training") {
                     nodes.do_send(RotationMatrixMessage { rotation_matrix: rotation_matrix.clone() })
                 }
             },
             _ => ()
+        }
+        if let Some(rotation_matrix_msg) = self.rotation.rotation_matrix_buffer.take() {
+            addr.do_send(rotation_matrix_msg);
         }
     }
 
@@ -141,6 +146,7 @@ impl Handler<PCADoneMessage> for Training {
         } else {
             self.reduce();
             self.broadcast_rotation_matrix(ctx.address());
+            self.rotation.broadcasted = true;
         }
     }
 }
@@ -149,6 +155,11 @@ impl Handler<RotationMatrixMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: RotationMatrixMessage, ctx: &mut Self::Context) -> Self::Result {
+        if !self.rotation.broadcasted {
+            self.rotation.rotation_matrix_buffer = Some(msg);
+            return
+        }
+
         self.apply_rotation_matrix(msg.rotation_matrix);
         ctx.address().do_send(RotationDoneMessage);
     }

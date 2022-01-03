@@ -16,7 +16,7 @@ impl Handler<IntersectionTaskMessage> for IntersectionCalculationHelper {
     type Result = ();
 
     fn handle(&mut self, msg: IntersectionTaskMessage, _ctx: &mut Self::Context) -> Self::Result {
-        match line_plane_intersection(msg.line_points, msg.plane_points) {
+        match line_plane_intersection(msg.line_points.clone(), msg.plane_points.clone()) {
             Ok(intersection) => {
                 let first_distance = arr1(&[intersection.slice(s![0..2]).norm()]);
                 let distance = concatenate(Axis(0), &[first_distance.view(), intersection.slice(s![2..])]).unwrap();

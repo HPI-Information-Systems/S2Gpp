@@ -5,8 +5,7 @@ use crate::parameters::{Parameters, Role};
 use crate::training::{Training, StartTrainingMessage};
 use crate::utils::ClusterNodes;
 use actix::Actor;
-use actix_rt::time::delay_for;
-use actix::clock::Duration;
+use tokio::time::{Duration, sleep};
 use std::path::Path;
 use std::fs::remove_file;
 
@@ -29,7 +28,7 @@ async fn show_graph_output() {
     let training = Training::new(parameters).start();
     training.do_send(StartTrainingMessage {nodes: ClusterNodes::new()});
 
-    delay_for(Duration::from_millis(10000)).await;
+    sleep(Duration::from_millis(10000)).await;
 
     let path = Path::new(graph_path);
     assert!(path.exists());

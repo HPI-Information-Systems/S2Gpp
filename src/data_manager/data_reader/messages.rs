@@ -5,8 +5,7 @@ use ndarray::Array2;
 
 
 
-#[derive(Message, RemoteMessage, Serialize, Deserialize)]
-#[rtype(Result = "()")]
+#[derive(RemoteMessage, Serialize, Deserialize)]
 pub struct DataPartitionMessage {
     pub data: Vec<Vec<String>>
 }

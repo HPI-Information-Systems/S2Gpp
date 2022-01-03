@@ -1,6 +1,6 @@
 use ndarray::*;
 use ndarray_linalg::Norm;
-use num_traits::Float;
+use num_traits::{Float};
 use std::fmt::Debug;
 use std::iter::FromIterator;
 
@@ -131,6 +131,24 @@ impl<S, A> PolarCoords<A> for ArrayBase<S, Dim<[usize; 1]>>
         arr1(&[x, y])
     }
 }
+
+
+/*pub trait GenericCast<T>
+{
+    fn into_type(&mut self) -> T;
+}
+
+impl<S: Clone, T: Clone + Copy> GenericCast<Array2<T>> for Array2<S> {
+    fn into_type(&mut self) -> Array2<T> {
+        let rows: Vec<ArrayView1<T>> = self.axis_iter(Axis(0))
+            .map(|row|
+                arr1(row.iter()
+                .map(|field| field.clone() as T)
+                .collect::<Vec<T>>().as_slice()).view()
+            ).collect();
+        stack_new_axis(Axis(0), rows.as_slice()).unwrap()
+    }
+}*/
 
 
 #[cfg(test)]

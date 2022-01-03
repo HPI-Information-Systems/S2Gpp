@@ -10,13 +10,6 @@ use crate::training::Training;
 use crate::training::rotation::{Rotator};
 
 
-
-
-
-
-
-
-
 #[test]
 fn test_rotation_matrix() {
     let rotation_matrix: Arc<Mutex<Option<Array3<f32>>>> = Arc::new(Mutex::new(None));
@@ -33,7 +26,7 @@ fn test_rotation_matrix() {
           [ 9.45265121e-04,  8.29841247e-03],
           [ 1.39796979e-03,  3.42653727e-03]]]);
 
-    let _system = System::run(move || {
+    let _system = System::new().block_on(async move {
         let mut training = Training::new(Parameters::default());
         let dummy_data = arr3(&[[[0.]]]);
 
