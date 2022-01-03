@@ -33,7 +33,7 @@ fn test_segmenting() {
     // node transitions
     let expected_node_transition = [arr1(&[-1.0, -1.0]), arr1(&[1.0, -1.0])];
     let node_transitions = training.build_segments();
-    assert_eq!(node_transitions.len(), 1);
+    assert_eq!(node_transitions.len(), 2);
     assert_eq!(node_transitions[&1].len(), 1);
     assert_eq!(node_transitions[&1][0].from.segment_id, 2);
     assert_eq!(node_transitions[&1][0].to.segment_id, 3);
@@ -76,7 +76,7 @@ fn test_segment_distribution() {
     // node transitions
     let expected_node_transition = [arr1(&[-1.0, -1.0]), arr1(&[1.0, -1.0])];
     let node_transitions = training.build_segments();
-    assert_eq!(node_transitions.len(), 1);
+    assert_eq!(node_transitions.len(), 2);
     assert_eq!(node_transitions[&1].len(), 1);
     assert_eq!(node_transitions[&1][0].from.segment_id, 2);
     assert_eq!(node_transitions[&1][0].to.segment_id, 3);
