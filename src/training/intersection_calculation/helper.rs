@@ -22,7 +22,7 @@ impl Handler<IntersectionTaskMessage> for IntersectionCalculationHelper {
                 let distance = concatenate(Axis(0), &[first_distance.view(), intersection.slice(s![2..])]).unwrap();
                 msg.source.do_send(
                 IntersectionResultMessage {
-                    point_id: msg.point_id,
+                    transition: msg.transition,
                     segment_id: msg.segment_id,
                     intersection: distance
                 }).unwrap(); },

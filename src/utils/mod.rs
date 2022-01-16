@@ -7,7 +7,6 @@ use ndarray::{ArcArray, Ix3};
 use num_integer::Integer;
 
 pub use geometry::line_plane_intersection;
-pub use graphs::*;
 pub use helper_protocol::HelperProtocol;
 pub use logging::console_logger::ConsoleLogger;
 pub use ndarray_extensions::*;
@@ -15,7 +14,6 @@ pub use ndarray_extensions::*;
 mod ndarray_extensions;
 mod geometry;
 mod helper_protocol;
-mod graphs;
 pub(crate) mod logging;
 pub(crate) mod rotation_protocol;
 

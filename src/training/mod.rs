@@ -5,10 +5,10 @@ use ndarray::arr1;
 use num_integer::Integer;
 
 use crate::data_manager::{DataLoadedAndProcessed, DataManager, DatasetStats, LoadDataMessage};
+use crate::data_store::{DataStore};
 use crate::messages::PoisonPill;
 use crate::parameters::{Parameters};
-use crate::training::edge_estimation::{EdgeEstimation, EdgeEstimationDone, EdgeEstimator};
-use crate::training::graph_creation::{GraphCreation};
+use crate::training::edge_estimation::{EdgeEstimationDone, EdgeEstimator};
 use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculationDone, IntersectionCalculator, SegmentID, IntersectionRotationMessage};
 pub use crate::training::messages::StartTrainingMessage;
 use crate::training::node_estimation::{NodeEstimation, NodeEstimationDone, NodeEstimator, AskForForeignNodes, ForeignNodesAnswer};
@@ -25,10 +25,10 @@ mod segmentation;
 mod intersection_calculation;
 mod node_estimation;
 mod edge_estimation;
-mod graph_creation;
 mod rotation;
 mod scoring;
 mod transposition;
+
 
 #[derive(RemoteActor)]
 #[remote_messages(ForeignNodesAnswer, AskForForeignNodes, NodeDegrees, SubScores, EdgeWeights, OverlapRotation, TranspositionRotationMessage, IntersectionRotationMessage, SegmentMessage, SendFirstPointMessage, PCAMeansMessage, PCADecompositionMessage, PCAComponents, RotationMatrixMessage)]
@@ -42,10 +42,10 @@ pub struct Training {
     segmentation: Segmentation,
     intersection_calculation: IntersectionCalculation,
     node_estimation: NodeEstimation,
-    edge_estimation: EdgeEstimation,
     transposition: Transposition,
-    graph_creation: GraphCreation,
-    scoring: Scoring
+    scoring: Scoring,
+    data_store: DataStore,
+    num_rotated: Option<usize>
 }
 
 // todo: run parts on different threads actix telepathy sometimes sends messages later than other local
@@ -62,10 +62,10 @@ impl Training {
             segmentation: Segmentation::default(),
             intersection_calculation: IntersectionCalculation::default(),
             node_estimation: NodeEstimation::default(),
-            edge_estimation: EdgeEstimation::default(),
             transposition: Transposition::default(),
-            graph_creation: GraphCreation::default(),
             scoring: Scoring::default(),
+            data_store: DataStore::default(),
+            num_rotated: None
         }
     }
 
@@ -115,6 +115,7 @@ impl Handler<RotationDoneMessage> for Training {
     fn handle(&mut self, _msg: RotationDoneMessage, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(7, 12, "Segmenting Data".to_string()).print();
         self.data_manager.as_ref().unwrap().do_send(PoisonPill);
+        self.data_manager = None;
         self.segment(ctx);
     }
 }
@@ -124,7 +125,6 @@ impl Handler<SegmentedMessage> for Training {
 
     fn handle(&mut self, _msg: SegmentedMessage, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(8, 12, "Calculating Intersections".to_string()).print();
-        //println!("questions:\n{:?}\n", self.segmentation.node_questions);
         self.calculate_intersections(ctx.address().recipient());
     }
 }
@@ -144,8 +144,6 @@ impl Handler<NodeEstimationDone> for Training {
 
     fn handle(&mut self, _msg: NodeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(10, 12, "Estimating Edges".to_string()).print();
-        //nodes are same for single and dist
-        //println!("455 nodes:\n{:?}", self.node_estimation.nodes_by_point.get(&455).unwrap());
         self.estimate_edges(ctx);
     }
 }
@@ -161,9 +159,6 @@ impl Handler<EdgeEstimationDone> for Training {
         if self.cluster_nodes.len() > 0 {
             self.transpose(ctx.address().recipient());
         } else {
-            //todo use different data structure
-            self.transposition.edges = self.edge_estimation.edges.clone();
-            self.edge_estimation.edges.clear();
             ctx.address().do_send(TranspositionDone);
         }
     }
@@ -173,14 +168,6 @@ impl Handler<TranspositionDone> for Training {
     type Result = ();
 
     fn handle(&mut self, _msg: TranspositionDone, ctx: &mut Self::Context) -> Self::Result {
-        /*ConsoleLogger::new(11, 12, "Building Graph".to_string()).print();
-        self.create_graph();
-        let graph_output_path = self.parameters.graph_output_path.clone();
-        match &graph_output_path {
-            Some(path) => { self.output_graph(path.clone()).expect("Error while outputting graph!"); },
-            None => ()
-        }*/
-
         ConsoleLogger::new(12, 12, "Scoring".to_string()).print();
         self.init_scoring(ctx);
     }

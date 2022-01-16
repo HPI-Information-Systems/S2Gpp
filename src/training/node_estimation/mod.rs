@@ -1,30 +1,25 @@
 mod messages;
-#[cfg(test)]
-pub(crate) mod tests;
 
 use std::collections::HashMap;
-use crate::training::intersection_calculation::{SegmentID};
-use ndarray::{ArrayView1, stack_new_axis, Axis, Array2};
+use std::ops::Deref;
+use ndarray::{ArrayView1, stack_new_axis, Axis,};
 use crate::training::Training;
 use actix::{Addr, Handler, Actor, Recipient, AsyncContext, Context};
 use meanshift_rs::{MeanShiftActor, MeanShiftMessage, MeanShiftResponse};
 
-pub use crate::training::node_estimation::messages::{NodeEstimationDone, AskForForeignNodes, ForeignNodesAnswer};
+pub(crate) use crate::training::node_estimation::messages::{NodeEstimationDone, AskForForeignNodes, ForeignNodesAnswer};
 use num_integer::Integer;
+use crate::data_store::intersection::{IntersectionMixin, IntersectionRef};
+use crate::data_store::node::{IndependentNode, Node};
 use crate::utils::logging::progress_bar::S2GppProgressBar;
-use crate::utils::NodeName;
 use crate::utils::rotation_protocol::RotationProtocol;
 
 
 #[derive(Default)]
-pub struct NodeEstimation {
-    pub nodes: HashMap<SegmentID, Array2<f32>>, //todo remove and build a smarter node index
-    /// {point_id: \[node\]}
-    pub nodes_by_point: HashMap<usize, Vec<NodeName>>,
-    pub gap_after_node: Vec<(usize, NodeName)>, // todo hashset?
-    pub next_foreign_node: HashMap<(usize, usize), (usize, NodeName)>,
+pub(crate) struct NodeEstimation {
+    pub next_foreign_node: HashMap<(usize, usize), (usize, IndependentNode)>,
     pub meanshift: Option<Addr<MeanShiftActor>>,
-    pub(crate) last_start_points: Vec<usize>,
+    pub(crate) current_intersections: Vec<IntersectionRef>,
     pub(crate) current_segment_id: usize,
     pub(crate) progress_bar: S2GppProgressBar,
     pub(crate) source: Option<Recipient<NodeEstimationDone>>,
@@ -46,12 +41,12 @@ impl NodeEstimator for Training {
 
         let segment_id = self.node_estimation.current_segment_id;
 
-        match self.intersection_calculation.intersection_coords_by_segment.get(&segment_id) {
-            Some(intersections_by_starting_point) => {
+        match self.data_store.get_intersections_from_segment(segment_id) {
+            Some(intersections) => {
 
-                self.node_estimation.last_start_points = intersections_by_starting_point.keys().map(|x| x.clone()).collect();
-                let intersections: Vec<ArrayView1<f32>> = intersections_by_starting_point.values().map(|x| x.view()).collect();
-                let data = stack_new_axis(Axis(0), intersections.as_slice()).unwrap();
+                self.node_estimation.current_intersections = intersections.iter().map(|x| x.clone()).collect();
+                let coordinates: Vec<ArrayView1<f32>> = intersections.iter().map(|x| x.get_coordinates()).collect();
+                let data = stack_new_axis(Axis(0), coordinates.as_slice()).unwrap();
                 self.node_estimation.meanshift = Some(MeanShiftActor::new(self.parameters.n_threads).start());
                 self.node_estimation.meanshift.as_ref().unwrap().do_send(MeanShiftMessage { source: Some(mean_shift_recipient.clone()), data });
             }
@@ -90,8 +85,8 @@ impl NodeEstimator for Training {
 
             let answers = match asked_nodes.remove(asking_node) {
                 Some(questions) => questions.into_iter().map(|(prev_point_id, prev_segment_id, point_id, segment_id)|
-                    match self.node_estimation.nodes_by_point.get(&point_id) {
-                        Some(nodes) => nodes.iter().find_map(|node| node.0.eq(&segment_id).then(|| (prev_point_id, prev_segment_id, point_id, node.clone()))).expect(&format!("There is no answer here: no segment_id: {} {}", &point_id, &segment_id)),
+                    match self.data_store.get_nodes_by_point_id(point_id) {
+                        Some(nodes) => nodes.iter().find_map(|node| node.get_segment_id().eq(&segment_id).then(|| (prev_point_id, prev_segment_id, point_id, node.deref().clone()))).expect(&format!("There is no answer here: no segment_id: {} {}", &point_id, &segment_id)),
                         None => {
                             panic!("There is no answer here!: no point_id: {}", point_id)
                         }
@@ -123,17 +118,12 @@ impl Handler<MeanShiftResponse> for Training {
 
     fn handle(&mut self, msg: MeanShiftResponse, ctx: &mut Self::Context) -> Self::Result {
         if !msg.cluster_centers.is_empty() {
-            let current_segment_id = self.node_estimation.current_segment_id;
-            let last_start_points = self.node_estimation.last_start_points.clone();
-            self.node_estimation.last_start_points.clear();
-            self.node_estimation.nodes.insert(current_segment_id, msg.cluster_centers);
+            let current_intersections = self.node_estimation.current_intersections.clone();
+            self.node_estimation.current_intersections.clear();
 
-            for (last_start_point, label) in last_start_points.into_iter().zip(msg.labels)  {
-                let node = NodeName(current_segment_id, label);
-                match self.node_estimation.nodes_by_point.get_mut(&last_start_point) {
-                    Some(nodes) => nodes.push(node),
-                    None => { self.node_estimation.nodes_by_point.insert(last_start_point.clone(), vec![node]); }
-                }
+            for (intersection, label) in current_intersections.into_iter().zip(msg.labels)  {
+                let node =  Node::new(intersection.clone(), label);
+                self.data_store.add_node(node);
             }
         }
         self.node_estimation.current_segment_id += 1;

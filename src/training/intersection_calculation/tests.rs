@@ -1,7 +1,7 @@
 use actix::prelude::*;
 use crate::training::Training;
 use crate::parameters::Parameters;
-use crate::training::segmentation::{Segmentation, SegmentedPointWithId, PointWithId, SegmentedTransition, SegmentedMessage};
+use crate::training::segmentation::{Segmentation, SegmentedMessage};
 use std::f32::consts::PI;
 use ndarray::arr1;
 use actix_telepathy::Cluster;
@@ -9,6 +9,10 @@ use port_scanner::request_open_port;
 use tokio::time::{Duration, sleep};
 use crate::training::intersection_calculation::IntersectionCalculationDone;
 use std::sync::{Arc, Mutex};
+use crate::data_store::DataStore;
+use crate::data_store::intersection::IntersectionMixin;
+use crate::data_store::point::Point;
+use crate::data_store::transition::{Transition, TransitionMixin};
 
 
 #[derive(Default)]
@@ -48,13 +52,15 @@ impl Handler<CheckingMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: CheckingMessage, _ctx: &mut Self::Context) -> Self::Result {
-        assert_eq!([2, 3], self.intersection_calculation.intersections.get(&0).unwrap().as_slice());
-        assert_eq!([4, 5], self.intersection_calculation.intersections.get(&1).unwrap().as_slice());
-        assert_eq!([6, 7], self.intersection_calculation.intersections.get(&2).unwrap().as_slice());
-
-        assert_eq!(51., self.intersection_calculation.intersection_coords_by_segment.get(&0).unwrap().get(&49).unwrap()[0]);
-        assert_eq!(102., self.intersection_calculation.intersection_coords_by_segment.get(&0).unwrap().get(&100).unwrap()[0]);
-        assert_eq!(153., self.intersection_calculation.intersection_coords_by_segment.get(&0).unwrap().get(&151).unwrap()[0]);
+        for intersection in self.data_store.get_intersections_from_segment(0).unwrap() {
+            if intersection.get_transition().get_from_id().eq(&49) {
+                assert_eq!(51., intersection.get_coordinates()[0]);
+            } else if intersection.get_transition().get_from_id().eq(&100) {
+                assert_eq!(102., intersection.get_coordinates()[0]);
+            } else if intersection.get_transition().get_from_id().eq(&151) {
+                assert_eq!(153., intersection.get_coordinates()[0]);
+            }
+        }
 
         msg.rec.unwrap().do_send(CheckingMessage { rec: None }).unwrap();
     }
@@ -71,7 +77,7 @@ async fn get_intersections() {
     let checker = Checker { success: success.clone() }.start();
 
     training.segmentation = Segmentation::default();
-    training.segmentation.segments = generate_segmented_transitions();
+    generate_segmented_transitions(&mut training.data_store);
     training.intersection_calculation.recipient = Some(checker.clone().recipient());
     let training_addr = training.start();
     training_addr.do_send(SegmentedMessage);
@@ -82,28 +88,26 @@ async fn get_intersections() {
 }
 
 
-fn generate_segmented_transitions() -> Vec<SegmentedTransition> {
+fn generate_segmented_transitions(data_store: &mut DataStore) {
     let segments = 100;
     let segment_size = (2.0 * PI) / segments as f32;
     let spin_size = 51;
-    let points: Vec<SegmentedPointWithId> = (1..1001).into_iter().map(|x| {
+    for x in (1..1001).into_iter() {
         let theta = (2.0 * PI) * ((x % spin_size) as f32 / spin_size as f32);
         let segment_id = (theta / segment_size) as usize % segments;
         let radius = x as f32;
         let coords = arr1(&[radius * theta.cos(), radius * theta.sin()]);
-        SegmentedPointWithId {
-            segment_id,
-            point_with_id: PointWithId { id: x-1, coords }
-        }
-    }).collect();
+        let point = Point::new(x-1, coords, segment_id);
+        data_store.add_point(point);
+    };
 
     let mut transitions = vec![];
     let mut last_point = None;
 
-    for point in points {
+    for point in data_store.get_points() {
         match last_point {
             Some(last_point) => {
-                let transition = SegmentedTransition::new(last_point, point.clone());
+                let transition = Transition::new(last_point, point.clone());
                 transitions.push(transition);
             },
             None => ()
@@ -111,5 +115,5 @@ fn generate_segmented_transitions() -> Vec<SegmentedTransition> {
         last_point = Some(point);
     }
 
-    transitions
+    data_store.add_transitions(transitions);
 }

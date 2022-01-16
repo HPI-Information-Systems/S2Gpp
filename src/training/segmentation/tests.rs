@@ -2,10 +2,11 @@ use std::collections::HashMap;
 use actix_telepathy::{RemoteAddr, AddrRepresentation};
 use crate::parameters::{Parameters};
 use crate::training::Training;
-use ndarray::{arr1, arr2};
+use ndarray::{arr1};
 use std::iter::FromIterator;
 use crate::utils::ClusterNodes;
 use crate::data_manager::DatasetStats;
+use crate::data_store::transition::TransitionMixin;
 use crate::training::segmentation::{Segmenter};
 
 
@@ -22,12 +23,12 @@ fn test_segmenting() {
     training.cluster_nodes = ClusterNodes::from(HashMap::from_iter(vec![
         (1, RemoteAddr::new("127.0.0.1:1993".parse().unwrap(), None, AddrRepresentation::Key("test1".to_string())))
     ]));
-    training.rotation.rotated = Some(arr2(&[
-        [1.0, 1.0],
-        [-1.0, 1.0],
-        [-1.0, -1.0],
-        [1.0, -1.0]
-    ]));
+    training.data_store.add_points(vec![
+        arr1(&[1.0, 1.0]),
+        arr1(&[-1.0, 1.0]),
+        arr1(&[-1.0, -1.0]),
+        arr1(&[1.0, -1.0])
+    ], parameters.rate);
 
 
     // node transitions
@@ -35,19 +36,19 @@ fn test_segmenting() {
     let node_transitions = training.build_segments();
     assert_eq!(node_transitions.len(), 2);
     assert_eq!(node_transitions[&1].len(), 1);
-    assert_eq!(node_transitions[&1][0].from.segment_id, 2);
-    assert_eq!(node_transitions[&1][0].to.segment_id, 3);
-    assert_eq!(node_transitions[&1][0].from.point_with_id.coords, expected_node_transition[0]);
-    assert_eq!(node_transitions[&1][0].to.point_with_id.coords, expected_node_transition[1]);
+    assert_eq!(node_transitions[&1][0].get_from_segment(), 2);
+    assert_eq!(node_transitions[&1][0].get_to_segment(), 3);
+    assert_eq!(node_transitions[&1][0].get_from_point().get_coordinates(), expected_node_transition[0]);
+    assert_eq!(node_transitions[&1][0].get_to_point().get_coordinates(), expected_node_transition[1]);
 
     // own transitions
     let expected_own_transition = [arr1(&[1.0, 1.0]), arr1(&[-1.0, 1.0])];
-    let own_transitions = training.segmentation.segments.clone();
+    let own_transitions = training.data_store.get_transitions();
     assert_eq!(own_transitions.len(), 2);
-    assert_eq!(own_transitions[0].from.segment_id, 0);
-    assert_eq!(own_transitions[0].to.segment_id, 1);
-    assert_eq!(own_transitions[0].from.point_with_id.coords, expected_own_transition[0]);
-    assert_eq!(own_transitions[0].to.point_with_id.coords, expected_own_transition[1]);
+    assert_eq!(own_transitions[0].get_from_segment(), 0);
+    assert_eq!(own_transitions[0].get_to_segment(), 1);
+    assert_eq!(own_transitions[0].get_from_point().get_coordinates(), expected_own_transition[0]);
+    assert_eq!(own_transitions[0].get_to_point().get_coordinates(), expected_own_transition[1]);
 }
 
 /// When segmenting the transitions that would connect 2 groups of segments,
@@ -65,32 +66,32 @@ fn test_segment_distribution() {
     training.cluster_nodes = ClusterNodes::from(HashMap::from_iter(vec![
         (1, RemoteAddr::new("127.0.0.1:1993".parse().unwrap(), None, AddrRepresentation::Key("test1".to_string())))
     ]));
-    training.rotation.rotated = Some(arr2(&[
-        [1.0, 1.0],
-        [-1.0, 1.0],
-        [-1.0, -1.0],
-        [1.0, -1.0]
-    ]));
-
+    training.data_store.add_points(vec![
+        arr1(&[1.0, 1.0]),
+        arr1(&[-1.0, 1.0]),
+        arr1(&[-1.0, -1.0]),
+        arr1(&[1.0, -1.0])
+    ], parameters.rate);
 
     // node transitions
     let expected_node_transition = [arr1(&[-1.0, -1.0]), arr1(&[1.0, -1.0])];
     let node_transitions = training.build_segments();
+
     assert_eq!(node_transitions.len(), 2);
     assert_eq!(node_transitions[&1].len(), 1);
-    assert_eq!(node_transitions[&1][0].from.segment_id, 2);
-    assert_eq!(node_transitions[&1][0].to.segment_id, 3);
-    assert_eq!(node_transitions[&1][0].from.point_with_id.coords, expected_node_transition[0]);
-    assert_eq!(node_transitions[&1][0].to.point_with_id.coords, expected_node_transition[1]);
+    assert_eq!(node_transitions[&1][0].get_from_segment(), 2);
+    assert_eq!(node_transitions[&1][0].get_to_segment(), 3);
+    assert_eq!(node_transitions[&1][0].get_from_point().get_coordinates(), expected_node_transition[0]);
+    assert_eq!(node_transitions[&1][0].get_to_point().get_coordinates(), expected_node_transition[1]);
 
     // own transitions
     let expected_own_transition = [arr1(&[1.0, 1.0]), arr1(&[-1.0, 1.0])];
-    let own_transitions = training.segmentation.segments.clone();
+    let own_transitions = training.data_store.get_transitions();
     assert_eq!(own_transitions.len(), 2);
-    assert_eq!(own_transitions[0].from.segment_id, 0);
-    assert_eq!(own_transitions[0].to.segment_id, 1);
-    assert_eq!(own_transitions[0].from.point_with_id.coords, expected_own_transition[0]);
-    assert_eq!(own_transitions[0].to.point_with_id.coords, expected_own_transition[1]);
+    assert_eq!(own_transitions[0].get_from_segment(), 0);
+    assert_eq!(own_transitions[0].get_to_segment(), 1);
+    assert_eq!(own_transitions[0].get_from_point().get_coordinates(), expected_own_transition[0]);
+    assert_eq!(own_transitions[0].get_to_point().get_coordinates(), expected_own_transition[1]);
 }
 
 
@@ -107,16 +108,16 @@ fn test_segment_transitions_sub() {
     training.cluster_nodes = ClusterNodes::from(HashMap::from_iter(vec![
         (0, RemoteAddr::new("127.0.0.1:1993".parse().unwrap(), None, AddrRepresentation::Key("test1".to_string())))
     ]));
-    training.rotation.rotated = Some(arr2(&[
-        [1.0, 1.0],
-        [-1.0, 1.0],
-        [-1.0, -1.0],
-        [1.0, -1.0]
-    ]));
+    training.data_store.add_points(vec![
+        arr1(&[1.0, 1.0]),
+        arr1(&[-1.0, 1.0]),
+        arr1(&[-1.0, -1.0]),
+        arr1(&[1.0, -1.0])
+    ], parameters.rate);
 
     let _node_transitions = training.build_segments();
 
-    assert_eq!(training.segmentation.send_point.unwrap().point_with_id.coords, arr1(&[1.0, 1.0]));
+    assert_eq!(training.segmentation.send_point.unwrap().get_coordinates(), arr1(&[1.0, 1.0]));
 }
 
 
@@ -133,12 +134,12 @@ fn test_segment_transitions_main() {
     training.cluster_nodes = ClusterNodes::from(HashMap::from_iter(vec![
         (1, RemoteAddr::new("127.0.0.1:1993".parse().unwrap(), None, AddrRepresentation::Key("test1".to_string())))
     ]));
-    training.rotation.rotated = Some(arr2(&[
-        [1.0, 1.0],
-        [-1.0, 1.0],
-        [-1.0, -1.0],
-        [1.0, -1.0]
-    ]));
+    training.data_store.add_points(vec![
+        arr1(&[1.0, 1.0]),
+        arr1(&[-1.0, 1.0]),
+        arr1(&[-1.0, -1.0]),
+        arr1(&[1.0, -1.0])
+    ], parameters.rate);
 
     let _node_transitions = training.build_segments();
 
@@ -158,19 +159,19 @@ fn test_node_questions() {
 
     training.dataset_stats = Some(DatasetStats::new(arr1(&[1.0]), arr1(&[1.0]), arr1(&[1.0]), 20));
 
-    training.rotation.rotated = Some(arr2(&[
-        [-1., -2.],
-        [1., -2.], // get this
-        [1., 2.],
-        [0.5, 2.5],
-        [-0.5, 2.5],
-        [2., -0.5], // get this
-        [2., 1.],
-        [3., 2.],
-        [2.8, 3.],
-        [2., -3.],
-        [3., -2.]
-    ]));
+    training.data_store.add_points(vec![
+        arr1(&[-1., -2.]),
+        arr1(&[1., -2.]),
+        arr1(&[1., 2.]),
+        arr1(&[0.5, 2.5]),
+        arr1(&[-0.5, 2.5]),
+        arr1(&[2., -0.5]),
+        arr1(&[2., 1.]),
+        arr1(&[3., 2.]),
+        arr1(&[2.8, 3.]),
+        arr1(&[2., -3.]),
+        arr1(&[3., -2.])
+    ], parameters.rate);
     training.build_segments();
 
     assert!(training.segmentation.node_questions.get(&1).is_some());
