@@ -4,23 +4,22 @@ mod tests;
 
 use std::collections::HashMap;
 use actix::prelude::*;
+use crate::data_store::edge::MaterializedEdge;
 use crate::training::Training;
-pub use crate::training::transposition::messages::{TranspositionDone, TranspositionRotationMessage};
-use crate::utils::Edge;
+pub(crate) use crate::training::transposition::messages::{TranspositionDone, TranspositionRotationMessage};
 use crate::utils::rotation_protocol::RotationProtocol;
 
 #[derive(Default)]
-pub struct Transposition {
+pub(crate) struct Transposition {
     rotation_protocol: RotationProtocol<TranspositionRotationMessage>,
     pub(crate) range_start_point: Option<usize>,
     partition_len: Option<usize>,
-    pub(crate) edges: Vec<(usize, Edge)>
 }
 
-pub trait Transposer {
+pub(crate) trait Transposer {
     fn transpose(&mut self, rec: Recipient<TranspositionRotationMessage>);
-    fn assign_edges_to_neighbours(&mut self) -> HashMap<usize, Vec<(usize, Edge)>>;
-    fn transpose_rotation(&mut self, assignments: HashMap<usize, Vec<(usize, Edge)>>);
+    fn assign_edges_to_neighbours(&mut self) -> HashMap<usize, Vec<MaterializedEdge>>;
+    fn transpose_rotation(&mut self, assignments: HashMap<usize, Vec<MaterializedEdge>>);
     fn transpose_finalize(&mut self, ctx: &mut Context<Training>);
 }
 
@@ -39,28 +38,30 @@ impl Transposer for Training {
         self.transpose_rotation(assignments);
     }
 
-    fn assign_edges_to_neighbours(&mut self) -> HashMap<usize, Vec<(usize, Edge)>> {
+    fn assign_edges_to_neighbours(&mut self) -> HashMap<usize, Vec<MaterializedEdge>> {
         let mut assignments = HashMap::new();
         for cluster_id in 0..self.parameters.n_cluster_nodes {
             assignments.insert(cluster_id, vec![]);
         }
 
-        for (point_id, edge) in self.edge_estimation.edges.iter() {
+        let materialized_edges = self.data_store.wipe_graph();
+
+        for edge in materialized_edges {
+            let point_id = edge.get_to_id();
             let cluster_node_id = point_id / self.transposition.partition_len.expect("Should already be set!");
             match assignments.get_mut(&cluster_node_id) {
                 None => {}
-                Some(edges) => edges.push((point_id.clone(), edge.clone()))
+                Some(edges) => edges.push(edge)
             }
         }
-        self.edge_estimation.edges.clear();
 
         let own_id = self.cluster_nodes.get_own_idx();
-        self.transposition.edges.extend(assignments.remove(&own_id).unwrap());
+        self.data_store.add_materialized_edges(assignments.remove(&own_id).unwrap()); // todo: maybe do not delete in the first place
 
         assignments
     }
 
-    fn transpose_rotation(&mut self, assignments: HashMap<usize, Vec<(usize, Edge)>>) {
+    fn transpose_rotation(&mut self, assignments: HashMap<usize, Vec<MaterializedEdge>>) {
         let msg = TranspositionRotationMessage { assignments };
         let next = self.cluster_nodes.get_as(&self.cluster_nodes.get_next_idx().expect("No Transposition without other cluster nodes!"), "Training").unwrap();
         next.do_send(msg);
@@ -68,7 +69,7 @@ impl Transposer for Training {
     }
 
     fn transpose_finalize(&mut self, ctx: &mut Context<Training>) {
-        self.transposition.edges.sort_by(|(point_id_a, _), (point_id_b, _)| point_id_a.partial_cmp(point_id_b).unwrap());
+        self.data_store.sort_edges();
         ctx.address().do_send(TranspositionDone);
     }
 }
@@ -85,7 +86,7 @@ impl Handler<TranspositionRotationMessage> for Training {
         let own_id = self.cluster_nodes.get_own_idx();
         let mut assignments = msg.assignments;
         if let Some(own_edges) = assignments.remove(&own_id) {
-            self.transposition.edges.extend(own_edges);
+            self.data_store.add_materialized_edges(own_edges);
         }
 
         if self.transposition.rotation_protocol.is_running() {

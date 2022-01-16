@@ -5,22 +5,24 @@ pub mod messages;
 use ndarray::{Array1, ArrayView1, Axis, concatenate};
 use crate::training::Training;
 use std::collections::{HashMap, HashSet};
-use crate::utils::{Edge, NodeName};
 use ndarray_stats::QuantileExt;
-use std::ops::{Range, Sub};
+use std::ops::{Deref, Range, Sub};
 use anyhow::Result;
 use std::fs::File;
 use actix::{AsyncContext, Context, Handler};
 use csv::WriterBuilder;
+use crate::data_store::edge::{Edge, MaterializedEdge};
+use crate::data_store::materialize::Materialize;
+use crate::data_store::node::{IndependentNode, NodeRef};
 use crate::training::scoring::messages::{ScoringDone, NodeDegrees, SubScores, ScoreInitDone, EdgeWeights, OverlapRotation};
 use crate::utils::rotation_protocol::RotationProtocol;
 
 #[derive(Default)]
-pub struct Scoring {
+pub(crate) struct Scoring {
     pub score: Option<Array1<f32>>,
     subscores: HashMap<usize, Array1<f32>>,
-    pub node_degrees: HashMap<NodeName, usize>,
-    edge_weight: HashMap<Edge, usize>,
+    pub node_degrees: HashMap<NodeRef, usize>, // must be sent
+    edge_weight: HashMap<MaterializedEdge, usize>, // must be sent
     edges_in_time: Vec<usize>,
     node_degrees_rotation_protocol: RotationProtocol<NodeDegrees>,
     edge_weight_rotation_protocol: RotationProtocol<EdgeWeights>,
@@ -28,12 +30,12 @@ pub struct Scoring {
     score_rotation_protocol: RotationProtocol<SubScores>
 }
 
-pub trait Scorer {
+pub(crate) trait Scorer {
     fn init_scoring(&mut self, ctx: &mut Context<Training>);
     fn init_done(&mut self) -> bool;
     fn count_edges_in_time(&mut self) -> Vec<usize>;
-    fn calculate_edge_weight(&mut self) -> HashMap<Edge, usize>;
-    fn calculate_node_degrees(&mut self) -> HashMap<NodeName, usize>;
+    fn calculate_edge_weight(&mut self) -> HashMap<MaterializedEdge, usize>;
+    fn calculate_node_degrees(&mut self) -> HashMap<NodeRef, usize>;
     fn send_overlap_to_neighbor(&mut self, ctx: &mut Context<Training>);
     fn score(&mut self, ctx: &mut Context<Training>);
     fn normalize_score(&mut self, score: &mut Array1<f32>);
@@ -43,6 +45,7 @@ pub trait Scorer {
 }
 
 
+//todo: progress bar
 impl Scorer for Training {
     fn init_scoring(&mut self, ctx: &mut Context<Training>) {
         self.scoring.edges_in_time = self.count_edges_in_time();
@@ -52,7 +55,7 @@ impl Scorer for Training {
             self.scoring.node_degrees_rotation_protocol.start(self.cluster_nodes.len());
             self.scoring.node_degrees_rotation_protocol.resolve_buffer(ctx.address().recipient());
             self.cluster_nodes.get_as(&self.cluster_nodes.get_next_idx().unwrap(), "Training").unwrap()
-                .do_send(NodeDegrees { degrees: self.scoring.node_degrees.clone() });
+                .do_send(NodeDegrees { degrees: self.scoring.node_degrees.iter().map(|(node, degree)| (node.deref().deref().clone(), degree.clone())).collect() });
             self.scoring.node_degrees_rotation_protocol.sent();
             
             self.scoring.edge_weight_rotation_protocol.start(self.cluster_nodes.len());
@@ -75,25 +78,26 @@ impl Scorer for Training {
 
     fn count_edges_in_time(&mut self) -> Vec<usize> {
         let start_point = self.transposition.range_start_point.unwrap_or(0);
-        let pseudo_edge = (0, Edge(NodeName(0, 0), NodeName(0, 0)));
+        let pseudo_edge = Edge::new(IndependentNode::new(0, 0, 0).to_ref(), IndependentNode::new(0, 0, 0).to_ref()).to_ref();
         let mut edges_in_time = vec![];
         let mut last_point_id = None;
         let mut last_len: usize = 0;
-        for (i, (point_id, _edge)) in self.transposition.edges.iter().chain(&[pseudo_edge]).enumerate() {
+        for (i, edge) in self.data_store.get_edges().iter().chain(&[pseudo_edge]).enumerate() {
             match last_point_id {
-                None => { last_point_id = Some(point_id); }
-                Some(last_point_id_ref) => if point_id.ne(last_point_id_ref) {
+                None => { last_point_id = Some(edge.get_to_id()); }
+                Some(last_point_id_ref) => if edge.get_to_id().ne(&last_point_id_ref) {
                     while edges_in_time.len().lt(&last_point_id_ref.sub(&start_point)) {
                         edges_in_time.push(last_len);
                     }
-                    last_point_id = Some(point_id);
+                    last_point_id = Some(edge.get_to_id());
                     last_len = i;
                     edges_in_time.push(i);
                 }
             }
         }
 
-        let result_length = self.rotation.rotated.as_ref().unwrap().shape()[0] - if self.cluster_nodes.get_own_idx().eq(&self.cluster_nodes.len()) {
+        // todo: see if data store can hold this information
+        let result_length = self.num_rotated.expect("should have been already set") - if self.cluster_nodes.get_own_idx().eq(&self.cluster_nodes.len()) {
             1 // -1 because the last point has no outgoing edge
         } else {
             0
@@ -105,31 +109,32 @@ impl Scorer for Training {
         edges_in_time
     }
 
-    fn calculate_edge_weight(&mut self) -> HashMap<Edge, usize> {
+    fn calculate_edge_weight(&mut self) -> HashMap<MaterializedEdge, usize> {
         let mut edge_weight = HashMap::new();
-        for (_, edge) in self.transposition.edges.iter() {
-            match edge_weight.get_mut(edge) {
+        for edge in self.data_store.get_edges() {
+            let materialized = edge.materialize();
+            match edge_weight.get_mut(&materialized) {
                 Some(weight) => { *weight += 1; },
-                None => { edge_weight.insert(edge.clone(), 1); }
+                None => { edge_weight.insert(materialized, 1); }
             }
         }
         edge_weight
     }
 
-    fn calculate_node_degrees(&mut self) -> HashMap<NodeName, usize> {
+    fn calculate_node_degrees(&mut self) -> HashMap<NodeRef, usize> {
         let mut node_degrees = HashMap::new();
         let mut seen_edges = HashSet::new();
 
-        for (_, edge) in self.edge_estimation.edges.iter() {
+        for edge in self.data_store.get_edges() {
             if seen_edges.insert(edge.clone()) {
-                match node_degrees.get_mut(&edge.0) {
+                match node_degrees.get_mut(&edge.get_from_node()) {
                     Some(degree) => { *degree += 1; }
-                    None => { node_degrees.insert(edge.0.clone(), 1); }
+                    None => { node_degrees.insert(edge.get_from_node(), 1); }
                 }
 
-                match node_degrees.get_mut(&edge.1) {
+                match node_degrees.get_mut(&edge.get_to_node()) {
                     Some(degree) => { *degree += 1; }
-                    None => { node_degrees.insert(edge.1.clone(), 1); }
+                    None => { node_degrees.insert(edge.get_to_node(), 1); }
                 }
             }
         }
@@ -140,7 +145,8 @@ impl Scorer for Training {
     fn send_overlap_to_neighbor(&mut self, ctx: &mut Context<Training>) {
         let from_edge_idx = self.scoring.edges_in_time[0];
         let to_edge_idx = self.scoring.edges_in_time[self.parameters.query_length - 1];
-        let overlap = self.transposition.edges[from_edge_idx..to_edge_idx].to_vec();
+        let overlap = self.data_store.slice_edges(from_edge_idx..to_edge_idx)
+            .map(|edge| edge.materialize()).collect();
 
         let edges_in_time = self.scoring.edges_in_time[0..(self.parameters.query_length - 1)].to_vec();
 
@@ -200,11 +206,11 @@ impl Scorer for Training {
     }
 
     fn score_p_degree(&mut self, edge_range: Range<usize>) -> (f32, usize) {
-        let p_edge = &self.transposition.edges[edge_range];
+        let p_edge = self.data_store.slice_edges(edge_range);
         let len_score = p_edge.len();
         let alpha = 0.00000001 + (len_score as f32);
-        let score: f32 = p_edge.iter().map(|(_, edge)| {
-            (self.scoring.edge_weight.get(edge).unwrap() * (self.scoring.node_degrees.get(&edge.0).expect("Edge with unknown Node found!") - 1)) as f32
+        let score: f32 = p_edge.map(|edge| {
+            (self.scoring.edge_weight.get(&edge.materialize()).unwrap() * (self.scoring.node_degrees.get(&edge.get_from_node()).expect("Edge with unknown Node found!") - 1)) as f32
         }).sum();
         (score / alpha, len_score)
     }
@@ -251,8 +257,9 @@ impl Handler<NodeDegrees> for Training {
         }
 
         for (node, degree) in msg.degrees.iter() {
-            match self.scoring.node_degrees.get_mut(node) {
-                None => {self.scoring.node_degrees.insert(node.clone(), degree.clone());},
+            let node_ref = node.clone().to_ref();
+            match self.scoring.node_degrees.get_mut(&node_ref) {
+                None => {self.scoring.node_degrees.insert(node_ref, degree.clone());},
                 Some(old_degree) => { *old_degree += degree; }
             }
         }
@@ -276,10 +283,9 @@ impl Handler<EdgeWeights> for Training {
             return
         }
 
-
         for (edge, weight) in msg.weights.iter() {
             match self.scoring.edge_weight.get_mut(edge) {
-                None => {self.scoring.edge_weight.insert(edge.clone(), weight.clone());},
+                None => {self.scoring.edge_weight.insert(edge.clone(), weight.clone());}, // todo: check if this branch is needed
                 Some(old_weight) => { *old_weight += weight; }
             }
         }
@@ -318,7 +324,7 @@ impl Handler<OverlapRotation> for Training {
             return
         }
 
-        self.transposition.edges.extend(msg.edges);
+        self.data_store.add_materialized_edges(msg.edges);
         let last_edge_count = self.scoring.edges_in_time.last().unwrap();
         let received_edges_in_time: Vec<usize> = msg.edges_in_time.into_iter().map(|x| x + last_edge_count).collect();
         self.scoring.edges_in_time.extend(received_edges_in_time);
