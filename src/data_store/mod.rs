@@ -1,9 +1,8 @@
-use std::collections::HashMap;
 use std::ops::{Deref, Range};
 use std::slice::Iter;
-use indexmap::IndexMap;
 use ndarray::{Array1};
 use crate::data_store::edge::{Edge, EdgeRef, MaterializedEdge};
+use crate::data_store::index::DataStoreIndex;
 use crate::data_store::intersection::{Intersection, IntersectionMixin, IntersectionRef, MaterializedIntersection};
 use crate::data_store::materialize::Materialize;
 use crate::data_store::node::{IndependentNode, Node, NodeRef};
@@ -18,38 +17,32 @@ pub(crate) mod edge;
 pub(crate) mod materialize;
 mod tests;
 mod utils;
+mod index;
 
 
-// todo: build index for certain things:
-// - Point_id -> PointRef
-// - Segment_id -> Vec<IntersectionRef>
-// - PointRef -> Vec<Node>
 #[derive(Default, Clone)]
 pub(crate) struct DataStore {
-    points: IndexMap<usize, PointRef>,
+    points: Vec<PointRef>,
     transitions: Vec<TransitionRef>,
-    /// HashMap: Key=SegmentId, Value=Vec<Intersections in segment SegmentID>
-    intersections: HashMap<usize, Vec<IntersectionRef>>,
-    /// HashMap: Key=PointId, Value=Vec<Nodes>
-    nodes: HashMap<usize, Vec<NodeRef>>,
-    edges: Vec<EdgeRef>
+    intersections: Vec<IntersectionRef>,
+    nodes: Vec<NodeRef>,
+    edges: Vec<EdgeRef>,
+    index: DataStoreIndex
 }
 
 impl DataStore {
-    pub fn add_point(&mut self, point: Point) -> bool {
+    // --- Points
+
+    pub fn add_point(&mut self, point: Point) {
         let point = PointRef::new(point);
-        if self.points.contains_key(&point.get_id()) {
-            false
-        } else {
-            self.points.insert(point.get_id(), point);
-            true
-        }
+        self.points.push(point.clone());
+        self.index.add_point(point);
     }
 
     pub fn add_point_return(&mut self, point: Point) -> PointRef {
-        let id = point.get_id();
-        self.add_point(point);
-        self.points.get(&id).unwrap().clone()
+        let point = PointRef::new(point);
+        self.points.push(point.clone());
+        self.index.add_point_return(point)
     }
 
     pub fn add_points(&mut self, points: Vec<Array1<f32>>, n_segments: usize) {
@@ -66,8 +59,10 @@ impl DataStore {
     }
 
     pub fn get_points(&self) -> Vec<PointRef> {
-        self.points.values().map(|p| p.clone()).collect()
+        self.points.clone()
     }
+
+    // --- Transitions
 
     pub fn add_transition(&mut self, transition: Transition) {
         self.transitions.push(TransitionRef::new(transition))
@@ -96,11 +91,12 @@ impl DataStore {
         self.transitions.iter().map(|transition| transition.clone()).collect()
     }
 
+    // --- Intersections
+
     pub fn add_intersection(&mut self, intersection: Intersection) {
-        match &mut self.intersections.get_mut(&intersection.get_segment_id()) {
-            Some(intersections) => intersections.push(IntersectionRef::new(intersection)),
-            None => { self.intersections.insert(intersection.get_segment_id(), vec![IntersectionRef::new(intersection)]); }
-        }
+        let intersection_ref = intersection.to_ref();
+        self.intersections.push(intersection_ref.clone());
+        self.index.add_intersection(intersection_ref);
     }
 
     pub fn add_materialized_intersection(&mut self, intersection: MaterializedIntersection) {
@@ -117,8 +113,10 @@ impl DataStore {
     }
 
     pub fn get_intersections_from_segment(&self, segment: usize) -> Option<&Vec<IntersectionRef>> {
-        self.intersections.get(&segment)
+        self.index.get_intersections(segment)
     }
+
+    // --- Nodes
 
     pub fn add_node(&mut self, node: Node) {
         self.add_independent_node(node.to_independent())
@@ -129,16 +127,15 @@ impl DataStore {
     }
 
     pub fn add_node_ref(&mut self, node_ref: NodeRef) {
-        let start_point = node_ref.get_from_id();
-        match self.nodes.get_mut(&start_point) {
-            Some(nodes) => nodes.push(node_ref),
-            None => { self.nodes.insert(start_point, vec![node_ref]); }
-        }
+        self.nodes.push(node_ref.clone());
+        self.index.add_node(node_ref);
     }
 
     pub fn get_nodes_by_point_id(&self, point_id: usize) -> Option<&Vec<NodeRef>> {
-        self.nodes.get(&point_id)
+        self.index.get_nodes(point_id)
     }
+
+    // --- Edges
 
     pub fn add_edge(&mut self, edge: Edge) {
         self.edges.push(edge.to_ref())
@@ -176,10 +173,13 @@ impl DataStore {
         self.edges.sort_by(|edge_a, edge_b| edge_a.get_to_id().partial_cmp(&edge_b.get_to_id()).unwrap());
     }
 
+    // --- Misc
+
     pub fn wipe_graph(&mut self) -> Vec<MaterializedEdge> {
         let materialized = self.edges.iter().map(|e| e.materialize()).collect();
-        self.nodes.clear();
         self.edges.clear();
+        self.nodes.clear();
+        self.index.clear_nodes();
 
         materialized
     }
