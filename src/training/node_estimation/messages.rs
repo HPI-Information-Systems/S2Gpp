@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
 use serde::{Serialize, Deserialize};
-use crate::utils::NodeName;
 use serde_with::serde_as;
+use crate::data_store::node::IndependentNode;
 use crate::training::segmentation::NodeInQuestion;
 
 
@@ -21,7 +21,7 @@ pub struct AskForForeignNodes {
 
 
 #[derive(RemoteMessage, Serialize, Deserialize, Clone, Default)]
-pub struct ForeignNodesAnswer {
+pub(crate) struct ForeignNodesAnswer {
     /// (prev_point_id, prev_segment_id, point_id, node)
-    pub foreign_nodes: Vec<(usize, usize, usize, NodeName)>
+    pub foreign_nodes: Vec<(usize, usize, usize, IndependentNode)>
 }

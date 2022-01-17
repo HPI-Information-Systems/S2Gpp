@@ -1,7 +1,8 @@
+use crate::data_store::edge::Edge;
+use crate::data_store::node::IndependentNode;
 use crate::parameters::Parameters;
-use crate::training::Training;
+use crate::training::{Training};
 use crate::training::transposition::Transposer;
-use crate::utils::{Edge, NodeName};
 
 #[test]
 fn test_assignments() {
@@ -12,16 +13,16 @@ fn test_assignments() {
     training.transposition.range_start_point = Some(0);
     training.transposition.partition_len = Some(2);
 
-    training.edge_estimation.edges = vec![
-        (0, Edge(NodeName(0, 0), NodeName(1, 0))),
-        (1, Edge(NodeName(1, 0), NodeName(2, 0))),
-        (1, Edge(NodeName(2, 0), NodeName(3, 0))),
-        (2, Edge(NodeName(3, 0), NodeName(4, 0))),
-        (3, Edge(NodeName(4, 0), NodeName(5, 0)))
-    ];
+    training.data_store.add_edges(vec![
+        Edge::new(IndependentNode::new(0, 0, 0).to_ref(), IndependentNode::new(1, 0, 0).to_ref()),
+        Edge::new(IndependentNode::new(1, 0, 1).to_ref(), IndependentNode::new(2, 0, 1).to_ref()),
+        Edge::new(IndependentNode::new(2, 0, 1).to_ref(), IndependentNode::new(3, 0, 1).to_ref()),
+        Edge::new(IndependentNode::new(3, 0, 2).to_ref(), IndependentNode::new(4, 0, 2).to_ref()),
+        Edge::new(IndependentNode::new(4, 0, 3).to_ref(), IndependentNode::new(5, 0, 3).to_ref()),
+    ]);
 
     let assignments = training.assign_edges_to_neighbours();
-    let edges = training.transposition.edges;
+    let edges = training.data_store.get_edges();
     assert_eq!(edges.len(), 3);
     assert_eq!(assignments.get(&1).unwrap().len(), 2);
 }

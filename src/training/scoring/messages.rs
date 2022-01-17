@@ -4,7 +4,8 @@ use actix_telepathy::prelude::*;
 use ndarray::Array1;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use crate::utils::{Edge, NodeName};
+use crate::data_store::edge::MaterializedEdge;
+use crate::data_store::node::IndependentNode;
 
 
 #[derive(Message)]
@@ -14,27 +15,27 @@ pub struct ScoreInitDone;
 
 #[derive(Message)]
 #[rtype(Result = "()")]
-pub struct ScoringDone;
+pub(crate) struct ScoringDone;
 
 
 #[serde_as]
 #[derive(RemoteMessage, Serialize, Deserialize, Default, Clone)]
-pub struct NodeDegrees {
+pub(crate) struct NodeDegrees {
     #[serde_as(as = "Vec<(_, _)>")]
-    pub degrees: HashMap<NodeName, usize>
+    pub degrees: HashMap<IndependentNode, usize>
 }
 
 
 #[serde_as]
 #[derive(RemoteMessage, Serialize, Deserialize, Default, Clone)]
-pub struct EdgeWeights {
+pub(crate) struct EdgeWeights {
     #[serde_as(as = "Vec<(_, _)>")]
-    pub weights: HashMap<Edge, usize>
+    pub weights: HashMap<MaterializedEdge, usize>
 }
 
 #[derive(RemoteMessage, Serialize, Deserialize, Default, Clone)]
-pub struct OverlapRotation {
-    pub edges: Vec<(usize, Edge)>,
+pub(crate) struct OverlapRotation {
+    pub edges: Vec<MaterializedEdge>,
     pub edges_in_time: Vec<usize>
 }
 

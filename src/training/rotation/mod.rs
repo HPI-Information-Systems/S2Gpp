@@ -25,7 +25,6 @@ pub struct Rotation {
     broadcasted: bool,
     rotation_matrix_buffer: Option<RotationMatrixMessage>,
     pub pca: PCA,
-    pub rotated: Option<Array2<f32>>
 }
 
 pub trait Rotator {
@@ -124,15 +123,26 @@ impl Rotator for Training {
             .zip(self.rotation.reduced.as_ref().unwrap().axis_iter(Axis(2)))
             .map(|(a, b)| {
                 b.dot(&a.t())
-            }).collect();
+            })
+            .collect();
 
         let rotated_3 = stack(Axis(2), rotations.iter().map(|x|
             x.view()).collect::<Vec<ArrayView2<f32>>>().as_slice()
         ).unwrap();
-
         let rotated = rotated_3.slice(s![.., 0..2, ..]).to_owned();
         let shape = Dim([rotated.shape()[0], rotated.shape()[2] * 2]);
-        self.rotation.rotated = Some(rotated.into_shape(shape).unwrap());
+
+        let points: Vec<Array1<f32>> = rotated.into_shape(shape).unwrap()
+            .axis_iter(Axis(0))
+            .map(|point| {
+                point.to_owned()
+            })
+            .collect();
+
+        self.num_rotated = Some(points.len());
+        let points_per_node = self.dataset_stats.as_ref().expect("DatasetStats should've been set by now!").n.expect("DatasetStats.n should've been set by now!") / self.cluster_nodes.len_incl_own();
+        let own_id = self.cluster_nodes.get_own_idx();
+        self.data_store.add_points_with_offset(points, points_per_node * own_id, self.parameters.rate); // todo: calculate segments in bulk
     }
 }
 

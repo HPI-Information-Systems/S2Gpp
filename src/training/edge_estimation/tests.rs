@@ -1,14 +1,14 @@
-use std::collections::HashMap;
-use std::iter::FromIterator;
+use std::ops::Deref;
 use ndarray::{arr1};
 use crate::parameters::{Parameters};
 use crate::training::{Training};
-use crate::utils::{Edge, NodeName};
 use crate::data_manager::DatasetStats;
+use crate::data_store::edge::Edge;
+use crate::data_store::node::{IndependentNode};
 use crate::training::edge_estimation::EdgeEstimator;
 
 
-fn test_edge_estimation(nodes: Vec<(usize, Vec<NodeName>)>, expected_edges: Vec<Edge>) {
+fn test_edge_estimation(nodes: Vec<IndependentNode>, expected_edges: Vec<Edge>) {
     let parameters = Parameters::default();
     let mut training = Training::new(parameters);
 
@@ -19,13 +19,13 @@ fn test_edge_estimation(nodes: Vec<(usize, Vec<NodeName>)>, expected_edges: Vec<
         nodes.len()
     ));
 
-    training.node_estimation.nodes_by_point = HashMap::from_iter(nodes.clone());
-    training.segmentation.segment_index = HashMap::from_iter(nodes.into_iter().map(|(transition_id, _nodes)| (transition_id, transition_id)).collect::<Vec<(usize, usize)>>());
-
+    for node in nodes {
+        training.data_store.add_independent_node(node)
+    }
     training.connect_nodes();
 
     for (i, expected_edge) in expected_edges.into_iter().enumerate() {
-        assert_eq!(training.edge_estimation.edges[i].1, expected_edge);
+        assert!(training.data_store.get_edge(i).unwrap().deref().eq(&expected_edge));
     }
 }
 
@@ -33,13 +33,14 @@ fn test_edge_estimation(nodes: Vec<(usize, Vec<NodeName>)>, expected_edges: Vec<
 #[test]
 fn test_edge_estimation_ordered() {
     let nodes = vec![
-        (0, vec![NodeName(0, 0)]),
-        (1, vec![NodeName(1, 0), NodeName(2, 1)])
+        IndependentNode::new(0, 0, 0),
+        IndependentNode::new(1, 0, 1),
+        IndependentNode::new(2, 1, 1)
     ];
 
     let expected_edges = vec![
-        Edge(NodeName(0, 0), NodeName(1, 0)),
-        Edge(NodeName(1, 0), NodeName(2, 1))
+        Edge::new(IndependentNode::new(0, 0, 0).to_ref(), IndependentNode::new(1, 0, 1).to_ref()),
+        Edge::new(IndependentNode::new(1, 0, 1).to_ref(), IndependentNode::new(2, 1, 1).to_ref())
     ];
 
     test_edge_estimation(nodes, expected_edges);
@@ -49,12 +50,13 @@ fn test_edge_estimation_ordered() {
 #[test]
 fn test_edge_estimation_transition_over_0() {
     let nodes = vec![
-        (0, vec![NodeName(98, 0)]),
-        (1, vec![NodeName(0, 0), NodeName(99, 1)])
+        IndependentNode::new(98, 0, 0),
+        IndependentNode::new(0, 0, 1),
+        IndependentNode::new(99, 1, 1)
     ];
     let expected_edges = vec![
-        Edge(NodeName(98, 0), NodeName(99, 1)),
-        Edge(NodeName(99, 1), NodeName(0, 0))
+        Edge::new(IndependentNode::new(98, 0, 0).to_ref(), IndependentNode::new(99, 1, 1).to_ref()),
+        Edge::new(IndependentNode::new(99, 1, 1).to_ref(), IndependentNode::new(0, 0, 1).to_ref())
     ];
 
     test_edge_estimation(nodes, expected_edges);

@@ -1,85 +1,41 @@
 #[cfg(test)]
 mod tests;
-mod data_structures;
 pub(crate) mod messages;
 
 use crate::training::Training;
-use crate::utils::PolarCoords;
 use std::collections::HashMap;
-use ndarray::{Array1, Axis};
-use std::f32::consts::PI;
 use std::iter::FromIterator;
-use std::ops::Mul;
+use std::ops::{Deref, Mul};
 use actix::prelude::*;
 use num_integer::Integer;
-use serde::{Serialize, Deserialize};
-pub use crate::training::segmentation::data_structures::SegmentedTransition;
+use crate::data_store::point::{Point, PointRef};
+use crate::data_store::transition::{MaterializedTransition, Transition, TransitionMixin};
+use crate::data_store::materialize::Materialize;
 pub use crate::training::segmentation::messages::{SegmentedMessage, SegmentMessage, SendFirstPointMessage};
 use crate::utils::rotation_protocol::RotationProtocol;
 
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PointWithId {
-    pub id: usize,
-    pub coords: Array1<f32>
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SegmentedPointWithId {
-    pub segment_id: usize,
-    pub point_with_id: PointWithId
-}
-
-pub trait ToSegmented {
-    fn to_segmented(&self, segment_id: usize) -> Vec<SegmentedPointWithId>;
-}
-
-impl ToSegmented for Vec<PointWithId> {
-    fn to_segmented(&self, segment_id: usize) -> Vec<SegmentedPointWithId> {
-        self.iter()
-            .map(|p| SegmentedPointWithId { segment_id, point_with_id: p.clone() })
-            .collect()
-    }
-}
-
-pub trait FromPointsWithId {
-    fn append_points_with_id(&mut self, points: &Vec<PointWithId>, segment_id: usize);
-}
-
-impl FromPointsWithId for Vec<SegmentedPointWithId> {
-    fn append_points_with_id(&mut self, points: &Vec<PointWithId>, segment_id: usize) {
-        let mut segmented_points = points.to_segmented(segment_id);
-        self.append(&mut segmented_points);
-    }
-}
-
-pub type TransitionsForNodes = HashMap<usize, Vec<SegmentedTransition>>;
+pub(crate) type TransitionsForNodes = HashMap<usize, Vec<MaterializedTransition>>;
 /// (prev_point_id, prev_point_segment_id, point_id, segment_id)
-pub type NodeInQuestion = (usize, usize, usize, usize);
+pub(crate) type NodeInQuestion = (usize, usize, usize, usize);
 
 #[derive(Default)]
-pub struct Segmentation {
-    /// list of transitions of segmented points
-    pub segments: Vec<SegmentedTransition>,
+pub(crate) struct Segmentation {
     /// list of points that are endpoints to transitions from the previous cluster node
-    pub send_point: Option<SegmentedPointWithId>,
-    /// {point_id: transition_id}
-    pub segment_index: HashMap<usize, usize>,
-    pub n_received: usize,
-    pub node_transitions: HashMap<usize, Vec<SegmentedTransition>>,
-    pub last_point: Option<SegmentedPointWithId>,
+    pub send_point: Option<Point>,
+    pub last_point: Option<Point>,
     rotation_protocol: RotationProtocol<SegmentMessage>,
     /// {cluster node id (answering): {cluster node id (asking): \[NodeInQuestion\]}}
-    pub node_questions: HashMap<usize, HashMap<usize, Vec<NodeInQuestion>>>
+    pub node_questions: HashMap<usize, HashMap<usize, Vec<NodeInQuestion>>>,
+    pub transitions_for_nodes: TransitionsForNodes
 }
 
-pub trait Segmenter {
+pub(crate) trait Segmenter {
     fn segment(&mut self, ctx: &mut Context<Training>);
-    fn build_segments(&mut self) -> HashMap<usize, Vec<SegmentedTransition>>;
+    fn build_segments(&mut self) -> TransitionsForNodes;
     fn try_send_inter_node_points(&mut self) -> bool;
-    fn distribute_segments(&mut self, node_transitions: HashMap<usize, Vec<SegmentedTransition>>);
-    fn build_segment_index(&mut self);
-    fn build_node_questions(&self, node_questions: &mut HashMap<usize, HashMap<usize, Vec<NodeInQuestion>>>, transition: &SegmentedTransition, asking_node: &usize, prev_transition: Option<SegmentedTransition>, within_transition: bool);
+    fn distribute_segments(&mut self, foreign_data: TransitionsForNodes);
+    fn build_node_questions(&self, node_questions: &mut HashMap<usize, HashMap<usize, Vec<NodeInQuestion>>>, transition: &Transition, asking_node: &usize, prev_transition: Option<Transition>, within_transition: bool);
 }
 
 impl Segmenter for Training {
@@ -87,7 +43,7 @@ impl Segmenter for Training {
         let node_transitions = self.build_segments();
         let wait_for_points = self.try_send_inter_node_points();
         if wait_for_points {
-            self.segmentation.node_transitions = node_transitions;
+            self.segmentation.transitions_for_nodes = node_transitions;
         } else { // if no other cluster node exists (i.e. local only)
             self.segmentation.rotation_protocol.start(self.parameters.n_cluster_nodes - 1);
             self.segmentation.rotation_protocol.resolve_buffer(ctx.address().recipient());
@@ -95,31 +51,25 @@ impl Segmenter for Training {
         }
     }
 
-    fn build_segments(&mut self) -> HashMap<usize, Vec<SegmentedTransition>>{
+    fn build_segments(&mut self) -> TransitionsForNodes{
         let own_id = self.cluster_nodes.get_own_idx();
         let is_not_first = own_id.ne(&0);
-        let mut node_transitions = TransitionsForNodes::new();
+        let mut foreign_data: TransitionsForNodes = HashMap::new();
         let segments_per_node = (self.parameters.rate as f32 / self.parameters.n_cluster_nodes as f32).floor() as usize;
-        let mut last_point: Option<SegmentedPointWithId> = None;
-        let points_per_node = self.dataset_stats.as_ref().expect("DatasetStats should've been set by now!").n.expect("DatasetStats.n should've been set by now!") / self.cluster_nodes.len_incl_own();
-        let starting_id = own_id * points_per_node;
+        let mut last_point: Option<PointRef> = None;
         let mut last_to_node_id = None;
         let mut node_questions: HashMap<usize, HashMap<usize, Vec<NodeInQuestion>>> = HashMap::new();
         let mut last_transition = None;
-        for (id, x) in self.rotation.rotated.as_ref().unwrap().axis_iter(Axis(0)).enumerate() {
-            let polar = x.to_polar();
-            let segment_id = get_segment_id(polar[1], self.parameters.rate);
-            let point = SegmentedPointWithId { segment_id, point_with_id: PointWithId { id: id + starting_id, coords: x.iter().map(|x| x.clone()).collect() } };
+        for point in self.data_store.get_points() {
             match last_point {
                 Some(last_point) => {
-                    let from_node_id = last_point.segment_id / segments_per_node;
-                    let to_node_id = segment_id / segments_per_node;
-                    let transition = SegmentedTransition::new(last_point, point.clone());
+                    let from_node_id = last_point.get_segment() / segments_per_node;
+                    let to_node_id = point.get_segment() / segments_per_node;
+                    let transition = Transition::new(last_point, point.clone());
 
-
-                    if transition.crosses_segments() && transition.has_valid_direction(self.parameters.rate) { // valid transition
+                    if transition.crosses_segments() && transition.has_valid_direction(self.parameters.rate as isize) { // valid transition
                         if from_node_id == own_id { // normal transition
-                            self.segmentation.segments.push(transition.clone());
+                            self.data_store.add_transition(transition.clone());
                         }
 
                         if let Some(last_to_node_id) = last_to_node_id {
@@ -132,29 +82,28 @@ impl Segmenter for Training {
                             self.build_node_questions(&mut node_questions, &transition, &from_node_id, last_transition, true);
                         }
 
-                        match node_transitions.get_mut(&from_node_id) {
-                            Some(node_transitions) => node_transitions.push(transition.clone()),
-                            None => { node_transitions.insert(from_node_id, vec![transition.clone()]); }
+                        match foreign_data.get_mut(&from_node_id) {
+                            Some(foreign_data) => foreign_data.push(transition.materialize()),
+                            None => { foreign_data.insert(from_node_id, vec![transition.materialize()]); }
                         }
                         last_to_node_id = Some(to_node_id.clone());
                         last_transition = Some(transition);
                     }
                 },
                 None => if is_not_first {
-                    self.segmentation.send_point = Some(point.clone());
+                    self.segmentation.send_point = Some(point.deref().clone());
                 }
             }
 
-            last_point = Some(point);
+            last_point = Some(point.clone());
         }
-        self.segmentation.last_point = last_point;
+        self.segmentation.last_point = last_point.map(|x| x.deref().clone());
         self.segmentation.node_questions = node_questions;
-        node_transitions
+        foreign_data
     }
 
     fn try_send_inter_node_points(&mut self) -> bool {
-        let point = self.segmentation.send_point.clone();
-        self.segmentation.send_point = None;
+        let point = self.segmentation.send_point.take();
         match self.cluster_nodes.get_previous_idx() {
             Some(prev_idx) => {
                 match point {
@@ -175,27 +124,19 @@ impl Segmenter for Training {
         }
     }
 
-    fn distribute_segments(&mut self, node_transitions: HashMap<usize, Vec<SegmentedTransition>>) {
+    fn distribute_segments(&mut self, foreign_data: TransitionsForNodes) {
         match self.cluster_nodes.get_next_idx() {
             Some(next_id) => {
-                self.cluster_nodes.get_as(&next_id, "Training").unwrap().do_send(SegmentMessage { segments: node_transitions });
+                self.cluster_nodes.get_as(&next_id, "Training").unwrap().do_send(SegmentMessage { segments: foreign_data });
                 self.segmentation.rotation_protocol.sent();
             },
             None => {
-                self.build_segment_index();
                 self.own_addr.as_ref().expect("Should be set by now").do_send(SegmentedMessage);
             }
         }
     }
 
-    fn build_segment_index(&mut self) {
-        let index = self.segmentation.segments.iter().enumerate().map(|(id, transition)| {
-            (transition.from.point_with_id.id, id)
-        }).collect();
-        self.segmentation.segment_index = index;
-    }
-
-    fn build_node_questions(&self, node_questions: &mut HashMap<usize, HashMap<usize, Vec<NodeInQuestion>>>, transition: &SegmentedTransition, asking_node: &usize, prev_transition: Option<SegmentedTransition>, within_transition: bool) {
+    fn build_node_questions(&self, node_questions: &mut HashMap<usize, HashMap<usize, Vec<NodeInQuestion>>>, transition: &Transition, asking_node: &usize, prev_transition: Option<Transition>, within_transition: bool) {
 
         let segments_per_node = &self.parameters.segments_per_node();
         let point_id = transition.get_from_id();
@@ -256,27 +197,21 @@ impl Segmenter for Training {
     }
 }
 
-fn get_segment_id(angle: f32, n_segments: usize) -> usize {
-    let positive_angle = (2.0 * PI) + angle;
-    let segment_size = (2.0 * PI) / (n_segments as f32);
-    (positive_angle / segment_size).floor() as usize % n_segments
-}
 
 impl Handler<SendFirstPointMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: SendFirstPointMessage, ctx: &mut Self::Context) -> Self::Result {
-        let last_transition = SegmentedTransition::new(self.segmentation.last_point.as_ref().unwrap().clone(), msg.point);
-        self.segmentation.last_point = None;
+        let last_transition = MaterializedTransition::new(self.segmentation.last_point.take().unwrap(), msg.point);
 
-        let mut node_transitions = self.segmentation.node_transitions.clone();
+        let mut node_transitions = self.segmentation.transitions_for_nodes.clone();
         let segments_per_node = (self.parameters.rate as f32 / self.cluster_nodes.len_incl_own() as f32).floor() as usize;
-        let node_id = last_transition.from.segment_id / segments_per_node;
+        let node_id = last_transition.get_from_segment() / segments_per_node;
         match (&mut node_transitions).get_mut(&node_id) {
             None => { node_transitions.insert(node_id, vec![last_transition]); },
             Some(transitions) => transitions.push(last_transition)
         }
-        self.segmentation.node_transitions.clear();
+        self.segmentation.transitions_for_nodes.clear();
         self.segmentation.rotation_protocol.start(self.parameters.n_cluster_nodes - 1);
         self.segmentation.rotation_protocol.resolve_buffer(ctx.address().recipient());
         self.distribute_segments(node_transitions);
@@ -294,15 +229,14 @@ impl Handler<SegmentMessage> for Training {
         let own_id = self.cluster_nodes.get_own_idx();
         let next_id = (own_id + 1) % (&self.cluster_nodes.len_incl_own());
         let mut segments = msg.segments;
-        let mut own_points = segments.remove(&own_id).unwrap();
+        let own_transitions = segments.remove(&own_id).unwrap();
 
-        self.segmentation.segments.append(&mut own_points);
+        self.data_store.add_materialized_transitions(own_transitions);
 
         if self.segmentation.rotation_protocol.is_running() {
             self.cluster_nodes.get_as(&next_id, "Training").unwrap().do_send(SegmentMessage { segments });
             self.segmentation.rotation_protocol.sent();
         } else {
-            self.build_segment_index();
             ctx.address().do_send(SegmentedMessage);
         }
     }
