@@ -28,8 +28,8 @@
 - [x] Result Writing
 
 ## Nice to Have
-- [ ] Node storage
-- [ ] Edge storage
-- [ ] No need to build Graph
+- [x] Node storage
+- [x] Edge storage
+- [x] No need to build Graph
 - [ ] Python Binding
 - [ ] Dimension responsibility (check how far off a node is from the mean of all other nodes, per dimension, use this as indicator)
