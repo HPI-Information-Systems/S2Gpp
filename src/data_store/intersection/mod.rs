@@ -21,6 +21,10 @@ impl Intersection {
             segment_id
         }
     }
+
+    pub fn to_ref(self) -> IntersectionRef {
+        IntersectionRef::new(self)
+    }
 }
 
 pub(crate) trait IntersectionMixin<T> {
