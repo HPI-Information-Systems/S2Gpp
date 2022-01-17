@@ -9,7 +9,7 @@ use meanshift_rs::{MeanShiftActor, MeanShiftMessage, MeanShiftResponse};
 
 pub(crate) use crate::training::node_estimation::messages::{NodeEstimationDone, AskForForeignNodes, ForeignNodesAnswer};
 use num_integer::Integer;
-use crate::data_store::intersection::{IntersectionMixin, IntersectionRef};
+use crate::data_store::intersection::IntersectionRef;
 use crate::data_store::node::{IndependentNode, Node};
 use crate::utils::logging::progress_bar::S2GppProgressBar;
 use crate::utils::rotation_protocol::RotationProtocol;

@@ -20,8 +20,7 @@ use ndarray_stats::QuantileExt;
 
 use num_integer::Integer;
 use ndarray_linalg::Norm;
-use crate::data_store::intersection::{Intersection, MaterializedIntersection};
-use crate::data_store::materialize::Materialize;
+use crate::data_store::intersection::{Intersection};
 use crate::data_store::transition::{TransitionMixin, TransitionRef};
 use crate::utils::logging::progress_bar::S2GppProgressBar;
 use crate::utils::rotation_protocol::RotationProtocol;
@@ -31,7 +30,7 @@ pub type SegmentID = usize;
 #[derive(Default)]
 pub(crate) struct IntersectionCalculation {
     /// Intersections belonging to another cluster node
-    pub foreign_intersections: HashMap<SegmentID, Vec<MaterializedIntersection>>,
+    pub foreign_intersections: HashMap<SegmentID, Vec<Intersection>>,
     pub helpers: Option<Addr<IntersectionCalculationHelper>>,
     /// Collects tasks for helper actors.
     pub pairs: Vec<(TransitionRef, SegmentID, Array2<f32>, Array2<f32>)>,
@@ -164,9 +163,9 @@ impl IntersectionCalculator for Training {
             self.data_store.add_intersection(intersection)
         } else {
             match &mut self.intersection_calculation.foreign_intersections.get_mut(&segment_id) {
-                Some(transition_coord) => transition_coord.push(intersection.materialize()),
+                Some(transition_coord) => transition_coord.push(intersection),
                 None => {
-                    self.intersection_calculation.foreign_intersections.insert(segment_id, vec![intersection.materialize()]);
+                    self.intersection_calculation.foreign_intersections.insert(segment_id, vec![intersection]);
                 }
             };
         }
@@ -213,7 +212,7 @@ impl Handler<IntersectionRotationMessage> for Training {
         let own_id = self.cluster_nodes.get_own_idx();
         for (segment_id, intersection_by_point) in msg.intersection_coords_by_segment.into_iter() {
             if own_id.eq(&self.segment_id_to_assignment(segment_id.clone())) {
-                self.data_store.add_materialized_intersections(intersection_by_point)
+                self.data_store.add_intersections(intersection_by_point)
             } else {
                 match &mut self.intersection_calculation.foreign_intersections.get_mut(&segment_id) {
                     Some(transition_coord) => { transition_coord.extend(intersection_by_point) },

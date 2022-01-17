@@ -10,9 +10,8 @@ use tokio::time::{Duration, sleep};
 use crate::training::intersection_calculation::IntersectionCalculationDone;
 use std::sync::{Arc, Mutex};
 use crate::data_store::DataStore;
-use crate::data_store::intersection::IntersectionMixin;
 use crate::data_store::point::Point;
-use crate::data_store::transition::{Transition, TransitionMixin};
+use crate::data_store::transition::{Transition};
 
 
 #[derive(Default)]
@@ -53,11 +52,11 @@ impl Handler<CheckingMessage> for Training {
 
     fn handle(&mut self, msg: CheckingMessage, _ctx: &mut Self::Context) -> Self::Result {
         for intersection in self.data_store.get_intersections_from_segment(0).unwrap() {
-            if intersection.get_transition().get_from_id().eq(&49) {
+            if intersection.get_from_id().eq(&49) {
                 assert_eq!(51., intersection.get_coordinates()[0]);
-            } else if intersection.get_transition().get_from_id().eq(&100) {
+            } else if intersection.get_from_id().eq(&100) {
                 assert_eq!(102., intersection.get_coordinates()[0]);
-            } else if intersection.get_transition().get_from_id().eq(&151) {
+            } else if intersection.get_from_id().eq(&151) {
                 assert_eq!(153., intersection.get_coordinates()[0]);
             }
         }

@@ -2,14 +2,12 @@ mod independent;
 
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
-use crate::data_store::intersection::{IntersectionMixin, IntersectionRef};
+use crate::data_store::intersection::IntersectionRef;
 pub(crate) use crate::data_store::node::independent::IndependentNode;
-use crate::data_store::transition::TransitionMixin;
 
 
 #[derive(Clone)]
 pub(crate) struct Node {
-    // todo: is this reference necessary?
     intersection: IntersectionRef,
     cluster: usize
 }
@@ -23,7 +21,7 @@ impl Node {
     }
 
     pub fn to_independent(&self) -> IndependentNode {
-        IndependentNode::new(self.get_segment_id(), self.get_cluster(), self.get_intersection().get_transition().get_from_id())
+        IndependentNode::new(self.get_segment_id(), self.get_cluster(), self.get_intersection().get_from_id())
     }
 
     pub fn get_segment_id(&self) -> usize {
