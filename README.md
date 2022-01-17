@@ -26,6 +26,7 @@
   - [x] distributed Scorer
   - [ ] parallel scoring
 - [x] Result Writing
+- [ ] Docu in README.md
 
 ## Nice to Have
 - [x] Node storage
