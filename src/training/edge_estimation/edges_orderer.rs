@@ -64,7 +64,7 @@ impl EdgesOrderer {
     /// _Example_: \[96 (previous transition node), 0 (last node), 97, 98, 99\]
     /// First this struct will sort \[97, 98, 99, 0\] and then prepend _96_.
     pub fn add_node(&mut self, previous_node: &Option<NodeRef>, current_node: &NodeRef) {
-        // todo: in case of previous transition node is same as first node, second node becomes first node...
+        // in case of previous transition node is same as first node, second node becomes first node...
         if self.previous_transition_node.eq(previous_node) && self.edges_small.is_empty() && self.first_node.is_none() {
             self.first_node = Some(current_node.clone());
             return
