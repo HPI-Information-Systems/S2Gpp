@@ -56,7 +56,7 @@ impl Transposer for Training {
         }
 
         let own_id = self.cluster_nodes.get_own_idx();
-        self.data_store.add_materialized_edges(assignments.remove(&own_id).unwrap()); // todo: maybe do not delete in the first place
+        self.data_store.add_materialized_edges(assignments.remove(&own_id).unwrap());
 
         assignments
     }
