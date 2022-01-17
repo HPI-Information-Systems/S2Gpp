@@ -4,7 +4,7 @@ use actix_telepathy::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use ndarray::{Array2, Array1};
-use crate::data_store::intersection::{MaterializedIntersection};
+use crate::data_store::intersection::Intersection;
 use crate::data_store::transition::TransitionRef;
 use crate::training::intersection_calculation::{SegmentID};
 
@@ -32,7 +32,7 @@ pub(crate) struct IntersectionResultMessage {
 #[derive(RemoteMessage, Serialize, Deserialize, Default, Debug, Clone)]
 pub(crate) struct IntersectionRotationMessage {
     #[serde_as(as = "Vec<(_, _)>")]
-    pub intersection_coords_by_segment: HashMap<SegmentID, Vec<MaterializedIntersection>>
+    pub intersection_coords_by_segment: HashMap<SegmentID, Vec<Intersection>>
 }
 
 #[derive(Message)]

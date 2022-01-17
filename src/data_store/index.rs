@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use indexmap::IndexMap;
-use crate::data_store::intersection::{IntersectionMixin, IntersectionRef};
+use crate::data_store::intersection::IntersectionRef;
 use crate::data_store::node::NodeRef;
 use crate::data_store::point::PointRef;
 

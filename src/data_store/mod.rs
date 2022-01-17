@@ -3,7 +3,7 @@ use std::slice::Iter;
 use ndarray::{Array1};
 use crate::data_store::edge::{Edge, EdgeRef, MaterializedEdge};
 use crate::data_store::index::DataStoreIndex;
-use crate::data_store::intersection::{Intersection, IntersectionMixin, IntersectionRef, MaterializedIntersection};
+use crate::data_store::intersection::{Intersection, IntersectionRef};
 use crate::data_store::materialize::Materialize;
 use crate::data_store::node::{IndependentNode, Node, NodeRef};
 use crate::data_store::point::{Point, PointRef};
@@ -99,16 +99,9 @@ impl DataStore {
         self.index.add_intersection(intersection_ref);
     }
 
-    pub fn add_materialized_intersection(&mut self, intersection: MaterializedIntersection) {
-        // todo: check if points and transitions are necessary to add
-        self.add_materialized_transition(intersection.get_transition());
-        let transition = self.transitions.last().unwrap().clone();
-        self.add_intersection(Intersection::new(transition, intersection.get_coordinates().to_owned().clone(), intersection.get_segment_id()));
-    }
-
-    pub fn add_materialized_intersections(&mut self, intersections: Vec<MaterializedIntersection>) {
+    pub fn add_intersections(&mut self, intersections: Vec<Intersection>) {
         for intersection in intersections {
-            self.add_materialized_intersection(intersection);
+            self.add_intersection(intersection);
         }
     }
 
