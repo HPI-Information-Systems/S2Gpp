@@ -1,5 +1,6 @@
 pub mod utils;
 
+use std::env::temp_dir;
 use std::fs::remove_file;
 use actix::prelude::*;
 use actix_rt::System;
@@ -13,9 +14,17 @@ use crate::parameters::{Parameters, Role};
 use crate::training::{StartTrainingMessage, Training};
 use crate::utils::ClusterNodes;
 
-// todo: temp path
+
 const ESTIMATED_SCORES_PATH: &str = "ts_0.csv.scores";
 const EXPECTED_SCORES_PATH: &str = "data/ts_0.csv.scores";
+
+
+fn get_output_path() -> String {
+    let mut dir = temp_dir();
+    dir.push(ESTIMATED_SCORES_PATH);
+    dir.to_str().unwrap().to_string()
+}
+
 
 #[test]
 #[ignore] // takes some time
@@ -23,7 +32,7 @@ fn global_comut_not_distributed() {
     let params: Parameters = Parameters {
         role: Role::Main { data_path: "data/ts_0.csv".to_string() },
         local_host: "127.0.0.1:1992".parse().unwrap(),
-        score_output_path: Some(ESTIMATED_SCORES_PATH.to_string()),
+        score_output_path: Some(get_output_path()),
         ..Default::default()
     };
 
@@ -43,7 +52,7 @@ fn global_comut_distributed() {
         Parameters {
             role: Role::Main { data_path: "data/ts_0.csv".to_string() },
             local_host: mainhost,
-            score_output_path: Some(ESTIMATED_SCORES_PATH.to_string()),
+            score_output_path: Some(get_output_path()),
             n_cluster_nodes: 2,
             ..Default::default()
         },
@@ -86,9 +95,10 @@ fn run_single_global_comut(params: Parameters) {
 
 
 fn check_for_comut_score() {
+    let estimated_scores_path = get_output_path();
     let expected_scores = read_data_(EXPECTED_SCORES_PATH);
-    let estimated_scores = read_data_(ESTIMATED_SCORES_PATH);
-    remove_file(ESTIMATED_SCORES_PATH).expect("Could not delete test file!");
+    let estimated_scores = read_data_(&estimated_scores_path);
+    remove_file(&estimated_scores_path).expect("Could not delete test file!");
 
     close_l1(&estimated_scores, &expected_scores, 0.000001);
 }
