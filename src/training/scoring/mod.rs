@@ -285,7 +285,7 @@ impl Handler<EdgeWeights> for Training {
 
         for (edge, weight) in msg.weights.iter() {
             match self.scoring.edge_weight.get_mut(edge) {
-                None => {self.scoring.edge_weight.insert(edge.clone(), weight.clone());}, // todo: check if this branch is needed
+                None => {},
                 Some(old_weight) => { *old_weight += weight; }
             }
         }
