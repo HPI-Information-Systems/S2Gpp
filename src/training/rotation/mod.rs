@@ -142,7 +142,7 @@ impl Rotator for Training {
         self.num_rotated = Some(points.len());
         let points_per_node = self.dataset_stats.as_ref().expect("DatasetStats should've been set by now!").n.expect("DatasetStats.n should've been set by now!") / self.cluster_nodes.len_incl_own();
         let own_id = self.cluster_nodes.get_own_idx();
-        self.data_store.add_points_with_offset(points, points_per_node * own_id, self.parameters.rate); // todo: calculate segments in bulk
+        self.data_store.add_points_with_offset(points, points_per_node * own_id, self.parameters.rate);
     }
 }
 
