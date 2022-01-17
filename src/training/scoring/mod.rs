@@ -15,6 +15,7 @@ use crate::data_store::edge::{Edge, MaterializedEdge};
 use crate::data_store::materialize::Materialize;
 use crate::data_store::node::{IndependentNode, NodeRef};
 use crate::training::scoring::messages::{ScoringDone, NodeDegrees, SubScores, ScoreInitDone, EdgeWeights, OverlapRotation};
+use crate::utils::logging::progress_bar::S2GppProgressBar;
 use crate::utils::rotation_protocol::RotationProtocol;
 
 #[derive(Default)]
@@ -45,7 +46,6 @@ pub(crate) trait Scorer {
 }
 
 
-//todo: progress bar
 impl Scorer for Training {
     fn init_scoring(&mut self, ctx: &mut Context<Training>) {
         self.scoring.edges_in_time = self.count_edges_in_time();
@@ -159,7 +159,6 @@ impl Scorer for Training {
 
     fn score(&mut self, ctx: &mut Context<Training>) {
         // todo: parallelize
-        // todo: progress bar
         let mut all_score = vec![];
 
         if self.scoring.edges_in_time.len() < (self.parameters.query_length - 1) {
@@ -167,6 +166,7 @@ impl Scorer for Training {
         }
 
         let end_iteration = self.scoring.edges_in_time.len() - (self.parameters.query_length - 1);
+        let progress_bar = S2GppProgressBar::new_from_len("info", end_iteration);
 
         for i in 0..end_iteration {
             let from_edge_idx = self.scoring.edges_in_time[i];
@@ -179,7 +179,9 @@ impl Scorer for Training {
             } else {
                 all_score.push(score);
             }
+            progress_bar.inc();
         }
+        progress_bar.finish_and_clear();
 
         let mut scores: Array1<f32> = all_score.into_iter().map(|x| -x).collect();
 
