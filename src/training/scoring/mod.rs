@@ -96,7 +96,6 @@ impl Scorer for Training {
             }
         }
 
-        // todo: see if data store can hold this information
         let result_length = self.num_rotated.expect("should have been already set") - if self.cluster_nodes.get_own_idx().eq(&self.cluster_nodes.len()) {
             1 // -1 because the last point has no outgoing edge
         } else {
@@ -201,7 +200,6 @@ impl Scorer for Training {
     }
 
     fn normalize_score(&mut self, scores: &mut Array1<f32>) {
-        // todo: make part of score
         let all_score_max = scores.max().unwrap().clone();
         let all_score_min = scores.min().unwrap().clone();
         *scores = scores.into_iter().map(|x| (*x - all_score_min) / (all_score_max - all_score_min)).collect();
