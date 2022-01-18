@@ -1,26 +1,31 @@
 #[cfg(test)]
 mod tests;
 pub mod messages;
+mod helper;
 
 use ndarray::{Array1, ArrayView1, Axis, concatenate};
 use crate::training::Training;
 use std::collections::{HashMap, HashSet};
 use ndarray_stats::QuantileExt;
-use std::ops::{Deref, Range, Sub};
+use std::ops::{Deref, Sub};
 use anyhow::Result;
 use std::fs::File;
-use actix::{AsyncContext, Context, Handler};
+use actix::{Addr, AsyncContext, Context, Handler, SyncArbiter};
 use csv::WriterBuilder;
 use crate::data_store::edge::{Edge, MaterializedEdge};
 use crate::data_store::materialize::Materialize;
 use crate::data_store::node::{IndependentNode, NodeRef};
-use crate::training::scoring::messages::{ScoringDone, NodeDegrees, SubScores, ScoreInitDone, EdgeWeights, OverlapRotation};
+use crate::messages::PoisonPill;
+use crate::training::scoring::helper::ScoringHelper;
+use crate::training::scoring::messages::{ScoringDone, NodeDegrees, SubScores, ScoreInitDone, EdgeWeights, OverlapRotation, ScoringHelperResponse, ScoringHelperInstruction};
+use crate::utils::HelperProtocol;
 use crate::utils::logging::progress_bar::S2GppProgressBar;
 use crate::utils::rotation_protocol::RotationProtocol;
 
 #[derive(Default)]
 pub(crate) struct Scoring {
     pub score: Option<Array1<f32>>,
+    single_scores: Vec<f32>,
     subscores: HashMap<usize, Array1<f32>>,
     pub node_degrees: HashMap<NodeRef, usize>, // must be sent
     edge_weight: HashMap<MaterializedEdge, usize>, // must be sent
@@ -28,7 +33,12 @@ pub(crate) struct Scoring {
     node_degrees_rotation_protocol: RotationProtocol<NodeDegrees>,
     edge_weight_rotation_protocol: RotationProtocol<EdgeWeights>,
     overlap_rotation_protocol: RotationProtocol<OverlapRotation>,
-    score_rotation_protocol: RotationProtocol<SubScores>
+
+    helpers: Option<Addr<ScoringHelper>>,
+    score_rotation_protocol: RotationProtocol<SubScores>,
+    helper_protocol: HelperProtocol,
+    progress_bar: S2GppProgressBar,
+    helper_buffer: HashMap<usize, ScoringHelperResponse>
 }
 
 pub(crate) trait Scorer {
@@ -39,8 +49,9 @@ pub(crate) trait Scorer {
     fn calculate_node_degrees(&mut self) -> HashMap<NodeRef, usize>;
     fn send_overlap_to_neighbor(&mut self, ctx: &mut Context<Training>);
     fn score(&mut self, ctx: &mut Context<Training>);
+    fn parallel_score(&mut self, score_length: usize);
+    fn finalize_parallel_score(&mut self, ctx: &mut Context<Training>);
     fn normalize_score(&mut self, score: &mut Array1<f32>);
-    fn score_p_degree(&mut self, edge_range: Range<usize>) -> (f32, usize);
     fn finalize_scoring(&mut self, ctx: &mut Context<Training>);
     fn output_score(&mut self, output_path: String) -> Result<()>;
 }
@@ -157,32 +168,58 @@ impl Scorer for Training {
     }
 
     fn score(&mut self, ctx: &mut Context<Training>) {
-        // todo: parallelize
-        let mut all_score = vec![];
-
         if self.scoring.edges_in_time.len() < (self.parameters.query_length - 1) {
             panic!("There are less edges than the given 'query_length'!");
         }
 
-        let end_iteration = self.scoring.edges_in_time.len() - (self.parameters.query_length - 1);
-        let progress_bar = S2GppProgressBar::new_from_len("info", end_iteration);
+        let score_length = self.scoring.edges_in_time.len() - (self.parameters.query_length - 1);
 
-        for i in 0..end_iteration {
-            let from_edge_idx = self.scoring.edges_in_time[i];
-            let to_edge_idx = self.scoring.edges_in_time[i + self.parameters.query_length - 1];
+        self.scoring.helper_protocol.n_total = self.parameters.n_threads;
+        self.scoring.progress_bar = S2GppProgressBar::new_from_len("info", score_length);
 
+        let edges = self.data_store.get_edges();
+        let edges_in_time = self.scoring.edges_in_time.clone();
+        let edge_weight = self.scoring.edge_weight.clone();
+        let node_degrees = self.scoring.node_degrees.clone();
+        let query_length = self.parameters.query_length;
+        let receiver = ctx.address().recipient();
 
-            let (score, len_score) = self.score_p_degree(from_edge_idx..to_edge_idx);
-            if len_score == 0 {
-                all_score.push(all_score.last().unwrap_or(&0_f32).clone());
+        self.scoring.helpers = Some(SyncArbiter::start(self.parameters.n_threads, move || {ScoringHelper {
+            edges: edges.clone(),
+            edges_in_time: edges_in_time.clone(),
+            edge_weight: edge_weight.clone(),
+            node_degrees: node_degrees.clone(),
+            query_length,
+            receiver: receiver.clone()
+        }}));
+
+        self.parallel_score(score_length);
+    }
+
+    fn parallel_score(&mut self, score_length: usize) {
+        let n_per_thread = score_length / self.parameters.n_threads;
+        let n_rest = score_length % self.parameters.n_threads;
+
+        for i in 0..self.parameters.n_threads {
+            let rest = if i == self.parameters.n_threads - 1 {
+                n_rest
             } else {
-                all_score.push(score);
-            }
-            progress_bar.inc();
-        }
-        progress_bar.finish_and_clear();
+                0
+            };
 
-        let mut scores: Array1<f32> = all_score.into_iter().map(|x| -x).collect();
+            self.scoring.helpers.as_ref().unwrap().do_send(ScoringHelperInstruction {
+                start: i * n_per_thread,
+                length: n_per_thread + rest
+            });
+
+            self.scoring.helper_protocol.sent();
+        }
+    }
+
+    fn finalize_parallel_score(&mut self, ctx: &mut Context<Training>) {
+        self.scoring.helpers.as_ref().unwrap().do_send(PoisonPill);
+        let mut scores: Array1<f32> = self.scoring.single_scores.clone().into_iter().collect();
+        self.scoring.single_scores.clear();
 
         if self.cluster_nodes.len() > 0 {
             let own_idx = self.cluster_nodes.get_own_idx();
@@ -203,16 +240,6 @@ impl Scorer for Training {
         let all_score_max = scores.max().unwrap().clone();
         let all_score_min = scores.min().unwrap().clone();
         *scores = scores.into_iter().map(|x| (*x - all_score_min) / (all_score_max - all_score_min)).collect();
-    }
-
-    fn score_p_degree(&mut self, edge_range: Range<usize>) -> (f32, usize) {
-        let p_edge = self.data_store.slice_edges(edge_range);
-        let len_score = p_edge.len();
-        let alpha = 0.00000001 + (len_score as f32);
-        let score: f32 = p_edge.map(|edge| {
-            (self.scoring.edge_weight.get(&edge.materialize()).unwrap() * (self.scoring.node_degrees.get(&edge.get_from_node()).expect("Edge with unknown Node found!") - 1)) as f32
-        }).sum();
-        (score / alpha, len_score)
     }
 
     fn finalize_scoring(&mut self, ctx: &mut Context<Training>) {
@@ -332,6 +359,38 @@ impl Handler<OverlapRotation> for Training {
 
         if self.scoring.overlap_rotation_protocol.is_running() {
             panic!("Only one overlap should be received");
+        }
+    }
+}
+
+
+impl Handler<ScoringHelperResponse> for Training {
+    type Result = ();
+
+    fn handle(&mut self, msg: ScoringHelperResponse, ctx: &mut Self::Context) -> Self::Result {
+        if msg.start != self.scoring.single_scores.len() {
+            self.scoring.helper_buffer.insert(msg.start, msg);
+            return
+        }
+        self.scoring.helper_protocol.received();
+
+        let mut scores = msg.scores;
+        if msg.first_empty {
+            scores[0] = self.scoring.single_scores.last().unwrap_or(&0_f32).clone();
+        }
+        self.scoring.progress_bar.inc_by(scores.len() as u64);
+        self.scoring.single_scores.extend(scores);
+
+        if !self.scoring.helper_protocol.is_running() {
+            self.scoring.progress_bar.finish_and_clear();
+            self.finalize_parallel_score(ctx);
+        } else {
+            match self.scoring.helper_buffer.remove(&self.scoring.single_scores.len()) {
+                None => {},
+                Some(scoring_helper_response) => {
+                    ctx.address().do_send(scoring_helper_response);
+                }
+            }
         }
     }
 }
