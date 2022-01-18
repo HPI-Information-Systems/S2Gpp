@@ -40,6 +40,23 @@ pub(crate) struct OverlapRotation {
 }
 
 
+#[derive(Message)]
+#[rtype(Result = "()")]
+pub(crate) struct ScoringHelperInstruction {
+    pub start: usize,
+    pub length: usize
+}
+
+
+#[derive(Message)]
+#[rtype(Result = "()")]
+pub(crate) struct ScoringHelperResponse {
+    pub start: usize,
+    pub scores: Vec<f32>,
+    pub first_empty: bool
+}
+
+
 #[derive(RemoteMessage, Serialize, Deserialize, Default, Clone)]
 pub struct SubScores {
     pub cluster_node_id: usize,

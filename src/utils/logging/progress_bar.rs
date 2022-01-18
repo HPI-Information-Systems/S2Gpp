@@ -50,6 +50,13 @@ impl S2GppProgressBar {
         }
     }
 
+    pub fn inc_by(&self, delta: u64) {
+        match &self.progress_bar {
+            Some(pb) => pb.inc(delta),
+            None => ()
+        }
+    }
+
     pub fn finish_and_clear(&self) {
         match &self.progress_bar {
             Some(pb) => pb.finish_and_clear(),
