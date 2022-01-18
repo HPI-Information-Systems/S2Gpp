@@ -45,6 +45,7 @@ impl DataStore {
         self.index.add_point_return(point)
     }
 
+    #[cfg(test)]
     pub fn add_points(&mut self, points: Vec<Array1<f32>>, n_segments: usize) {
         self.add_points_with_offset(points, 0, n_segments)
     }
@@ -68,6 +69,7 @@ impl DataStore {
         self.transitions.push(TransitionRef::new(transition))
     }
 
+    #[cfg(test)]
     pub fn add_transitions(&mut self, transitions: Vec<Transition>) {
         for transition in transitions.into_iter() {
             self.add_transition(transition)
@@ -150,6 +152,7 @@ impl DataStore {
         }
     }
 
+    #[cfg(test)]
     pub fn get_edge(&self, index: usize) -> Option<&EdgeRef> {
         self.edges.get(index)
     }
