@@ -24,7 +24,7 @@
   - [x] Graph output
 - [x] Scorer
   - [x] distributed Scorer
-  - [ ] parallel scoring
+  - [x] parallel scoring
 - [x] Result Writing
 - [ ] Docu in README.md
 
