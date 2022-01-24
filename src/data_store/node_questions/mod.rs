@@ -46,16 +46,26 @@ impl NodeQuestions {
         self.node_questions.clear()
     }
 
+    fn segment_is_first_transition_intersection(&self, segment: usize, transition: &Transition, parameters: &Parameters) -> bool {
+        segment == transition.get_first_intersection_segment(&parameters.rate)
+    }
+
+    fn get_wanted_segment(&self, transition: &Transition, parameters: &Parameters, i: usize) -> (usize, usize) {
+        let wanted_segment = parameters.first_segment_of_i_next_cluster_node(transition.get_from_segment(), i+1);
+        let segment_before_wanted = (wanted_segment as isize - 1).mod_floor(&(parameters.rate as isize)) as usize;
+
+        (wanted_segment, segment_before_wanted)
+    }
+
     pub fn ask(&mut self, transition: &Transition, prev_transition: Option<Transition>, within_transition: bool, cluster_span: usize, parameters: Parameters) {
         let point_id = transition.get_from_id();
         let nodes_in_question = if let Some(prev) = prev_transition {
             if within_transition {
                 (0..cluster_span).into_iter().map(|i| {
-                    let wanted_segment = parameters.first_segment_of_i_next_cluster_node(transition.get_from_segment(), i+1);
-                    let segment_before_wanted = (wanted_segment as isize - 1).mod_floor(&(parameters.rate as isize)) as usize;
+                    let (wanted_segment, segment_before_wanted) = self.get_wanted_segment(transition, &parameters, i);
 
                     // if transition starts in last assigned segment
-                    let (prev_point_id, prev_segment_id) = if (wanted_segment == transition.get_first_intersection_segment(&parameters.rate)) & (i == 0) {
+                    let (prev_point_id, prev_segment_id) = if self.segment_is_first_transition_intersection(wanted_segment, transition, &parameters) & (i == 0) {
                         // foreign should receive node from transition before
                         (prev.get_from_id(), prev.get_to_segment())
                     } else {
@@ -71,18 +81,19 @@ impl NodeQuestions {
                     )
                 }).collect()
             } else {
-                vec![NodeInQuestion::new(
-                    prev.get_from_id(),
-                    prev.get_to_segment(),
-                    point_id,
-                    transition.get_first_intersection_segment(&parameters.rate)
-                )]
+                vec![
+                    NodeInQuestion::new(
+                        prev.get_from_id(),
+                        prev.get_to_segment(),
+                        point_id,
+                        transition.get_first_intersection_segment(&parameters.rate)
+                    )
+                ]
             }
         } else {
             if within_transition {
                 (0..cluster_span).into_iter().map(|i| {
-                    let wanted_segment = parameters.first_segment_of_i_next_cluster_node(transition.get_from_segment(), i+1);
-                    let segment_before_wanted = (wanted_segment as isize - 1).mod_floor(&(parameters.rate as isize)) as usize;
+                    let (wanted_segment, segment_before_wanted) = self.get_wanted_segment(transition, &parameters, i);
 
                     NodeInQuestion::new(
                         point_id,
