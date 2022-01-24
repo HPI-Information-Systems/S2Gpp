@@ -21,7 +21,7 @@ indicatif = "0.16.2"
 console = "0.14.1"
 
 actix = "=0.12.0"
-actix-telepathy = "=0.4.0"
+actix-telepathy = "=0.4.1"
 actix-broker = "0.4.1"
 serde = "1.0"
 serde_with = "1.9.1"

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use ndarray::{ArrayView1, stack_new_axis, Axis,};
 use crate::training::Training;
-use actix::{Addr, Handler, Actor, Recipient, AsyncContext, Context};
+use actix::{Addr, Handler, Actor, Recipient, AsyncContext, Context, WrapFuture, ActorFutureExt, ContextFutureSpawner};
 use meanshift_rs::{MeanShiftActor, MeanShiftMessage, MeanShiftResponse};
 
 pub(crate) use crate::training::node_estimation::messages::{NodeEstimationDone, AskForForeignNodes, ForeignNodesAnswer};
@@ -36,7 +36,7 @@ pub(crate) trait NodeEstimator {
     fn ask_next(&mut self, asked_nodes: NodeQuestions);
     fn search_for_asked_nodes(&mut self, node_questions: HashMap<usize, Vec<NodeInQuestion>>);
     fn start_anwering(&mut self, ctx: &mut Context<Training>);
-    fn answer_next(&mut self, answers: HashMap<usize, Vec<(usize, usize, usize, IndependentNode)>>);
+    fn answer_next(&mut self, answers: HashMap<usize, Vec<(usize, usize, usize, IndependentNode)>>, ctx: &mut Context<Training>);
     fn take_in_answers(&mut self, answers: Vec<(usize, usize, usize, IndependentNode)>);
     fn finalize_node_estimation(&mut self, ctx: &mut Context<Training>);
 }
@@ -102,12 +102,19 @@ impl NodeEstimator for Training {
     fn start_anwering(&mut self, ctx: &mut Context<Training>) {
         self.node_estimation.answering_rotation_protocol.start(self.parameters.n_cluster_nodes);
         self.node_estimation.answering_rotation_protocol.resolve_buffer(ctx.address().recipient());
-        self.answer_next(self.node_estimation.answers.clone());
+        self.answer_next(self.node_estimation.answers.clone(), ctx);
         self.node_estimation.answers.clear();
     }
 
-    fn answer_next(&mut self, answers: HashMap<usize, Vec<(usize, usize, usize, IndependentNode)>>) {
-        self.cluster_nodes.get_next_as("Training").unwrap().do_send(ForeignNodesAnswer { answers });
+    fn answer_next(&mut self, answers: HashMap<usize, Vec<(usize, usize, usize, IndependentNode)>>, ctx: &mut Context<Training>) {
+        self.cluster_nodes.get_next_as("Training").unwrap()
+            .wait_send(ForeignNodesAnswer { answers })
+            .into_actor(self)
+            .map(|res, _act, _ctx| match res {
+                Ok(_) => (),
+                Err(_) => ()
+            })
+            .wait(ctx);
         self.node_estimation.answering_rotation_protocol.sent();
     }
 
@@ -190,7 +197,7 @@ impl Handler<ForeignNodesAnswer> for Training {
         }
 
         if self.node_estimation.answering_rotation_protocol.is_running() {
-            self.answer_next(answers);
+            self.answer_next(answers, ctx);
         } else {
             self.finalize_node_estimation(ctx);
         }
