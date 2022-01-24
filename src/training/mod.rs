@@ -50,8 +50,7 @@ pub struct Training {
     num_rotated: Option<usize>
 }
 
-// todo: run parts on different threads actix telepathy sometimes sends messages later than other local
-// messages and distributedly other nodes are waiting while one node already continued with the task
+
 impl Training {
     pub fn new(parameters: Parameters) -> Self {
         Self {
