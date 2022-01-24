@@ -38,6 +38,10 @@ impl Point {
     pub fn get_segment(&self) -> usize {
         self.segment
     }
+
+    pub fn to_ref(self) -> PointRef {
+        PointRef::new(self)
+    }
 }
 
 impl Display for Point {

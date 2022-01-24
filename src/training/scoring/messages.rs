@@ -60,5 +60,6 @@ pub(crate) struct ScoringHelperResponse {
 #[derive(RemoteMessage, Serialize, Deserialize, Default, Clone)]
 pub struct SubScores {
     pub cluster_node_id: usize,
-    pub scores: Array1<f32>
+    pub scores: Array1<f32>,
+    pub first_empty: bool
 }

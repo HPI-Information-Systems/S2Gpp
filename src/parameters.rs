@@ -69,6 +69,21 @@ impl Parameters {
     pub fn segments_per_node(&self) -> usize {
         self.rate.div_floor(&self.n_cluster_nodes)
     }
+
+    pub fn segment_id_to_assignment(&self, segment_id: usize) -> usize {
+        let segments_per_node = self.segments_per_node();
+        let cluster_node_id = segment_id / segments_per_node;
+        if cluster_node_id >= self.n_cluster_nodes {
+            self.n_cluster_nodes - 1
+        } else {
+            cluster_node_id
+        }
+    }
+
+    pub fn first_segment_of_i_next_cluster_node(&self, segment_id: usize, i: usize) -> usize {
+        let i_next_cluster_node_id = (self.segment_id_to_assignment(segment_id) + i) % self.n_cluster_nodes;
+        i_next_cluster_node_id * self.segments_per_node()
+    }
 }
 
 impl Default for Parameters {

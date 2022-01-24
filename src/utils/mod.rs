@@ -95,6 +95,20 @@ impl ClusterNodes {
         }
     }
 
+    pub fn get_next_as(&self, remote_actor_id: &str) -> Option<RemoteAddr> {
+        match &self.get_next_idx() {
+            Some(key) => self.get_as(key, remote_actor_id),
+            None => None
+        }
+    }
+
+    pub fn get_prev_as(&self, remote_actor_id: &str) -> Option<RemoteAddr> {
+        match &self.get_previous_idx() {
+            Some(key) => self.get_as(key, remote_actor_id),
+            None => None
+        }
+    }
+
     pub fn iter(&self) -> Iter<'_, usize, RemoteAddr> {
         self.nodes.iter()
     }

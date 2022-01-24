@@ -17,7 +17,8 @@ pub struct SegmentMessage {
 
 #[derive(RemoteMessage, Serialize, Deserialize)]
 pub struct SendFirstPointMessage {
-    pub(crate) point: Point
+    pub(crate) point: Point,
+    pub(crate) transition: MaterializedTransition
 }
 
 #[derive(Message)]

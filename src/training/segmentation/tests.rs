@@ -6,6 +6,7 @@ use ndarray::{arr1};
 use std::iter::FromIterator;
 use crate::utils::ClusterNodes;
 use crate::data_manager::DatasetStats;
+use crate::data_store::node_questions::node_in_question::NodeInQuestion;
 use crate::data_store::transition::TransitionMixin;
 use crate::training::segmentation::{Segmenter};
 
@@ -160,23 +161,28 @@ fn test_node_questions() {
     training.dataset_stats = Some(DatasetStats::new(arr1(&[1.0]), arr1(&[1.0]), arr1(&[1.0]), 20));
 
     training.data_store.add_points(vec![
-        arr1(&[-1., -2.]),
-        arr1(&[1., -2.]),
-        arr1(&[1., 2.]),
-        arr1(&[0.5, 2.5]),
-        arr1(&[-0.5, 2.5]),
-        arr1(&[2., -0.5]),
-        arr1(&[2., 1.]),
-        arr1(&[3., 2.]),
-        arr1(&[2.8, 3.]),
-        arr1(&[2., -3.]),
-        arr1(&[3., -2.])
+        arr1(&[-1., -2.]), // 5
+        arr1(&[1., -2.]),  // 6
+        arr1(&[1., 2.]),   // 1
+        arr1(&[0.5, 2.5]), // 1
+        arr1(&[-0.5, 2.5]),// 2
+        arr1(&[2., -0.5]), // 7
+        arr1(&[2., 1.]),   // 0
+        arr1(&[3., 2.]),   // 0
+        arr1(&[2.8, 3.]),  // 1
+        arr1(&[2., -3.]),  // 6
+        arr1(&[3., -2.])   // 7
     ], parameters.rate);
     training.build_segments();
 
-    assert!(training.segmentation.node_questions.get(&1).is_some());
-    let node_questions = training.segmentation.node_questions.get(&0).unwrap().get(&1).unwrap();
-    assert_eq!(node_questions.len(), 2);
-    assert_eq!(node_questions[0], (1, 7, 1, 0));
-    assert_eq!(node_questions[1], (3, 2, 5, 0));
+
+    let grouped_questions = training.segmentation.node_questions.remove(&0).unwrap();
+    let node_questions = grouped_questions.get(&1).unwrap();
+    assert_eq!(node_questions.len(), 1);
+    assert_eq!(node_questions[0], NodeInQuestion::new(1, 7, 1, 0));
+
+    let grouped_questions = training.segmentation.node_questions.remove(&1).unwrap();
+    let node_questions = grouped_questions.get(&0).unwrap();
+    assert_eq!(node_questions.len(), 1);
+    assert_eq!(node_questions[0], NodeInQuestion::new(7, 1, 9, 7));
 }

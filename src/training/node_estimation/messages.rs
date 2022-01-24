@@ -4,7 +4,7 @@ use actix_telepathy::prelude::*;
 use serde::{Serialize, Deserialize};
 use serde_with::serde_as;
 use crate::data_store::node::IndependentNode;
-use crate::training::segmentation::NodeInQuestion;
+use crate::data_store::node_questions::NodeQuestions;
 
 
 #[derive(Message)]
@@ -12,16 +12,16 @@ use crate::training::segmentation::NodeInQuestion;
 pub struct NodeEstimationDone;
 
 
-#[serde_as]
 #[derive(RemoteMessage, Serialize, Deserialize, Clone, Default)]
-pub struct AskForForeignNodes {
-    #[serde_as(as = "Vec<(_, _)>")]
-    pub asked_nodes: HashMap<usize, Vec<NodeInQuestion>>
+pub(crate) struct AskForForeignNodes {
+    pub asked_nodes: NodeQuestions
 }
 
 
+#[serde_as]
 #[derive(RemoteMessage, Serialize, Deserialize, Clone, Default)]
 pub(crate) struct ForeignNodesAnswer {
     /// (prev_point_id, prev_segment_id, point_id, node)
-    pub foreign_nodes: Vec<(usize, usize, usize, IndependentNode)>
+     #[serde_as(as = "Vec<(_, _)>")]
+    pub answers: HashMap<usize, Vec<(usize, usize, usize, IndependentNode)>>
 }
