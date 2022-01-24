@@ -11,6 +11,8 @@ pub(crate) use crate::training::node_estimation::messages::{NodeEstimationDone, 
 use num_integer::Integer;
 use crate::data_store::intersection::IntersectionRef;
 use crate::data_store::node::{IndependentNode, Node};
+use crate::data_store::node_questions::node_in_question::NodeInQuestion;
+use crate::data_store::node_questions::NodeQuestions;
 use crate::utils::logging::progress_bar::S2GppProgressBar;
 use crate::utils::rotation_protocol::RotationProtocol;
 
@@ -23,16 +25,20 @@ pub(crate) struct NodeEstimation {
     pub(crate) current_segment_id: usize,
     pub(crate) progress_bar: S2GppProgressBar,
     pub(crate) source: Option<Recipient<NodeEstimationDone>>,
-    asking_rotation_protocol: RotationProtocol<AskForForeignNodes>, // no rotation actually
-    answering_rotation_protocol: RotationProtocol<ForeignNodesAnswer> // no rotation actually
+    asking_rotation_protocol: RotationProtocol<AskForForeignNodes>,
+    answering_rotation_protocol: RotationProtocol<ForeignNodesAnswer>,
+    answers: HashMap<usize, Vec<(usize, usize, usize, IndependentNode)>>
 }
 
-pub trait NodeEstimator {
+pub(crate) trait NodeEstimator {
     fn estimate_nodes(&mut self, mean_shift_recipient: Recipient<MeanShiftResponse>);
     fn ask_for_foreign_nodes(&mut self, ctx: &mut Context<Training>);
-    fn search_for_asked_nodes(&mut self, msg: AskForForeignNodes);
+    fn ask_next(&mut self, asked_nodes: NodeQuestions);
+    fn search_for_asked_nodes(&mut self, node_questions: HashMap<usize, Vec<NodeInQuestion>>);
+    fn start_anwering(&mut self, ctx: &mut Context<Training>);
+    fn answer_next(&mut self, answers: HashMap<usize, Vec<(usize, usize, usize, IndependentNode)>>);
+    fn take_in_answers(&mut self, answers: Vec<(usize, usize, usize, IndependentNode)>);
     fn finalize_node_estimation(&mut self, ctx: &mut Context<Training>);
-    fn node_question_conversation_done(&mut self) -> bool;
 }
 
 impl NodeEstimator for Training {
@@ -58,45 +64,59 @@ impl NodeEstimator for Training {
 
     fn ask_for_foreign_nodes(&mut self, ctx: &mut Context<Training>) {
         if self.cluster_nodes.len() > 0 {
-            self.node_estimation.answering_rotation_protocol.start(self.parameters.n_cluster_nodes);
-            self.node_estimation.answering_rotation_protocol.resolve_buffer(ctx.address().recipient());
             self.node_estimation.asking_rotation_protocol.start(self.parameters.n_cluster_nodes);
             self.node_estimation.asking_rotation_protocol.resolve_buffer(ctx.address().recipient());
-            for (answering_node, remote_addr) in self.cluster_nodes.to_any_as(ctx.address(), "Training").into_iter().enumerate() {
-                let asked_nodes =
-                    match self.segmentation.node_questions.get(&answering_node) {
-                        Some(questions) => questions.clone(),
-                        None => HashMap::new()
-                    };
-                remote_addr.do_send(AskForForeignNodes { asked_nodes });
-                self.node_estimation.asking_rotation_protocol.sent();
-            }
+
+            self.ask_next(self.segmentation.node_questions.clone());
             self.segmentation.node_questions.clear();
         } else {
             self.finalize_node_estimation(ctx);
         }
     }
 
-    fn search_for_asked_nodes(&mut self, msg: AskForForeignNodes) {
-        let mut asked_nodes = msg.asked_nodes;
-        for (asking_node, remote_addr) in self.cluster_nodes.iter() {
-            let mut specific_addr = remote_addr.clone();
-            specific_addr.change_id("Training".to_string());
+    fn ask_next(&mut self, asked_nodes: NodeQuestions) {
+        self.cluster_nodes.get_next_as("Training").unwrap().do_send(AskForForeignNodes { asked_nodes });
+        self.node_estimation.asking_rotation_protocol.sent();
+    }
 
-            let answers = match asked_nodes.remove(asking_node) {
-                Some(questions) => questions.into_iter().map(|(prev_point_id, prev_segment_id, point_id, segment_id)|
-                    match self.data_store.get_nodes_by_point_id(point_id) {
-                        Some(nodes) => nodes.iter().find_map(|node| node.get_segment_id().eq(&segment_id).then(|| (prev_point_id, prev_segment_id, point_id, node.deref().clone()))).expect(&format!("There is no answer here: no segment_id: {} {}", &point_id, &segment_id)),
+    fn search_for_asked_nodes(&mut self, mut node_questions: HashMap<usize, Vec<NodeInQuestion>>) {
+        for (asking_node, _remote_addr) in self.cluster_nodes.iter() {
+            let answers = match node_questions.remove(asking_node) {
+                Some(questions) => questions.into_iter().map(|niq|
+                    match self.data_store.get_nodes_by_point_id(niq.get_point_id()) {
+                        Some(nodes) => nodes.iter().find_map(|node| node.get_segment_id().eq(&niq.get_segment()).then(|| (niq.get_prev_id(), niq.get_prev_segment(), niq.get_point_id(), node.deref().clone()))).expect(&format!("There is no answer here: no segment_id: {} {}", &niq.get_point_id(), &niq.get_segment())),
                         None => {
-                            panic!("There is no answer here!: no point_id: {}", point_id)
+                            panic!("There is no answer here!: no point_id: {}", niq.get_point_id())
                         }
                     }
                 ).collect(),
                 None => vec![]
             };
+            match self.node_estimation.answers.get_mut(&asking_node) {
+                Some(node_answers) => node_answers.extend(answers),
+                None => { self.node_estimation.answers.insert(asking_node.clone(), answers); }
+            }
+        }
+    }
 
-            specific_addr.do_send(ForeignNodesAnswer { foreign_nodes: answers });
-            self.node_estimation.answering_rotation_protocol.sent();
+    fn start_anwering(&mut self, ctx: &mut Context<Training>) {
+        self.node_estimation.answering_rotation_protocol.start(self.parameters.n_cluster_nodes);
+        self.node_estimation.answering_rotation_protocol.resolve_buffer(ctx.address().recipient());
+        self.answer_next(self.node_estimation.answers.clone());
+        self.node_estimation.answers.clear();
+    }
+
+    fn answer_next(&mut self, answers: HashMap<usize, Vec<(usize, usize, usize, IndependentNode)>>) {
+        self.cluster_nodes.get_next_as("Training").unwrap().do_send(ForeignNodesAnswer { answers });
+        self.node_estimation.answering_rotation_protocol.sent();
+    }
+
+    fn take_in_answers(&mut self, answers: Vec<(usize, usize, usize, IndependentNode)>) {
+        for (prev_point_id, prev_segment_id, point_id, node) in answers {
+            if (prev_point_id == 3310) & (prev_segment_id == 99) & (point_id == 3310) {
+                println!("There you go! {}\n", self.cluster_nodes.get_own_idx())
+            }
+            self.node_estimation.next_foreign_node.insert((prev_point_id, prev_segment_id), (point_id, node));
         }
     }
 
@@ -105,11 +125,6 @@ impl NodeEstimator for Training {
             Some(source) => source.clone(),
             None => ctx.address().recipient()
         }.do_send(NodeEstimationDone).unwrap();
-    }
-
-    fn node_question_conversation_done(&mut self) -> bool {
-        !(self.node_estimation.answering_rotation_protocol.is_running() ||
-            self.node_estimation.asking_rotation_protocol.is_running())
     }
 }
 
@@ -147,10 +162,13 @@ impl Handler<AskForForeignNodes> for Training {
             return
         }
 
-        self.search_for_asked_nodes(msg);
+        let mut asked_nodes = msg.asked_nodes;
+        self.search_for_asked_nodes(asked_nodes.remove(&self.cluster_nodes.get_own_idx()).unwrap());
 
-        if self.node_question_conversation_done() {
-            self.finalize_node_estimation(ctx);
+        if self.node_estimation.asking_rotation_protocol.is_running() {
+            self.ask_next(asked_nodes);
+        } else {
+            self.start_anwering(ctx);
         }
     }
 }
@@ -164,11 +182,16 @@ impl Handler<ForeignNodesAnswer> for Training {
             return
         }
 
-        for (prev_point_id, prev_segment_id, point_id, node) in msg.foreign_nodes {
-            self.node_estimation.next_foreign_node.insert((prev_point_id, prev_segment_id), (point_id, node));
+        let mut answers = msg.answers;
+
+        match answers.remove(&self.cluster_nodes.get_own_idx()) {
+            None => (),
+            Some(own_answers) => self.take_in_answers(own_answers)
         }
 
-        if self.node_question_conversation_done() {
+        if self.node_estimation.answering_rotation_protocol.is_running() {
+            self.answer_next(answers);
+        } else {
             self.finalize_node_estimation(ctx);
         }
     }

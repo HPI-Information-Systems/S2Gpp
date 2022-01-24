@@ -6,6 +6,7 @@ use std::path::Path;
 use std::fs::remove_file;
 use crate::data_store::edge::Edge;
 use crate::data_store::node::IndependentNode;
+use crate::training::scoring::weights::ScoringWeights;
 
 #[test]
 fn scores_are_written_to_file() {

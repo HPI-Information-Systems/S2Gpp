@@ -44,25 +44,48 @@ fn global_comut_not_distributed() {
 
 #[test]
 #[ignore] // takes some time
-fn global_comut_distributed() {
-    let mainhost = format!("127.0.0.1:{}", request_open_port().unwrap_or(1992)).parse().unwrap();
-    let subhost = format!("127.0.0.1:{}", request_open_port().unwrap_or(1993)).parse().unwrap();
+fn global_comut_distributed_2() {
+    setup_distributed_global_comut(1)
+}
 
-    let parameters = vec![
+
+#[test]
+#[ignore] // takes some time
+fn global_comut_distributed_3() {
+    setup_distributed_global_comut(2)
+}
+
+
+#[test]
+#[ignore] // takes some time
+fn global_comut_distributed_4() {
+    setup_distributed_global_comut(3)
+}
+
+
+fn setup_distributed_global_comut(n_subhosts: usize) {
+    let mainhost = format!("127.0.0.1:{}", request_open_port().unwrap_or(1992)).parse().unwrap();
+
+    let mut parameters = vec![
         Parameters {
             role: Role::Main { data_path: "data/ts_0.csv".to_string() },
             local_host: mainhost,
             score_output_path: Some(get_output_path()),
-            n_cluster_nodes: 2,
-            ..Default::default()
-        },
-        Parameters {
-            role: Role::Sub { mainhost },
-            local_host: subhost,
-            n_cluster_nodes: 2,
+            n_cluster_nodes: n_subhosts + 1,
             ..Default::default()
         }
     ];
+
+    for i in 0..n_subhosts {
+        let subhost = format!("127.0.0.1:{}", request_open_port().unwrap_or((1993 + i) as u16)).parse().unwrap();
+
+        parameters.push(Parameters {
+            role: Role::Sub { mainhost },
+            local_host: subhost,
+            n_cluster_nodes: n_subhosts + 1,
+            ..Default::default()
+        });
+    }
 
     parameters.into_par_iter().for_each(|p| run_single_global_comut(p));
 

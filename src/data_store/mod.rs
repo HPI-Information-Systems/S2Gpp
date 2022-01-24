@@ -18,6 +18,7 @@ pub(crate) mod materialize;
 mod tests;
 mod utils;
 mod index;
+pub(crate) mod node_questions;
 
 
 #[derive(Default, Clone)]

@@ -1,5 +1,6 @@
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
+use std::ops::Sub;
 use log::*;
 use ndarray::arr1;
 use num_integer::Integer;
@@ -18,6 +19,7 @@ use crate::training::segmentation::messages::{SegmentMessage, SendFirstPointMess
 use crate::utils::{ClusterNodes, ConsoleLogger};
 use crate::training::scoring::{Scoring, Scorer};
 use crate::training::scoring::messages::{NodeDegrees, SubScores, EdgeWeights, OverlapRotation, ScoringDone};
+use crate::training::scoring::weights::ScoringWeights;
 use crate::training::transposition::{Transposition, Transposer, TranspositionDone, TranspositionRotationMessage};
 
 mod messages;
@@ -70,8 +72,13 @@ impl Training {
     }
 
     fn segment_id_to_assignment(&self, segment_id: SegmentID) -> usize {
-        let segments_per_node = self.parameters.rate / self.cluster_nodes.len_incl_own();
-        segment_id / segments_per_node
+        self.parameters.segment_id_to_assignment(segment_id)
+    }
+
+    fn cluster_node_diff(&self, from_node_id: usize, to_node_id: usize) -> usize {
+        (to_node_id as isize)
+            .sub(&(from_node_id as isize))
+            .mod_floor(&(self.parameters.n_cluster_nodes as isize)) as usize
     }
 }
 
@@ -116,6 +123,7 @@ impl Handler<RotationDoneMessage> for Training {
         ConsoleLogger::new(7, 12, "Segmenting Data".to_string()).print();
         self.data_manager.as_ref().unwrap().do_send(PoisonPill);
         self.data_manager = None;
+
         self.segment(ctx);
     }
 }
@@ -125,6 +133,7 @@ impl Handler<SegmentedMessage> for Training {
 
     fn handle(&mut self, _msg: SegmentedMessage, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(8, 12, "Calculating Intersections".to_string()).print();
+
         self.calculate_intersections(ctx.address().recipient());
     }
 }
@@ -134,6 +143,7 @@ impl Handler<IntersectionCalculationDone> for Training {
 
     fn handle(&mut self, _msg: IntersectionCalculationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(9, 12, "Estimating Nodes".to_string()).print();
+
         self.node_estimation.current_segment_id = self.parameters.rate.div_floor(&self.cluster_nodes.len_incl_own()) * self.cluster_nodes.get_own_idx();
         self.estimate_nodes(ctx.address().recipient());
     }
@@ -144,6 +154,7 @@ impl Handler<NodeEstimationDone> for Training {
 
     fn handle(&mut self, _msg: NodeEstimationDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(10, 12, "Estimating Edges".to_string()).print();
+
         self.estimate_edges(ctx);
     }
 }
@@ -169,6 +180,7 @@ impl Handler<TranspositionDone> for Training {
 
     fn handle(&mut self, _msg: TranspositionDone, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(12, 12, "Scoring".to_string()).print();
+
         self.init_scoring(ctx);
     }
 }

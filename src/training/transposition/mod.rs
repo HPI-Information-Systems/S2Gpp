@@ -48,7 +48,12 @@ impl Transposer for Training {
 
         for edge in materialized_edges {
             let point_id = edge.get_to_id();
-            let cluster_node_id = point_id / self.transposition.partition_len.expect("Should already be set!");
+            let mut cluster_node_id = point_id / self.transposition.partition_len.expect("Should already be set!");
+            cluster_node_id = if cluster_node_id >= self.parameters.n_cluster_nodes {
+                self.parameters.n_cluster_nodes - 1
+            } else {
+                cluster_node_id
+            };
             match assignments.get_mut(&cluster_node_id) {
                 None => {}
                 Some(edges) => edges.push(edge)
