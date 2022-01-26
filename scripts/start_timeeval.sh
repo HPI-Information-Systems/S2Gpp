@@ -7,7 +7,7 @@ if [ $EXECUTIONTYPE == "execute" ]; then
   MAINPARAMS=$(jq -r '. | "--score-output-path " + .dataOutput + " main -d " + .dataInput' <<< $1)
   PARAMS="$CUSTOMPARAMS $MAINPARAMS"
 
-  cargo run --release --package s2gpp --bin s2gpp -- $PARAMS
+  /app/s2gpp $PARAMS
 else
   echo "Series2Graph++ is an unsupervised algorithm and therefore it has only the execution-type 'execute'!"
 fi
