@@ -1,0 +1,51 @@
+{
+    "title": "Series2Graph++",
+    "description": "Implementation of [unpublished]",
+    "inputDimensionality": "multivariate",
+    "version": "0.1",
+    "authors": "Phillip Wenig, Thorsten Papenbrock",
+    "language": "Rust",
+    "type": "Detector",
+    "mainFile": "scripts/start_timeeval.sh",
+    "learningType": "unsupervised",
+    "executionStep": {
+    	"parameters": [
+            {
+                "name": "pattern-length",
+                "type": "Int",
+                "defaultValue": 50,
+                "optional": "true",
+                "description": "Size of the sliding window, independent of anomaly length, but should in the best case be larger."
+            },
+            {
+                "name": "latent",
+                "type": "Int",
+                "defaultValue": 16,
+                "optional": "true",
+                "description": "Size of latent embedding space. This space is the input for the PCA calculation afterwards."
+            },
+            {
+                "name": "rate",
+                "type": "Int",
+                "defaultValue": 100,
+                "optional": "true",
+                "description": "Number of angles used to extract pattern nodes. A higher value will lead to high precision, but at the cost of increased computation time."
+            },
+            {
+                "name": "threads",
+                "type": "Int",
+                "defaultValue": 1,
+                "optional": "true",
+                "description": "Number of helper threads started besides the main thread. (min=1)"
+            },
+            {
+                "name": "query-length",
+                "type": "Int",
+                "defaultValue": 75,
+                "optional": "true",
+                "description": "Size of the sliding windows used to find anomalies (query subsequences). query-length must be >= pattern-length!"
+            }
+        ],
+        "modelInput": "none"
+    }
+}

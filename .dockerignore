@@ -1,0 +1,8 @@
+data/
+scripts/
+target/
+!scripts/start_timeeval.sh
+.gitignore
+.gitlab-ci.yml
+LICENSE
+README.md
