@@ -5,7 +5,7 @@ EXECUTIONTYPE=$(jq -r .executionType <<< $1)
 if [ $EXECUTIONTYPE == "execute" ]; then
   CUSTOMPARAMS=$(jq '.customParameters | to_entries[] | "--" + .key + " " + (.value|tostring)' <<< $1 | xargs)
   MAINPARAMS=$(jq -r '. | "--score-output-path " + .dataOutput + " main -d " + .dataInput' <<< $1)
-  PARAMS="$CUSTOMPARAMS $MAINPARAMS"
+  PARAMS="--column-start-idx 1 --column-end-idx=-1 $CUSTOMPARAMS $MAINPARAMS"
 
   /app/s2gpp $PARAMS
 else
