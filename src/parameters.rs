@@ -51,9 +51,6 @@ pub struct Parameters {
     #[structopt(short = "q", long = "query-length", default_value = "75")]
     pub query_length: usize,
 
-    #[structopt(long = "graph-output-path")]
-    pub graph_output_path: Option<String>,
-
     #[structopt(long = "score-output-path")]
     pub score_output_path: Option<String>,
 }
@@ -97,7 +94,6 @@ impl Default for Parameters {
             n_threads: 1,
             n_cluster_nodes: 1,
             query_length: 75,
-            graph_output_path: None,
             score_output_path: None
         }
     }
