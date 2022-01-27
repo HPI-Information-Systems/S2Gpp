@@ -1,7 +1,7 @@
 # Series2Graph++
 
 [![pipeline status](https://gitlab.hpi.de/akita/s2gpp/badges/main/pipeline.svg)](https://gitlab.hpi.de/akita/s2gpp/-/commits/main)
-[![release info](https://img.shields.io/badge/Release-0.3.1-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/0.3.1)
+[![release info](https://img.shields.io/badge/Release-0.3.2-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/0.3.2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 _Series2Graph++_ (S2G++) is a time series anomaly detection algorithm based on the [Series2Graph](https://helios2.mi.parisdescartes.fr/~themisp/series2graph/) (S2G) and the [DADS](https://hpi.de/naumann/s/dads) algorithms. 
