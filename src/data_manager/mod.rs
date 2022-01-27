@@ -16,6 +16,7 @@ use crate::messages::PoisonPill;
 pub use crate::data_manager::stats_collector::DatasetStats;
 use crate::data_manager::stats_collector::{MinMaxNodeMessage, MinMaxDoneMessage, StdNodeMessage, StdDoneMessage, MinMaxCalculation, MinMaxCalculator, StdCalculator, StdCalculation};
 use std::str::FromStr;
+use crate::utils::itertools::FromToAble;
 
 #[cfg(test)]
 mod tests;
@@ -148,10 +149,18 @@ impl Handler<DataPartitionMessage> for DataManager {
     fn handle(&mut self, msg: DataPartitionMessage, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(2, 12, "Calculating Data Stats".to_string()).print();
         let n_rows = msg.data.len();
-        let n_columns = msg.data[0].len();
+        let until_column = if self.parameters.column_end == 0 {
+            msg.data[0].len()
+        } else if self.parameters.column_end > 0 {
+            self.parameters.column_end as usize
+        } else {
+            (msg.data[0].len() as isize + self.parameters.column_end) as usize
+        };
+
+        let n_columns = until_column - self.parameters.column_start;
 
         let flat_data: Array1<f32> = msg.data.into_iter().flat_map(|rec| {
-            rec.iter().map(|b| {
+            rec.iter().fromto(self.parameters.column_start, until_column).map(|b| {
                 f32::from_str(b).unwrap()
             }).collect::<Vec<f32>>()
         }).collect();

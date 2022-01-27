@@ -53,6 +53,12 @@ pub struct Parameters {
 
     #[structopt(long = "score-output-path")]
     pub score_output_path: Option<String>,
+
+    #[structopt(long = "column-start-idx", default_value = "0")]
+    pub column_start: usize,
+
+    #[structopt(long = "column-end-idx", default_value = "0")]
+    pub column_end: isize,
 }
 
 impl Parameters {
@@ -94,7 +100,9 @@ impl Default for Parameters {
             n_threads: 1,
             n_cluster_nodes: 1,
             query_length: 75,
-            score_output_path: None
+            score_output_path: None,
+            column_start: 0,
+            column_end: 0
         }
     }
 }

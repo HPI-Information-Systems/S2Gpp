@@ -16,6 +16,7 @@ mod geometry;
 mod helper_protocol;
 pub(crate) mod logging;
 pub(crate) mod rotation_protocol;
+pub(crate) mod itertools;
 
 pub type ArcArray3<T> = ArcArray<T, Ix3>;
 
