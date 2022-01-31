@@ -94,6 +94,10 @@ impl DataStore {
         self.transitions.iter().map(|transition| transition.clone()).collect()
     }
 
+    pub fn count_transitions(&self) -> usize {
+        self.transitions.len()
+    }
+
     // --- Intersections
 
     pub fn add_intersection(&mut self, intersection: Intersection) {

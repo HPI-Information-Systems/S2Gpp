@@ -22,6 +22,7 @@ use crate::training::scoring::helper::ScoringHelper;
 use crate::training::scoring::messages::{ScoringDone, NodeDegrees, SubScores, EdgeWeights, OverlapRotation, ScoringHelperResponse, ScoringHelperInstruction};
 use crate::training::scoring::weights::ScoringWeights;
 use crate::utils::HelperProtocol;
+use crate::utils::itertools::LengthAble;
 use crate::utils::logging::progress_bar::S2GppProgressBar;
 use crate::utils::rotation_protocol::RotationProtocol;
 
@@ -154,6 +155,7 @@ impl Scorer for Training {
                     let (mut sub_score, first_empty) = self.scoring.subscores.remove(&cluster_node_id).expect("A subscore is missing!");
                     if first_empty {
                         let last_score = scores.last().expect("First cannot be empty if it's the first overall score point!");
+
                         fill_up_first_missing_points(&mut sub_score, last_score[last_score.len() - 1]);
                     }
                     scores.push(sub_score);
@@ -222,16 +224,16 @@ impl Handler<ScoringHelperResponse> for Training {
 }
 
 
-fn fill_up_first_missing_points<T: IndexMut<usize, Output = f32>>(scores: &mut T, initial_score: f32)
+fn fill_up_first_missing_points<T: IndexMut<usize, Output = f32> + LengthAble>(scores: &mut T, initial_score: f32)
     where <T as Index<usize>>::Output: Float {
-    let mut i = 0;
-    while scores[i] == 0.0 {
-        if i == 0 {
-            scores[i] = initial_score;
-        } else {
-            scores[i] = scores[i-1]
+    for i in 0..scores.get_length() {
+        if scores[i] == 0.0 {
+            if i == 0 {
+                scores[i] = initial_score;
+            } else {
+                scores[i] = scores[i-1]
+            }
         }
-        i += 1;
     }
 }
 
