@@ -93,6 +93,11 @@ impl Segmenter for Training {
 
             last_point = Some(point.clone());
         }
+
+        if self.data_store.count_transitions() == 0 {
+            panic!("Could not generate transitions! Try different pattern-length / latent parameter settings!")
+        }
+
         self.segmentation.last_point = last_point.map(|x| x.deref().clone());
         self.segmentation.last_transition = last_transition;
         foreign_data
