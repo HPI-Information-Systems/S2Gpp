@@ -1,8 +1,12 @@
+<div align="center">
+<img width="100px" src="./Logo.png" alt="Series2Graph++ logo"/>
+
 # Series2Graph++
 
 [![pipeline status](https://gitlab.hpi.de/akita/s2gpp/badges/main/pipeline.svg)](https://gitlab.hpi.de/akita/s2gpp/-/commits/main)
 [![release info](https://img.shields.io/badge/Release-0.3.2-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/0.3.2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+</div>
 
 _Series2Graph++_ (S2G++) is a time series anomaly detection algorithm based on the [Series2Graph](https://helios2.mi.parisdescartes.fr/~themisp/series2graph/) (S2G) and the [DADS](https://hpi.de/naumann/s/dads) algorithms. 
 S2G++ can handle multivariate time series whereas S2G and DADS can cope with only univariate time series. 
@@ -38,6 +42,8 @@ cargo build
 The base image `akita/rust-base` must be available to your machine.
 
 ```shell
+git pull https://gitlab.hpi.de/akita/s2gpp
+cd s2gpp
 docker build s2gpp .
 ```
 
