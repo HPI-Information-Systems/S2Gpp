@@ -1,7 +1,7 @@
 use std::iter::{Enumerate, Skip};
 use std::slice::Iter;
 use log::*;
-use ndarray::Array1;
+use ndarray::{Array1, Dimension};
 
 pub(crate) struct FromTo<I> {
     iter: Enumerate<Skip<I>>,
@@ -49,6 +49,7 @@ pub(crate) trait FromToAble where Self: Iterator
 
 
 impl<T> FromToAble for Iter<'_, T> {}
+impl<T, D: Dimension> FromToAble for ndarray::iter::Iter<'_, T, D> {}
 
 
 pub(crate) trait LengthAble {

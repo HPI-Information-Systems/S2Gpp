@@ -1,11 +1,13 @@
 mod messages;
+mod multi_kde;
 
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::str::FromStr;
 use ndarray::{ArrayView1, stack_new_axis, Axis,};
 use crate::training::Training;
-use actix::{Addr, Handler, Actor, Recipient, AsyncContext, Context, WrapFuture, ActorFutureExt, ContextFutureSpawner};
-use meanshift_rs::{MeanShiftActor, MeanShiftMessage, MeanShiftResponse};
+use actix::{Handler, Actor, Recipient, AsyncContext, Context, WrapFuture, ActorFutureExt, ContextFutureSpawner};
+use meanshift_rs::{ClusteringResponse, MeanShiftActor, MeanShiftMessage};
 
 pub(crate) use crate::training::node_estimation::messages::{NodeEstimationDone, AskForForeignNodes, ForeignNodesAnswer};
 use num_integer::Integer;
@@ -13,6 +15,8 @@ use crate::data_store::intersection::IntersectionRef;
 use crate::data_store::node::{IndependentNode, Node};
 use crate::data_store::node_questions::node_in_question::NodeInQuestion;
 use crate::data_store::node_questions::NodeQuestions;
+use crate::training::node_estimation::multi_kde::actors::messages::MultiKDEMessage;
+use crate::training::node_estimation::multi_kde::actors::MultiKDEActor;
 use crate::utils::logging::progress_bar::S2GppProgressBar;
 use crate::utils::rotation_protocol::RotationProtocol;
 
@@ -20,7 +24,6 @@ use crate::utils::rotation_protocol::RotationProtocol;
 #[derive(Default)]
 pub(crate) struct NodeEstimation {
     pub next_foreign_node: HashMap<(usize, usize), (usize, IndependentNode)>,
-    pub meanshift: Option<Addr<MeanShiftActor>>,
     pub(crate) current_intersections: Vec<IntersectionRef>,
     pub(crate) current_segment_id: usize,
     pub(crate) progress_bar: S2GppProgressBar,
@@ -31,7 +34,7 @@ pub(crate) struct NodeEstimation {
 }
 
 pub(crate) trait NodeEstimator {
-    fn estimate_nodes(&mut self, mean_shift_recipient: Recipient<MeanShiftResponse>);
+    fn estimate_nodes(&mut self, clustering_recipient: Recipient<ClusteringResponse<f32>>);
     fn ask_for_foreign_nodes(&mut self, ctx: &mut Context<Training>);
     fn ask_next(&mut self, asked_nodes: NodeQuestions);
     fn search_for_asked_nodes(&mut self, node_questions: HashMap<usize, Vec<NodeInQuestion>>);
@@ -42,7 +45,7 @@ pub(crate) trait NodeEstimator {
 }
 
 impl NodeEstimator for Training {
-    fn estimate_nodes(&mut self, mean_shift_recipient: Recipient<MeanShiftResponse>) {
+    fn estimate_nodes(&mut self, clustering_recipient: Recipient<ClusteringResponse<f32>>) {
         self.node_estimation.progress_bar.inc_or_set("info", self.parameters.rate.div_floor(&self.parameters.n_cluster_nodes));
 
         let segment_id = self.node_estimation.current_segment_id;
@@ -53,11 +56,20 @@ impl NodeEstimator for Training {
                 self.node_estimation.current_intersections = intersections.iter().map(|x| x.clone()).collect();
                 let coordinates: Vec<ArrayView1<f32>> = intersections.iter().map(|x| x.get_coordinates()).collect();
                 let data = stack_new_axis(Axis(0), coordinates.as_slice()).unwrap();
-                self.node_estimation.meanshift = Some(MeanShiftActor::new(self.parameters.n_threads).start());
-                self.node_estimation.meanshift.as_ref().unwrap().do_send(MeanShiftMessage { source: Some(mean_shift_recipient.clone()), data });
+                match &self.parameters.clustering {
+                    Clustering::MeanShift => {
+                        let cluster_addr = MeanShiftActor::new(self.parameters.n_threads).start();
+                        cluster_addr.do_send(MeanShiftMessage { source: Some(clustering_recipient.clone()), data });
+                    },
+                    Clustering::MultiKDE => {
+                        let cluster_addr = MultiKDEActor::new(clustering_recipient.clone(), self.parameters.n_threads).start();
+                        cluster_addr.do_send(MultiKDEMessage { data });
+                    }
+                }
+
             }
             None => {
-                mean_shift_recipient.do_send(MeanShiftResponse { cluster_centers: Default::default(), labels: vec![] }).unwrap();
+                clustering_recipient.do_send(ClusteringResponse { cluster_centers: Default::default(), labels: vec![] }).unwrap();
             }
         }
     }
@@ -135,11 +147,11 @@ impl NodeEstimator for Training {
     }
 }
 
-impl Handler<MeanShiftResponse> for Training {
+impl Handler<ClusteringResponse<f32>> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: MeanShiftResponse, ctx: &mut Self::Context) -> Self::Result {
-        if !msg.cluster_centers.is_empty() {
+    fn handle(&mut self, msg: ClusteringResponse<f32>, ctx: &mut Self::Context) -> Self::Result {
+        if !msg.labels.is_empty() {
             let current_intersections = self.node_estimation.current_intersections.clone();
             self.node_estimation.current_intersections.clear();
 
@@ -200,6 +212,27 @@ impl Handler<ForeignNodesAnswer> for Training {
             self.answer_next(answers, ctx);
         } else {
             self.finalize_node_estimation(ctx);
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub enum Clustering {
+    MeanShift,
+    MultiKDE
+}
+
+impl FromStr for Clustering {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.eq("meanshift") {
+            Ok(Clustering::MeanShift)
+        } else if s.eq("kde") {
+            Ok(Clustering::MultiKDE)
+        } else {
+            Err(format!("{} is not a valid clustering method! Allowed values are: 'meanshift' and 'kde'", s))
         }
     }
 }
