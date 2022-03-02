@@ -4,7 +4,7 @@
 # Series2Graph++
 
 [![pipeline status](https://gitlab.hpi.de/akita/s2gpp/badges/main/pipeline.svg)](https://gitlab.hpi.de/akita/s2gpp/-/commits/main)
-[![release info](https://img.shields.io/badge/Release-0.3.2-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/0.3.2)
+[![release info](https://img.shields.io/badge/Release-0.4.0-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/0.4.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 </div>
 
@@ -94,7 +94,6 @@ Please cite this work, when using it!
 
 ## TODO
 
-- [ ] Reduce dimensions (channels) in graph
 - [ ] Python Binding
 - [ ] Dimension responsibility (check how far off a node is from the mean of all other nodes, per dimension, use this as indicator)
 - [ ] add own citation

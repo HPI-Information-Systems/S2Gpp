@@ -2,7 +2,7 @@
     "title": "Series2Graph++",
     "description": "Implementation of [unpublished]",
     "inputDimensionality": "multivariate",
-    "version": "0.1",
+    "version": "0.4.0",
     "authors": "Phillip Wenig, Thorsten Papenbrock",
     "language": "Rust",
     "type": "Detector",
