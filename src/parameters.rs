@@ -1,6 +1,7 @@
 use structopt::StructOpt;
 use std::net::SocketAddr;
 use num_integer::Integer;
+use crate::training::Clustering;
 
 #[derive(Debug, StructOpt, Clone)]
 #[structopt(name = "Role")]
@@ -59,6 +60,9 @@ pub struct Parameters {
 
     #[structopt(long = "column-end-idx", default_value = "0")]
     pub column_end: isize,
+
+    #[structopt(long = "clustering", default_value = "kde")]
+    pub clustering: Clustering
 }
 
 impl Parameters {
@@ -102,7 +106,8 @@ impl Default for Parameters {
             query_length: 75,
             score_output_path: None,
             column_start: 0,
-            column_end: 0
+            column_end: 0,
+            clustering: Clustering::MeanShift
         }
     }
 }

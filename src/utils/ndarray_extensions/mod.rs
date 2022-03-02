@@ -1,3 +1,8 @@
+mod shift;
+mod index_arr;
+pub(crate) mod boolean;
+pub(crate) mod stack;
+
 use ndarray::*;
 use ndarray_linalg::Norm;
 use num_traits::{Float};
@@ -129,6 +134,34 @@ impl<S, A> PolarCoords<A> for ArrayBase<S, Dim<[usize; 1]>>
         let x = radius.mul(theta.cos());
         let y = radius.mul(theta.sin());
         arr1(&[x, y])
+    }
+}
+
+
+pub trait FloatFunctions<A, D> where A: Float, D: Dimension {
+    fn ln(self) -> Self;
+    fn powi(self, exponent: i32) -> Self;
+}
+
+
+impl<S, A, D> FloatFunctions<A, D> for ArrayBase<S, D>
+    where
+        S: DataMut<Elem = A>,
+        A: Float + std::ops::Mul<Output = A>,
+        D: Dimension
+{
+    fn ln(mut self) -> Self {
+        for v in self.iter_mut() {
+            *v = v.ln();
+        };
+        self
+    }
+
+    fn powi(mut self, exponent: i32) -> Self {
+        for v in self.iter_mut() {
+            *v = v.powi(exponent);
+        };
+        self
     }
 }
 

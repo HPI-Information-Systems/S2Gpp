@@ -21,6 +21,7 @@ use crate::training::scoring::{Scoring, Scorer};
 use crate::training::scoring::messages::{NodeDegrees, SubScores, EdgeWeights, OverlapRotation, ScoringDone};
 use crate::training::scoring::weights::ScoringWeights;
 use crate::training::transposition::{Transposition, Transposer, TranspositionDone, TranspositionRotationMessage};
+pub use crate::training::node_estimation::Clustering;
 
 mod messages;
 mod segmentation;

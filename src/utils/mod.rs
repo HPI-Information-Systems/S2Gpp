@@ -11,12 +11,14 @@ pub use helper_protocol::HelperProtocol;
 pub use logging::console_logger::ConsoleLogger;
 pub use ndarray_extensions::*;
 
-mod ndarray_extensions;
+pub(crate) mod ndarray_extensions;
 mod geometry;
 mod helper_protocol;
 pub(crate) mod logging;
 pub(crate) mod rotation_protocol;
 pub(crate) mod itertools;
+pub(crate) mod float_approx;
+pub(crate) mod pop_clear;
 
 pub type ArcArray3<T> = ArcArray<T, Ix3>;
 
