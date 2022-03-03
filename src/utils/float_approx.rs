@@ -19,6 +19,7 @@ impl<A> FloatApprox<A>
         array.into_iter().map(|x| FloatApprox((*x).clone())).collect()
     }
 
+    #[allow(dead_code)]
     pub fn from_array_view(array: ArrayView1<A>) -> Vec<FloatApprox<&A>> {
         array.into_iter().map(|x| FloatApprox(x)).collect()
     }
@@ -54,6 +55,7 @@ impl<A> Hash for FloatApprox<A>
 }
 
 
+#[cfg(test)]
 mod tests {
     use std::collections::HashSet;
     use ndarray::aview1;

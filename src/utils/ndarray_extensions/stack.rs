@@ -17,6 +17,7 @@ impl<A, D, O> Stack<A, O> for Vec<Array<A, D>>
     }
 }
 
+#[cfg(test)]
 mod tests {
     use ndarray::{arr1, arr2, Array1, Array2, Axis};
     use crate::utils::ndarray_extensions::stack::Stack;
