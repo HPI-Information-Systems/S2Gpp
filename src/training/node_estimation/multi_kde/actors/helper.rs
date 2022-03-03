@@ -1,9 +1,10 @@
 use std::f32::consts::PI;
 use std::ops::{Div, Mul, Range};
-use actix::{Actor, Handler, Recipient, SyncContext};
+use actix::{Actor, ActorContext, Handler, Recipient, SyncContext};
 use ndarray::{ArcArray2, Array1, Array2, Dim, s};
 use ndarray_linalg::Cholesky;
 use ndarray_linalg::UPLO::Lower;
+use crate::messages::PoisonPill;
 use crate::training::node_estimation::multi_kde::actors::messages::{EstimatorResponse, EstimatorTask};
 
 pub(in crate::training::node_estimation::multi_kde::actors) struct EstimatorHelper {
@@ -78,5 +79,13 @@ impl Handler<EstimatorTask> for EstimatorHelper {
     fn handle(&mut self, msg: EstimatorTask, _ctx: &mut Self::Context) -> Self::Result {
         let estimate = self.evaluate(msg.data_range);
         self.receiver.do_send(EstimatorResponse { estimate }).unwrap();
+    }
+}
+
+impl Handler<PoisonPill> for EstimatorHelper {
+    type Result = ();
+
+    fn handle(&mut self, _msg: PoisonPill, ctx: &mut Self::Context) -> Self::Result {
+        ctx.stop()
     }
 }

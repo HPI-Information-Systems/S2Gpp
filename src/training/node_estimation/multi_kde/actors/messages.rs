@@ -1,7 +1,6 @@
 use std::ops::Range;
-use actix::{Message, Recipient};
+use actix::Message;
 use ndarray::{ArcArray2, Array1, Array2};
-use crate::messages::PoisonPill;
 
 
 #[derive(Message)]
@@ -21,8 +20,7 @@ pub(in crate::training::node_estimation) struct GaussianKDEMessage {
 #[derive(Message)]
 #[rtype(Result = "()")]
 pub(in crate::training::node_estimation) struct GaussianKDEResponse {
-    pub kernel_estimate: Array1<f32>,
-    pub source: Recipient<PoisonPill>
+    pub kernel_estimate: Array1<f32>
 }
 
 

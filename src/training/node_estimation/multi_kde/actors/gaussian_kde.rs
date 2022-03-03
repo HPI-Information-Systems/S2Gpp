@@ -30,6 +30,13 @@ impl GaussianKDEActor {
         }
     }
 
+    fn reset(&mut self) {
+        self.data = None;
+        self.helper = None;
+        self.helper_protocol = HelperProtocol::default();
+        self.estimate = None;
+    }
+
     fn estimate(&mut self, data: ArcArray2<f32>, ctx: &mut Context<Self>) {
         let grid_min = data.min().unwrap().clone();
         let grid_max = data.max().unwrap().clone();
@@ -116,6 +123,7 @@ impl Handler<GaussianKDEMessage> for GaussianKDEActor {
     type Result = ();
 
     fn handle(&mut self, msg: GaussianKDEMessage, ctx: &mut Self::Context) -> Self::Result {
+        self.reset();
         self.estimate(msg.column, ctx);
     }
 }
@@ -123,7 +131,7 @@ impl Handler<GaussianKDEMessage> for GaussianKDEActor {
 impl Handler<EstimatorResponse> for GaussianKDEActor {
     type Result = ();
 
-    fn handle(&mut self, msg: EstimatorResponse, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: EstimatorResponse, _ctx: &mut Self::Context) -> Self::Result {
         self.helper_protocol.received();
         match self.estimate.as_mut() {
             Some(estimate) => estimate.add_assign(&msg.estimate),
@@ -133,12 +141,12 @@ impl Handler<EstimatorResponse> for GaussianKDEActor {
         }
 
         if !self.helper_protocol.is_running() {
+            self.helper.as_ref().unwrap().do_send(PoisonPill);
             let estimate = (*self.estimate.as_ref().unwrap()).clone();
             self.estimate = None;
 
             self.receiver.as_ref().unwrap().do_send(GaussianKDEResponse {
-                kernel_estimate: estimate,
-                source: ctx.address().recipient()
+                kernel_estimate: estimate
             }).unwrap();
         }
     }
