@@ -61,6 +61,7 @@ where
 }
 
 
+#[cfg(test)]
 mod tests {
     use ndarray::{arr1, arr2, Axis};
     use crate::utils::ndarray_extensions::shift::Shift;

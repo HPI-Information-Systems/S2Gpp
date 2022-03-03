@@ -61,7 +61,7 @@ pub struct Parameters {
     #[structopt(long = "column-end-idx", default_value = "0")]
     pub column_end: isize,
 
-    #[structopt(long = "clustering", default_value = "kde")]
+    #[structopt(long = "clustering", default_value = "meanshift")]
     pub clustering: Clustering
 }
 

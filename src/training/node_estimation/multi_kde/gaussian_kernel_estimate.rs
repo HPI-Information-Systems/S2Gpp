@@ -7,6 +7,7 @@ use anyhow::Result;
 
 // todo: parallelize
 /// Inspired by scipy's [gaussian_kernel_estimate](https://github.com/scipy/scipy/blob/8a64c938ddf1ae4c02a08d2c5e38daeb8d061d38/scipy/stats/_stats.pyx#L693)
+#[allow(dead_code)]
 pub(in crate::training::node_estimation::multi_kde) fn gaussian_kernel_estimate(points: ArrayView2<f32>, weights: ArrayView2<f32>, grid: Array2<f32>, precision: ArrayView2<f32>) -> Result<Array2<f32>> {
     let n = points.shape()[0];
     let d = points.shape()[1];

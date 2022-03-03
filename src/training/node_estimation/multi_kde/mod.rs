@@ -24,6 +24,7 @@ pub(crate) struct MultiKDEBase {
 
 
 impl MultiKDEBase {
+    #[allow(dead_code)]
     pub fn new(resolution: usize, peak_order: usize) -> Self {
         Self {
             resolution,
@@ -31,6 +32,7 @@ impl MultiKDEBase {
         }
     }
 
+    #[allow(dead_code)]
     pub fn cluster(&self, data: ArrayView2<f32>) -> Result<Array1<usize>> {
         let n_dims = data.shape()[1];
         let mut cluster_centers = Vec::with_capacity(n_dims);
@@ -129,6 +131,7 @@ impl Default for MultiKDEBase {
 }
 
 
+#[cfg(test)]
 mod tests {
     use ndarray::{arr1, arr2, Array1, Axis};
     use crate::data_manager::data_reader::read_data_;

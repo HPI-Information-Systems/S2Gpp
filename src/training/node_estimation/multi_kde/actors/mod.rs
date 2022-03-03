@@ -56,6 +56,7 @@ impl MultiKDEActor {
             let dummy_cluster_centers: Vec<f32> = vec![];
             let dummy_cluster_centers = Array1::from(dummy_cluster_centers).insert_axis(Axis(1));
             self.receiver.do_send(ClusteringResponse { cluster_centers: dummy_cluster_centers, labels }).unwrap();
+            self.gaussian_kde.as_ref().unwrap().do_send(PoisonPill);
             ctx.stop();
         }
     }
@@ -95,7 +96,6 @@ impl Handler<GaussianKDEResponse> for MultiKDEActor {
 
     fn handle(&mut self, msg: GaussianKDEResponse, ctx: &mut Self::Context) -> Self::Result {
         self.find_cluster_centers(msg.kernel_estimate, ctx);
-        msg.source.do_send(PoisonPill).unwrap();
     }
 }
 

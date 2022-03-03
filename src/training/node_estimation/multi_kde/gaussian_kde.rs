@@ -32,6 +32,7 @@ impl<'a> GaussianKDEBase<'a> {
         kde
     }
 
+    #[allow(dead_code)]
     pub fn evaluate(&self, points: Array2<f32>) -> Result<Array1<f32>> {
         let result = gaussian_kernel_estimate(
             self.data.view(),
@@ -43,6 +44,7 @@ impl<'a> GaussianKDEBase<'a> {
         Ok(result.slice(s![.., 0]).into_owned())
     }
 
+    #[allow(dead_code)]
     fn compute_covariance(&mut self) {
         self.calculate_weights();
         let factor = self.scotts_factor();
@@ -56,17 +58,20 @@ impl<'a> GaussianKDEBase<'a> {
         self.log_det = Some(2.0 * l.diag().into_owned().ln().sum());
     }
 
+    #[allow(dead_code)]
     fn scotts_factor(&self) -> f32 {
         let d = self.data.shape()[1];
         let exponent = -1.0 / ((d+4) as f32);
         self.neff().powf(exponent)
     }
 
+    #[allow(dead_code)]
     fn neff(&self) -> f32 {
         let weights = self.weights.as_ref().unwrap();
         1.0 / weights.clone().powi(2).sum()
     }
 
+    #[allow(dead_code)]
     fn calculate_weights(&mut self) {
         let n = self.data.shape()[0];
         self.weights = Some(Array2::ones(Dim([n, 1])) / (n as f32));
@@ -74,6 +79,7 @@ impl<'a> GaussianKDEBase<'a> {
 }
 
 
+#[cfg(test)]
 mod tests {
     use ndarray::{arr1, arr2, Array1, Array2};
     use ndarray_linalg::assert_close_l1;
