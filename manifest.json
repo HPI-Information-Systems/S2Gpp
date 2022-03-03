@@ -2,7 +2,7 @@
     "title": "Series2Graph++",
     "description": "Implementation of [unpublished]",
     "inputDimensionality": "multivariate",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "authors": "Phillip Wenig, Thorsten Papenbrock",
     "language": "Rust",
     "type": "Detector",
@@ -44,6 +44,13 @@
                 "defaultValue": 75,
                 "optional": "true",
                 "description": "Size of the sliding windows used to find anomalies (query subsequences). query-length must be >= pattern-length!"
+            },
+            {
+                "name": "clustering",
+                "type": "String",
+                "defaultValue": "meanshift",
+                "optional": "true",
+                "description": "Determines which clustering algorithm to use. Possible choices are: `meanshift` or `kde`."
             }
         ],
         "modelInput": "none"
