@@ -12,8 +12,8 @@ pub(crate) struct MaterializedTransition {
 }
 
 impl MaterializedTransition {
-    pub fn to_transition(self) -> Transition {
-        Transition::new(self.from_point.to_ref(), self.to_point.to_ref())
+    pub fn into_transition(self) -> Transition {
+        Transition::new(self.from_point.into_ref(), self.to_point.into_ref())
     }
 }
 

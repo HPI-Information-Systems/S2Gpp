@@ -38,13 +38,13 @@ impl MultiKDEBase {
         let mut cluster_centers = Vec::with_capacity(n_dims);
         for points in data.axis_iter(Axis(1)) {
             let points = points.insert_axis(Axis(1));
-            let gkde = GaussianKDEBase::new(points.clone());
-            let grid_min = points.min()?.clone();
-            let grid_max = points.max()?.clone();
+            let gkde = GaussianKDEBase::new(points);
+            let grid_min = *points.min()?;
+            let grid_max = *points.max()?;
             let grid = Array::linspace(grid_min, grid_max, self.resolution).insert_axis(Axis(1));
             let kernel_estimate = gkde.evaluate(grid)?;
             let peaks = self.find_peak_values(kernel_estimate.view(), grid_min, grid_max);
-            let assigned_peak_values = if peaks.len() > 0 {
+            let assigned_peak_values = if !peaks.is_empty() {
                 self.assign_closest_peak_values(points, peaks)
             } else {
                 Array1::from(vec![0.0; points.len()])
@@ -97,8 +97,7 @@ impl MultiKDEBase {
         let mut peaks_arr = Array1::from(peaks.clone()).broadcast(broadcast_shape).unwrap().to_owned();
         let broadcast_points = points.broadcast(broadcast_shape).unwrap();
         peaks_arr = peaks_arr.sub(broadcast_points);
-        let p = peaks_arr.mapv(f32::abs).map_axis(Axis(1), |d| peaks[d.argmin().unwrap()]);
-        p
+        peaks_arr.mapv(f32::abs).map_axis(Axis(1), |d| peaks[d.argmin().unwrap()])
     }
 
     fn extract_labels_from_centers(&self, cluster_centers: Array2<f32>) -> Vec<usize> {
@@ -108,7 +107,7 @@ impl MultiKDEBase {
         for center in cluster_centers.axis_iter(Axis(0)) {
             let approx_center = FloatApprox::from_array_view_clone(center);
             match &unique_cluster_centers.get(&approx_center) {
-                Some(k) => labels.push((*k).clone()),
+                Some(k) => labels.push(*(*k)),
                 None => {
                     unique_cluster_centers.insert(approx_center, key);
                     labels.push(key);

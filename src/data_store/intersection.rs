@@ -32,7 +32,7 @@ impl Intersection {
         self.from_point_id
     }
 
-    pub fn to_ref(self) -> IntersectionRef {
+    pub fn into_ref(self) -> IntersectionRef {
         IntersectionRef::new(self)
     }
 }

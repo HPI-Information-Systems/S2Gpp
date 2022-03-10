@@ -50,12 +50,9 @@ impl ClusterMemberListener {
                 }
             });
 
-            match remote_addr {
-                Some(ra) => {
-                    connected_nodes.remove(&ra);
-                    self.sorted_nodes.insert(i, ra);
-                },
-                None => ()
+            if let Some(ra) = remote_addr {
+                connected_nodes.remove(&ra);
+                self.sorted_nodes.insert(i, ra);
             }
         }
 
@@ -97,8 +94,8 @@ impl Handler<ClusterLog> for ClusterMemberListener {
                 if self.connected_nodes.len() == self.parameters.n_cluster_nodes - 1 {
                     match &self.parameters.role {
                         Role::Main { .. } => {
-                            let mut sorted_members = vec![self.parameters.local_host.clone()];
-                            sorted_members.append(&mut self.connected_nodes.iter().map(|x| x.socket_addr.clone()).collect());
+                            let mut sorted_members = vec![self.parameters.local_host];
+                            sorted_members.append(&mut self.connected_nodes.iter().map(|x| x.socket_addr).collect());
 
                             for node in self.connected_nodes.iter() {
                                 let mut remote_listener = node.clone();
@@ -109,7 +106,7 @@ impl Handler<ClusterLog> for ClusterMemberListener {
                             self.sort_members(sorted_members);
                             self.start_training();
                         },
-                        _ => if self.sorted_addr_buffer.len() > 0 {
+                        _ => if !self.sorted_addr_buffer.is_empty() {
                             self.sort_members(self.sorted_addr_buffer.clone());
                             self.start_training();
                         }
@@ -118,13 +115,10 @@ impl Handler<ClusterLog> for ClusterMemberListener {
             },
             ClusterLog::MemberLeft(addr) => {
                 debug!("member left {:?}", addr);
-                match &self.parameters.role {
-                    Role::Sub { mainhost } => {
-                        if addr.eq(mainhost) {
-                            ctx.stop();
-                        }
-                    },
-                    _ => ()
+                if let Role::Sub {mainhost} = &self.parameters.role {
+                    if addr.eq(mainhost) {
+                        ctx.stop();
+                    }
                 }
             }
         }

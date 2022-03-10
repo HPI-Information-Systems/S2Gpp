@@ -47,7 +47,7 @@ impl Handler<ScoringHelperInstruction> for ScoringHelper {
 
             single_scores.push(if len_score == 0 {
                 match single_scores.last() {
-                    Some(last) => last.clone(),
+                    Some(last) => *last,
                     None => {
                         first_empty = true;
                         0.0

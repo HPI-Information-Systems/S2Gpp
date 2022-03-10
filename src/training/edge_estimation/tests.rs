@@ -39,8 +39,8 @@ fn test_edge_estimation_ordered() {
     ];
 
     let expected_edges = vec![
-        Edge::new(IndependentNode::new(0, 0, 0).to_ref(), IndependentNode::new(1, 0, 1).to_ref()),
-        Edge::new(IndependentNode::new(1, 0, 1).to_ref(), IndependentNode::new(2, 1, 1).to_ref())
+        Edge::new(IndependentNode::new(0, 0, 0).into_ref(), IndependentNode::new(1, 0, 1).into_ref()),
+        Edge::new(IndependentNode::new(1, 0, 1).into_ref(), IndependentNode::new(2, 1, 1).into_ref())
     ];
 
     test_edge_estimation(nodes, expected_edges);
@@ -55,8 +55,8 @@ fn test_edge_estimation_transition_over_0() {
         IndependentNode::new(99, 1, 1)
     ];
     let expected_edges = vec![
-        Edge::new(IndependentNode::new(98, 0, 0).to_ref(), IndependentNode::new(99, 1, 1).to_ref()),
-        Edge::new(IndependentNode::new(99, 1, 1).to_ref(), IndependentNode::new(0, 0, 1).to_ref())
+        Edge::new(IndependentNode::new(98, 0, 0).into_ref(), IndependentNode::new(99, 1, 1).into_ref()),
+        Edge::new(IndependentNode::new(99, 1, 1).into_ref(), IndependentNode::new(0, 0, 1).into_ref())
     ];
 
     test_edge_estimation(nodes, expected_edges);

@@ -120,8 +120,7 @@ impl ClusterNodes {
 impl From<HashMap<usize, RemoteAddr>> for ClusterNodes {
     fn from(nodes: HashMap<usize, RemoteAddr>) -> Self {
         Self {
-            nodes,
-            ..Default::default()
+            nodes
         }
     }
 }
@@ -199,7 +198,7 @@ impl<T: Actor> Iterator for AnyClusterNodesIterator<T> {
                 None => AnyAddr::Local(self.any_cluster_nodes.local_addr.clone())
             };
             self.position += 1;
-            return Some(addr)
+            Some(addr)
         }
     }
 }

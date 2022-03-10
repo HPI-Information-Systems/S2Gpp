@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use actix::{Actor, ActorContext, Context, Handler, Recipient, Addr, AsyncContext};
 
 use ndarray::{Array2, Array3, Array1, Dim};
@@ -136,9 +137,8 @@ impl Handler<LoadDataMessage> for DataManager {
         self.data_reading = Some(DataReading { with_header: true, overlap: self.parameters.pattern_length - 1 });
 
         let role = self.parameters.role.clone();
-        match role {
-            Role::Main {data_path} => self.read_csv(&data_path, ctx.address()),
-            _ => ()
+        if let Role::Main {data_path} = role {
+            self.read_csv(&data_path, ctx.address())
         }
     }
 }
@@ -149,12 +149,10 @@ impl Handler<DataPartitionMessage> for DataManager {
     fn handle(&mut self, msg: DataPartitionMessage, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(2, 12, "Calculating Data Stats".to_string()).print();
         let n_rows = msg.data.len();
-        let until_column = if self.parameters.column_end == 0 {
-            msg.data[0].len()
-        } else if self.parameters.column_end > 0 {
-            self.parameters.column_end as usize
-        } else {
-            (msg.data[0].len() as isize + self.parameters.column_end) as usize
+        let until_column = match self.parameters.column_end.cmp(&0) {
+            Ordering::Equal => msg.data[0].len(),
+            Ordering::Greater => self.parameters.column_end as usize,
+            Ordering::Less => (msg.data[0].len() as isize + self.parameters.column_end) as usize
         };
 
         let n_columns = until_column - self.parameters.column_start;

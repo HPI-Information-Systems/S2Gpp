@@ -211,7 +211,7 @@ impl Handler<IntersectionRotationMessage> for Training {
 
         let own_id = self.cluster_nodes.get_own_idx();
         for (segment_id, intersection_by_point) in msg.intersection_coords_by_segment.into_iter() {
-            if own_id.eq(&self.segment_id_to_assignment(segment_id.clone())) {
+            if own_id.eq(&self.segment_id_to_assignment(segment_id)) {
                 self.data_store.add_intersections(intersection_by_point)
             } else {
                 match &mut self.intersection_calculation.foreign_intersections.get_mut(&segment_id) {

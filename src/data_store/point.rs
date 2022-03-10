@@ -39,7 +39,7 @@ impl Point {
         self.segment
     }
 
-    pub fn to_ref(self) -> PointRef {
+    pub fn into_ref(self) -> PointRef {
         PointRef::new(self)
     }
 }

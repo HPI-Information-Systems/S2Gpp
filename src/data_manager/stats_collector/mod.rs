@@ -30,9 +30,6 @@ impl DatasetStats {
     }
 
     pub fn is_done(&self) -> bool {
-        match (&self.std_col, &self.min_col, &self.max_col) {
-            (Some(_), Some(_), Some(_)) => true,
-            _ => false
-        }
+        matches!((&self.std_col, &self.min_col, &self.max_col), (Some(_), Some(_), Some(_)))
     }
 }

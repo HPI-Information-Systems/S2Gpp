@@ -25,10 +25,10 @@ fn scores_are_written_to_file() {
 fn node_degrees_correctly_calculated() {
     let mut training = Training::new(Parameters::default());
     let edges = vec![
-        Edge::new(IndependentNode::new(0, 0, 0).to_ref(), IndependentNode::new(0, 1, 1).to_ref()),
-        Edge::new(IndependentNode::new(0, 1, 1).to_ref(), IndependentNode::new(1, 1, 2).to_ref()),
-        Edge::new(IndependentNode::new(0, 0, 2).to_ref(), IndependentNode::new(1, 1, 3).to_ref()),
-        Edge::new(IndependentNode::new(0, 0, 3).to_ref(), IndependentNode::new(0, 1, 4).to_ref()),
+        Edge::new(IndependentNode::new(0, 0, 0).into_ref(), IndependentNode::new(0, 1, 1).into_ref()),
+        Edge::new(IndependentNode::new(0, 1, 1).into_ref(), IndependentNode::new(1, 1, 2).into_ref()),
+        Edge::new(IndependentNode::new(0, 0, 2).into_ref(), IndependentNode::new(1, 1, 3).into_ref()),
+        Edge::new(IndependentNode::new(0, 0, 3).into_ref(), IndependentNode::new(0, 1, 4).into_ref()),
     ];
 
     let mut expected_node_degrees = vec![

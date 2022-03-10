@@ -48,7 +48,7 @@ where
     assert!(start.len() == end.len());
 
     let linspaces: Vec<Array1<A>> = start.iter().zip(end.iter()).map(|(s,e)| {
-        Array::linspace(s.clone(), e.clone(), n)
+        Array::linspace(*s, *e, n)
     }).collect();
 
     stack(Axis(0), linspaces.iter().map(|x| x.view()).collect::<Vec<ArrayView1<A>>>().as_slice()).unwrap()
@@ -124,7 +124,7 @@ impl<S, A> PolarCoords<A> for ArrayBase<S, Dim<[usize; 1]>>
         let x = &self[0];
         let y = &self[1];
         let radius = (x.powi(2) + y.powi(2)).sqrt();
-        let theta = y.atan2(x.clone());
+        let theta = y.atan2(*x);
         arr1(&[radius, theta])
     }
 

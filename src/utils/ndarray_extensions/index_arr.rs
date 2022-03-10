@@ -26,7 +26,7 @@ where
 {
     fn get_multiple(&self, indices: Array1<usize>, _axis: Axis) -> Result<Array<A, Dim<[usize; 1]>>> {
         let indexed_vec = indices.to_vec().into_iter()
-            .map(|index| self.get(index).ok_or(Error::msg(format!("Index {} out of bounds", index))))
+            .map(|index| self.get(index).ok_or_else(|| Error::msg(format!("Index {} out of bounds", index))))
             .map(|x| x.map(|x| (*x).clone()))
             .collect::<Result<Vec<A>, _>>()?;
         Ok(arr1(indexed_vec.as_slice()))

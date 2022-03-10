@@ -142,30 +142,27 @@ impl Scorer for Training {
     }
 
     fn normalize_score(&mut self, scores: &mut Array1<f32>) {
-        let all_score_max = scores.max().unwrap().clone();
-        let all_score_min = scores.min().unwrap().clone();
+        let all_score_max = *scores.max().unwrap();
+        let all_score_min = *scores.min().unwrap();
         *scores = scores.into_iter().map(|x| (*x - all_score_min) / (all_score_max - all_score_min)).collect();
     }
 
     fn finalize_scoring(&mut self, ctx: &mut Context<Training>) {
-        match &self.scoring.score {
-            None => {
-                let mut scores: Vec<Array1<f32>> = vec![];
-                for cluster_node_id in 0..self.parameters.n_cluster_nodes {
-                    let (mut sub_score, first_empty) = self.scoring.subscores.remove(&cluster_node_id).expect("A subscore is missing!");
-                    if first_empty {
-                        let last_score = scores.last().expect("First cannot be empty if it's the first overall score point!");
+        if self.scoring.score.is_none() {
+            let mut scores: Vec<Array1<f32>> = vec![];
+            for cluster_node_id in 0..self.parameters.n_cluster_nodes {
+                let (mut sub_score, first_empty) = self.scoring.subscores.remove(&cluster_node_id).expect("A subscore is missing!");
+                if first_empty {
+                    let last_score = scores.last().expect("First cannot be empty if it's the first overall score point!");
 
-                        fill_up_first_missing_points(&mut sub_score, last_score[last_score.len() - 1]);
-                    }
-                    scores.push(sub_score);
+                    fill_up_first_missing_points(&mut sub_score, last_score[last_score.len() - 1]);
                 }
-                let mut cat_scores = concatenate(Axis(0),scores.iter().map(|s| s.view()).collect::<Vec<ArrayView1<f32>>>().as_slice())
-                    .expect("Could not concatenate subscores!");
-                self.normalize_score(&mut cat_scores);
-                self.scoring.score = Some(cat_scores);
-            },
-            _ => ()
+                scores.push(sub_score);
+            }
+            let mut cat_scores = concatenate(Axis(0),scores.iter().map(|s| s.view()).collect::<Vec<ArrayView1<f32>>>().as_slice())
+                .expect("Could not concatenate subscores!");
+            self.normalize_score(&mut cat_scores);
+            self.scoring.score = Some(cat_scores);
         }
 
         if let Some(output_path) = self.parameters.score_output_path.clone() {
@@ -200,7 +197,7 @@ impl Handler<ScoringHelperResponse> for Training {
         let mut scores = msg.scores;
         if msg.first_empty {
             match self.scoring.single_scores.last() {
-                Some(last_score) => fill_up_first_missing_points(&mut scores, last_score.clone()),
+                Some(last_score) => fill_up_first_missing_points(&mut scores, *last_score),
                 None => {
                     self.scoring.first_empty = true;
                 }
@@ -246,7 +243,7 @@ impl Handler<SubScores> for Training {
             return
         }
 
-        self.scoring.subscores.insert(msg.cluster_node_id.clone(), (msg.scores.clone(), msg.first_empty));
+        self.scoring.subscores.insert(msg.cluster_node_id, (msg.scores.clone(), msg.first_empty));
 
         if self.scoring.score_rotation_protocol.is_running() {
             self.cluster_nodes.get_next_as("Training").unwrap().do_send(msg);
