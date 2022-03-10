@@ -53,16 +53,16 @@ impl NodeEstimator for Training {
         match self.data_store.get_intersections_from_segment(segment_id) {
             Some(intersections) => {
 
-                self.node_estimation.current_intersections = intersections.iter().map(|x| x.clone()).collect();
+                self.node_estimation.current_intersections = intersections.to_vec();
                 let coordinates: Vec<ArrayView1<f32>> = intersections.iter().map(|x| x.get_coordinates()).collect();
                 let data = stack_new_axis(Axis(0), coordinates.as_slice()).unwrap();
                 match &self.parameters.clustering {
                     Clustering::MeanShift => {
                         let cluster_addr = MeanShiftActor::new(self.parameters.n_threads).start();
-                        cluster_addr.do_send(MeanShiftMessage { source: Some(clustering_recipient.clone()), data });
+                        cluster_addr.do_send(MeanShiftMessage { source: Some(clustering_recipient), data });
                     },
                     Clustering::MultiKDE => {
-                        let cluster_addr = MultiKDEActor::new(clustering_recipient.clone(), self.parameters.n_threads).start();
+                        let cluster_addr = MultiKDEActor::new(clustering_recipient, self.parameters.n_threads).start();
                         cluster_addr.do_send(MultiKDEMessage { data });
                     }
                 }
@@ -96,7 +96,7 @@ impl NodeEstimator for Training {
             let answers = match node_questions.remove(asking_node) {
                 Some(questions) => questions.into_iter().map(|niq|
                     match self.data_store.get_nodes_by_point_id(niq.get_point_id()) {
-                        Some(nodes) => nodes.iter().find_map(|node| node.get_segment_id().eq(&niq.get_segment()).then(|| (niq.get_prev_id(), niq.get_prev_segment(), niq.get_point_id(), node.deref().clone()))).expect(&format!("There is no answer here: no segment_id: {} {}", &niq.get_point_id(), &niq.get_segment())),
+                        Some(nodes) => nodes.iter().find_map(|node| node.get_segment_id().eq(&niq.get_segment()).then(|| (niq.get_prev_id(), niq.get_prev_segment(), niq.get_point_id(), node.deref().clone()))).unwrap_or_else(|| panic!("There is no answer here: no segment_id: {} {}", &niq.get_point_id(), &niq.get_segment())),
                         None => {
                             panic!("There is no answer here!: no point_id: {}", niq.get_point_id())
                         }
@@ -104,9 +104,9 @@ impl NodeEstimator for Training {
                 ).collect(),
                 None => vec![]
             };
-            match self.node_estimation.answers.get_mut(&asking_node) {
+            match self.node_estimation.answers.get_mut(asking_node) {
                 Some(node_answers) => node_answers.extend(answers),
-                None => { self.node_estimation.answers.insert(asking_node.clone(), answers); }
+                None => { self.node_estimation.answers.insert(*asking_node, answers); }
             }
         }
     }
@@ -122,10 +122,7 @@ impl NodeEstimator for Training {
         self.cluster_nodes.get_next_as("Training").unwrap()
             .wait_send(ForeignNodesAnswer { answers })
             .into_actor(self)
-            .map(|res, _act, _ctx| match res {
-                Ok(_) => (),
-                Err(_) => ()
-            })
+            .map(|res, _act, _ctx| if res.is_ok() {})
             .wait(ctx);
         self.node_estimation.answering_rotation_protocol.sent();
     }

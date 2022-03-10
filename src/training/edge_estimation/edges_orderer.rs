@@ -48,7 +48,7 @@ impl EdgesOrderer {
             self.middle_node = Some(match self.edges_small.get(0) {
                 Some(first_edge) => first_edge.get_from_node(),
                 None => previous_node.clone()
-            }.clone());
+            });
             if let Some(previous_transition_node) = &self.previous_transition_node {
                 self.edges_large.push(Edge::new(previous_transition_node.clone(), current_node.clone()));
             }
@@ -76,11 +76,11 @@ impl EdgesOrderer {
         }
     }
 
-    pub fn to_vec(mut self) -> Vec<Edge> {
+    pub fn into_vec(mut self) -> Vec<Edge> {
         match &self.middle_node {
             Some(middle_node) => {
                 let previous_node = self.edges_large.last().as_ref().expect("Should be filled, we have a middle_node!").get_to_node();
-                let connecting_edge = Edge::new(previous_node.clone(), middle_node.clone());
+                let connecting_edge = Edge::new(previous_node, middle_node.clone());
                 self.push(connecting_edge);
 
                 let edges_small = self.edges_small.clone();
@@ -112,14 +112,14 @@ mod tests {
         let mut edges = EdgesOrderer::new(None);
 
         let nodes = vec![
-            IndependentNode::new(0, 0, 0).to_ref(),
-            IndependentNode::new(1, 0, 0).to_ref(),
-            IndependentNode::new(2, 0, 0).to_ref()
+            IndependentNode::new(0, 0, 0).into_ref(),
+            IndependentNode::new(1, 0, 0).into_ref(),
+            IndependentNode::new(2, 0, 0).into_ref()
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(0, 0, 14).to_ref(), IndependentNode::new(1, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(1, 0, 14).to_ref(), IndependentNode::new(2, 0, 0).to_ref()),
+            Edge::new(IndependentNode::new(0, 0, 14).into_ref(), IndependentNode::new(1, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(1, 0, 14).into_ref(), IndependentNode::new(2, 0, 0).into_ref()),
         ];
 
         let mut previous_node = None;
@@ -128,78 +128,78 @@ mod tests {
             previous_node = Some(node.clone());
         }
 
-        assert_eq!(expected_edges, edges.to_vec())
+        assert_eq!(expected_edges, edges.into_vec())
     }
 
     #[test]
     fn orders_edges_without_gap_one_node() {
 
         let nodes = vec![
-            IndependentNode::new(14, 0, 0).to_ref()
+            IndependentNode::new(14, 0, 0).into_ref()
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(13, 2, 9897).to_ref(), IndependentNode::new(14, 0, 0).to_ref()),
+            Edge::new(IndependentNode::new(13, 2, 9897).into_ref(), IndependentNode::new(14, 0, 0).into_ref()),
         ];
 
-        let mut previous_node = Some(IndependentNode::new(13, 2, 0).to_ref());
+        let mut previous_node = Some(IndependentNode::new(13, 2, 0).into_ref());
         let mut edges = EdgesOrderer::new(previous_node.clone());
         for node in nodes.iter() {
             edges.add_node(&previous_node, node);
             previous_node = Some(node.clone());
         }
 
-        assert_eq!(expected_edges, edges.to_vec())
+        assert_eq!(expected_edges, edges.into_vec())
     }
 
     #[test]
     fn orders_edges_without_gap_with_previous() {
 
         let nodes = vec![
-            IndependentNode::new(14, 0, 0).to_ref(),
-            IndependentNode::new(15, 0, 0).to_ref(),
-            IndependentNode::new(16, 0, 0).to_ref(),
+            IndependentNode::new(14, 0, 0).into_ref(),
+            IndependentNode::new(15, 0, 0).into_ref(),
+            IndependentNode::new(16, 0, 0).into_ref(),
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(13, 2, 9916).to_ref(), IndependentNode::new(14, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(14, 0, 9916).to_ref(), IndependentNode::new(15, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(15, 0, 9916).to_ref(), IndependentNode::new(16, 0, 0).to_ref()),
+            Edge::new(IndependentNode::new(13, 2, 9916).into_ref(), IndependentNode::new(14, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(14, 0, 9916).into_ref(), IndependentNode::new(15, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(15, 0, 9916).into_ref(), IndependentNode::new(16, 0, 0).into_ref()),
         ];
 
-        let mut previous_node = Some(IndependentNode::new(13, 2, 0).to_ref());
+        let mut previous_node = Some(IndependentNode::new(13, 2, 0).into_ref());
         let mut edges = EdgesOrderer::new(previous_node.clone());
         for node in nodes.iter() {
             edges.add_node(&previous_node, node);
             previous_node = Some(node.clone());
         }
 
-        assert_eq!(expected_edges, edges.to_vec())
+        assert_eq!(expected_edges, edges.into_vec())
     }
 
     #[test]
     fn orders_edges_without_gap_same_segment_previous() {
 
         let nodes = vec![
-            IndependentNode::new(14, 0, 0).to_ref(),
-            IndependentNode::new(15, 0, 0).to_ref(),
-            IndependentNode::new(16, 0, 0).to_ref(),
+            IndependentNode::new(14, 0, 0).into_ref(),
+            IndependentNode::new(15, 0, 0).into_ref(),
+            IndependentNode::new(16, 0, 0).into_ref(),
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(14, 2, 9916).to_ref(), IndependentNode::new(14, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(14, 0, 9916).to_ref(), IndependentNode::new(15, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(15, 0, 9916).to_ref(), IndependentNode::new(16, 0, 0).to_ref()),
+            Edge::new(IndependentNode::new(14, 2, 9916).into_ref(), IndependentNode::new(14, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(14, 0, 9916).into_ref(), IndependentNode::new(15, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(15, 0, 9916).into_ref(), IndependentNode::new(16, 0, 0).into_ref()),
         ];
 
-        let mut previous_node = Some(IndependentNode::new(14, 2, 0).to_ref());
+        let mut previous_node = Some(IndependentNode::new(14, 2, 0).into_ref());
         let mut edges = EdgesOrderer::new(previous_node.clone());
         for node in nodes.iter() {
             edges.add_node(&previous_node, node);
             previous_node = Some(node.clone());
         }
 
-        assert_eq!(expected_edges, edges.to_vec())
+        assert_eq!(expected_edges, edges.into_vec())
     }
 
     #[test]
@@ -207,18 +207,18 @@ mod tests {
         let mut edges = EdgesOrderer::new(None);
 
         let nodes = vec![
-            IndependentNode::new(0, 0, 0).to_ref(),
-            IndependentNode::new(1, 0, 0).to_ref(),
-            IndependentNode::new(2, 0, 0).to_ref(),
-            IndependentNode::new(98, 0, 0).to_ref(),
-            IndependentNode::new(99, 0, 0).to_ref()
+            IndependentNode::new(0, 0, 0).into_ref(),
+            IndependentNode::new(1, 0, 0).into_ref(),
+            IndependentNode::new(2, 0, 0).into_ref(),
+            IndependentNode::new(98, 0, 0).into_ref(),
+            IndependentNode::new(99, 0, 0).into_ref()
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(98, 0, 14).to_ref(), IndependentNode::new(99, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(99, 0, 14).to_ref(), IndependentNode::new(0, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(0, 0, 14).to_ref(), IndependentNode::new(1, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(1, 0, 14).to_ref(), IndependentNode::new(2, 0, 0).to_ref()),
+            Edge::new(IndependentNode::new(98, 0, 14).into_ref(), IndependentNode::new(99, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(99, 0, 14).into_ref(), IndependentNode::new(0, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(0, 0, 14).into_ref(), IndependentNode::new(1, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(1, 0, 14).into_ref(), IndependentNode::new(2, 0, 0).into_ref()),
         ];
 
         let mut previous_node = None;
@@ -227,80 +227,80 @@ mod tests {
             previous_node = Some(node.clone());
         }
 
-        assert_eq!(expected_edges, edges.to_vec())
+        assert_eq!(expected_edges, edges.into_vec())
     }
 
     #[test]
     fn orders_edges_with_gap_with_predecessor() {
-        let mut edges = EdgesOrderer::new(Some(IndependentNode::new(97, 0, 0).to_ref()));
+        let mut edges = EdgesOrderer::new(Some(IndependentNode::new(97, 0, 0).into_ref()));
 
         let nodes = vec![
-            IndependentNode::new(0, 0, 0).to_ref(),
-            IndependentNode::new(1, 0, 0).to_ref(),
-            IndependentNode::new(2, 0, 0).to_ref(),
-            IndependentNode::new(98, 0, 0).to_ref(),
-            IndependentNode::new(99, 0, 0).to_ref()
+            IndependentNode::new(0, 0, 0).into_ref(),
+            IndependentNode::new(1, 0, 0).into_ref(),
+            IndependentNode::new(2, 0, 0).into_ref(),
+            IndependentNode::new(98, 0, 0).into_ref(),
+            IndependentNode::new(99, 0, 0).into_ref()
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(97, 0, 14).to_ref(), IndependentNode::new(98, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(98, 0, 14).to_ref(), IndependentNode::new(99, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(99, 0, 14).to_ref(), IndependentNode::new(0, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(0, 0, 14).to_ref(), IndependentNode::new(1, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(1, 0, 14).to_ref(), IndependentNode::new(2, 0, 0).to_ref()),
+            Edge::new(IndependentNode::new(97, 0, 14).into_ref(), IndependentNode::new(98, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(98, 0, 14).into_ref(), IndependentNode::new(99, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(99, 0, 14).into_ref(), IndependentNode::new(0, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(0, 0, 14).into_ref(), IndependentNode::new(1, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(1, 0, 14).into_ref(), IndependentNode::new(2, 0, 0).into_ref()),
         ];
 
-        let mut previous_node = Some(IndependentNode::new(97, 0, 0).to_ref());
+        let mut previous_node = Some(IndependentNode::new(97, 0, 0).into_ref());
         for node in nodes.iter() {
             edges.add_node(&previous_node, node);
             previous_node = Some(node.clone());
         }
 
-        assert_eq!(expected_edges, edges.to_vec())
+        assert_eq!(expected_edges, edges.into_vec())
     }
 
     #[test]
     fn orders_edges_with_small_gap_with_predecessor() {
-        let mut edges = EdgesOrderer::new(Some(IndependentNode::new(97, 0, 0).to_ref()));
+        let mut edges = EdgesOrderer::new(Some(IndependentNode::new(97, 0, 0).into_ref()));
 
         let nodes = vec![
-            IndependentNode::new(0, 0, 0).to_ref(),
-            IndependentNode::new(98, 0, 0).to_ref(),
-            IndependentNode::new(99, 0, 0).to_ref()
+            IndependentNode::new(0, 0, 0).into_ref(),
+            IndependentNode::new(98, 0, 0).into_ref(),
+            IndependentNode::new(99, 0, 0).into_ref()
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(97, 0, 14).to_ref(), IndependentNode::new(98, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(98, 0, 14).to_ref(), IndependentNode::new(99, 0, 0).to_ref()),
-            Edge::new(IndependentNode::new(99, 0, 14).to_ref(), IndependentNode::new(0, 0, 0).to_ref()),
+            Edge::new(IndependentNode::new(97, 0, 14).into_ref(), IndependentNode::new(98, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(98, 0, 14).into_ref(), IndependentNode::new(99, 0, 0).into_ref()),
+            Edge::new(IndependentNode::new(99, 0, 14).into_ref(), IndependentNode::new(0, 0, 0).into_ref()),
         ];
 
-        let mut previous_node = Some(IndependentNode::new(97, 0, 0).to_ref());
+        let mut previous_node = Some(IndependentNode::new(97, 0, 0).into_ref());
         for node in nodes.iter() {
             edges.add_node(&previous_node, node);
             previous_node = Some(node.clone());
         }
 
-        assert_eq!(expected_edges, edges.to_vec())
+        assert_eq!(expected_edges, edges.into_vec())
     }
 
     #[test]
     fn orders_edges_with_gap_with_predecessor2() {
-        let mut edges = EdgesOrderer::new(Some(IndependentNode::new(64, 0, 0).to_ref()));
+        let mut edges = EdgesOrderer::new(Some(IndependentNode::new(64, 0, 0).into_ref()));
 
-        let mut nodes: Vec<NodeRef> = (65..100).into_iter().map(|x| IndependentNode::new(x, 0, 0).to_ref()).collect();
-        nodes.insert(0, IndependentNode::new(0, 0, 0).to_ref());
+        let mut nodes: Vec<NodeRef> = (65..100).into_iter().map(|x| IndependentNode::new(x, 0, 0).into_ref()).collect();
+        nodes.insert(0, IndependentNode::new(0, 0, 0).into_ref());
 
-        let mut expected_edges: Vec<Edge> = (64..99).into_iter().map(|x| Edge::new(IndependentNode::new(x, 0, 14).to_ref(), IndependentNode::new(x+1, 0, 14).to_ref())).collect();
+        let mut expected_edges: Vec<Edge> = (64..99).into_iter().map(|x| Edge::new(IndependentNode::new(x, 0, 14).into_ref(), IndependentNode::new(x+1, 0, 14).into_ref())).collect();
 
-        expected_edges.push(Edge::new(IndependentNode::new(99, 0, 14).to_ref(), IndependentNode::new(0, 0, 0).to_ref()));
+        expected_edges.push(Edge::new(IndependentNode::new(99, 0, 14).into_ref(), IndependentNode::new(0, 0, 0).into_ref()));
 
-        let mut previous_node = Some(IndependentNode::new(64, 0, 0).to_ref());
+        let mut previous_node = Some(IndependentNode::new(64, 0, 0).into_ref());
         for node in nodes.iter() {
             edges.add_node(&previous_node, node);
             previous_node = Some(node.clone());
         }
 
-        assert_eq!(expected_edges, edges.to_vec())
+        assert_eq!(expected_edges, edges.into_vec())
     }
 }

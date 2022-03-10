@@ -38,8 +38,8 @@ impl GaussianKDEActor {
     }
 
     fn estimate(&mut self, data: ArcArray2<f32>, ctx: &mut Context<Self>) {
-        let grid_min = data.min().unwrap().clone();
-        let grid_max = data.max().unwrap().clone();
+        let grid_min = *data.min().unwrap();
+        let grid_max = *data.max().unwrap();
         let padding = (grid_max - grid_min).mul(0.1);
         let grid = Array::linspace(grid_min - padding, grid_max + padding, self.resolution).insert_axis(Axis(1));
         self.data = Some(data);

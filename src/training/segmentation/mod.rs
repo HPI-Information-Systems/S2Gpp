@@ -79,7 +79,7 @@ impl Segmenter for Training {
                             Some(foreign_data) => foreign_data.push(transition.materialize()),
                             None => { foreign_data.insert(from_node_id, vec![transition.materialize()]); }
                         }
-                        last_to_node_id = Some(to_node_id.clone());
+                        last_to_node_id = Some(to_node_id);
                         if self.segmentation.send_transition.is_none() {
                             self.segmentation.send_transition = Some(transition.clone().materialize());
                         }
@@ -113,7 +113,7 @@ impl Segmenter for Training {
 
     fn search_split_between_transitions(&mut self, prev_transition: Option<Transition>, transition: &Transition, from_node_id: usize, last_to_node_id: usize) {
         if from_node_id != last_to_node_id {  // found split between two transitions
-            self.segmentation.node_questions.ask(transition, prev_transition.clone(), false, 1, self.parameters.clone());
+            self.segmentation.node_questions.ask(transition, prev_transition, false, 1, self.parameters.clone());
         }
     }
 
@@ -128,17 +128,14 @@ impl Segmenter for Training {
         let transition = self.segmentation.send_transition.take();
         match self.cluster_nodes.get_previous_idx() {
             Some(prev_idx) => {
-                match (point, transition) {
-                    (Some(point), Some(transition)) => {
-                        self.cluster_nodes.get_as(&prev_idx, "Training").unwrap().do_send(
-                            SendFirstPointMessage {
-                                point,
-                                transition
-                            }
-                        );
-                        self.segmentation.rotation_protocol.sent();
-                    },
-                    _ => () // first node does not send a SendFirstPointMessage
+                if let (Some(point), Some(transition)) = (point, transition) {
+                    self.cluster_nodes.get_as(&prev_idx, "Training").unwrap().do_send(
+                        SendFirstPointMessage {
+                            point,
+                            transition
+                        }
+                    );
+                    self.segmentation.rotation_protocol.sent();
                 }
 
                 let own_id = self.cluster_nodes.get_own_idx();
@@ -169,7 +166,7 @@ impl Handler<SendFirstPointMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: SendFirstPointMessage, ctx: &mut Self::Context) -> Self::Result {
-        let spanning_transition = Transition::new(self.segmentation.last_point.take().unwrap().to_ref(), msg.point.to_ref());
+        let spanning_transition = Transition::new(self.segmentation.last_point.take().unwrap().into_ref(), msg.point.into_ref());
         let last_transition = self.segmentation.last_transition.as_ref().unwrap().clone();
 
         if spanning_transition.crosses_segments() & spanning_transition.has_valid_direction(self.parameters.rate as isize) { // valid transition
@@ -188,7 +185,7 @@ impl Handler<SendFirstPointMessage> for Training {
                 None => { self.segmentation.transitions_for_nodes.insert(from_node_id, vec![spanning_transition.materialize()]); }
             }
         } else {
-            let transition = msg.transition.to_transition();
+            let transition = msg.transition.into_transition();
             let transition_from_cluster_id = self.segment_id_to_assignment(transition.get_from_segment());
             let last_transition_to_cluster_id = self.segment_id_to_assignment(last_transition.get_to_segment());
 
@@ -212,7 +209,7 @@ impl Handler<SegmentMessage> for Training {
         }
 
         let own_id = self.cluster_nodes.get_own_idx();
-        let next_id = (own_id + 1) % (&self.cluster_nodes.len_incl_own());
+        let next_id = (own_id + 1) % self.cluster_nodes.len_incl_own();
         let mut segments = msg.segments;
         let own_transitions = segments.remove(&own_id).unwrap();
 

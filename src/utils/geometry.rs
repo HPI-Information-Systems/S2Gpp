@@ -20,7 +20,7 @@ impl From<LinalgError> for IntersectionError {
 pub fn line_plane_intersection(line_points: Array2<f32>, plane_points: Array2<f32>) -> Result<Array1<f32>, IntersectionError> {
     let line_vector: Array1<f32> = line_points.slice(s![1, ..]).to_owned() - line_points.slice(s![0, ..]).to_owned();
     let new_dim = Dim((plane_points.shape()[0] - 1, plane_points.shape()[1]));
-    let plane_vector: Array2<f32> = plane_points.slice(s![1.., ..]).to_owned() - plane_points.slice(s![0, ..]).broadcast(Dim(new_dim)).ok_or_else(|| IntersectionError)?;
+    let plane_vector: Array2<f32> = plane_points.slice(s![1.., ..]).to_owned() - plane_points.slice(s![0, ..]).broadcast(Dim(new_dim)).ok_or(IntersectionError)?;
     let new_dim = Dim((1, line_vector.shape()[0]));
     let vectors = concatenate(Axis(0), &[(line_vector.clone() * -1.).broadcast(new_dim).unwrap(), plane_vector.view()])?;
     let inv = vectors.inv()?;

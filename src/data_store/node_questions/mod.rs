@@ -32,7 +32,7 @@ impl NodeQuestions {
                 },
                 None => {
                     let questions = HashMap::from_iter([(asking_node, vec![niq])]);
-                    self.node_questions.insert(answering_node.clone(), questions);
+                    self.node_questions.insert(answering_node, questions);
                 }
             }
         }
@@ -90,21 +90,19 @@ impl NodeQuestions {
                     )
                 ]
             }
-        } else {
-            if within_transition {
-                (0..cluster_span).into_iter().map(|i| {
-                    let (wanted_segment, segment_before_wanted) = self.get_wanted_segment(transition, &parameters, i);
+        } else if within_transition {
+            (0..cluster_span).into_iter().map(|i| {
+                let (wanted_segment, segment_before_wanted) = self.get_wanted_segment(transition, &parameters, i);
 
-                    NodeInQuestion::new(
-                        point_id,
-                        segment_before_wanted,
-                        point_id,
-                        wanted_segment.mod_floor(&parameters.rate)
-                    )
-                }).collect()
-            } else {
-                panic!("It does happen, please solve!")
-            }
+                NodeInQuestion::new(
+                    point_id,
+                    segment_before_wanted,
+                    point_id,
+                    wanted_segment.mod_floor(&parameters.rate)
+                )
+            }).collect()
+        } else {
+            panic!("It does happen, please solve!")
         };
 
         for node_in_question in nodes_in_question {

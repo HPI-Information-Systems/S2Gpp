@@ -37,7 +37,7 @@ fn main() {
     system.block_on(async {
         let host = params.local_host;
         let seed_nodes = match &params.role {
-            Role::Sub { mainhost } => vec![mainhost.clone()],
+            Role::Sub { mainhost } => vec![*mainhost],
             _ => vec![]
         };
 

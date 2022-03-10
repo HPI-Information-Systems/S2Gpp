@@ -91,7 +91,7 @@ impl DataStore {
     }
 
     pub fn get_transitions(&self) -> Vec<TransitionRef> {
-        self.transitions.iter().map(|transition| transition.clone()).collect()
+        self.transitions.to_vec()
     }
 
     pub fn count_transitions(&self) -> usize {
@@ -101,7 +101,7 @@ impl DataStore {
     // --- Intersections
 
     pub fn add_intersection(&mut self, intersection: Intersection) {
-        let intersection_ref = intersection.to_ref();
+        let intersection_ref = intersection.into_ref();
         self.intersections.push(intersection_ref.clone());
         self.index.add_intersection(intersection_ref);
     }
@@ -123,7 +123,7 @@ impl DataStore {
     }
 
     pub fn add_independent_node(&mut self, node: IndependentNode) {
-        self.add_node_ref(node.to_ref());
+        self.add_node_ref(node.into_ref());
     }
 
     pub fn add_node_ref(&mut self, node_ref: NodeRef) {
@@ -138,7 +138,7 @@ impl DataStore {
     // --- Edges
 
     pub fn add_edge(&mut self, edge: Edge) {
-        self.edges.push(edge.to_ref())
+        self.edges.push(edge.into_ref())
     }
 
     pub fn add_edges(&mut self, edges: Vec<Edge>) {
@@ -149,8 +149,8 @@ impl DataStore {
 
     pub fn add_materialized_edges(&mut self, edges: Vec<MaterializedEdge>) {
         for edge in edges {
-            let from_node = edge.get_from_node().to_ref();
-            let to_node = edge.get_to_node().to_ref();
+            let from_node = edge.get_from_node().into_ref();
+            let to_node = edge.get_to_node().into_ref();
             self.add_node_ref(from_node.clone());
             self.add_node_ref(to_node.clone());
             self.add_edge(Edge::new(from_node, to_node));
@@ -163,7 +163,7 @@ impl DataStore {
     }
 
     pub fn get_edges(&self) -> Vec<EdgeRef> {
-        self.edges.iter().map(|edge| edge.clone()).collect()
+        self.edges.to_vec()
     }
 
     pub fn slice_edges(&self, range: Range<usize>) -> Iter<'_, EdgeRef> {

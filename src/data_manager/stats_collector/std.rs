@@ -41,7 +41,7 @@ impl StdCalculator for DataManager {
         let m2 = (delta * delta_n * (n as f32)).sum_axis(Axis(0));
 
         let main = match self.cluster_nodes.get_main_node() {
-            None => AnyAddr::Local(addr.clone()),
+            None => AnyAddr::Local(addr),
             Some(remote_addr) => {
                 let mut remote_addr = remote_addr.clone();
                 remote_addr.change_id("DataManager".to_string());
@@ -66,7 +66,7 @@ impl Handler<StdNodeMessage> for DataManager {
                     let global_n = n + msg.n;
                     let delta: Array1<f32> = msg.mean.clone() - mean;
                     std_calcuation.m2 = Some(msg.m2 + m2 + delta.clone() * delta * ((n + msg.n) as f32 / global_n as f32));
-                    std_calcuation.mean = Some((mean * n.clone() as f32 + msg.mean * msg.n as f32) / global_n as f32);
+                    std_calcuation.mean = Some((mean * *n as f32 + msg.mean * msg.n as f32) / global_n as f32);
                     std_calcuation.n = Some(global_n);
                 },
                 _ => {
@@ -94,7 +94,7 @@ impl Handler<StdNodeMessage> for DataManager {
                     Some(_) => AnyAddr::Remote(node.clone()),
                     None => AnyAddr::Local(ctx.address())
                 };
-                receiving_node.do_send(StdDoneMessage { std: std.clone(), n: self.std_calculation.as_ref().unwrap().n.as_ref().unwrap().clone()});
+                receiving_node.do_send(StdDoneMessage { std: std.clone(), n: *self.std_calculation.as_ref().unwrap().n.as_ref().unwrap()});
             }
         }
     }

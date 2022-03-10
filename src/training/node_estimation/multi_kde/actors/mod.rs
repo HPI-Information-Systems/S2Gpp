@@ -47,7 +47,7 @@ impl MultiKDEActor {
         if self.next_dim < data.shape()[1] {
             let column = data.slice(s![.., self.next_dim..self.next_dim+1]).to_shared();
             gkde.do_send(GaussianKDEMessage { column: column.clone() });
-            self.current_column = Some(column.clone());
+            self.current_column = Some(column);
             self.next_dim += 1;
         } else {
             let cluster_centers_vec = self.cluster_centers.pop_clear();
@@ -63,10 +63,10 @@ impl MultiKDEActor {
 
     fn find_cluster_centers(&mut self, kernel_estimate: Array1<f32>, ctx: &mut Context<Self>) {
         let column = self.current_column.as_ref().expect("You are not working on any column at the moment");
-        let grid_min = column.min().unwrap().clone();
-        let grid_max = column.max().unwrap().clone();
+        let grid_min = *column.min().unwrap();
+        let grid_max = *column.max().unwrap();
         let peaks = self.multi_kde_base.find_peak_values(kernel_estimate.view(), grid_min, grid_max);
-        let assigned_peak_values = if peaks.len() > 0 {
+        let assigned_peak_values = if !peaks.is_empty() {
             self.multi_kde_base.assign_closest_peak_values(column.view(), peaks)
         } else {
             Array1::from(vec![0.0; column.len()])

@@ -1,13 +1,30 @@
 image: "mut:5000/rust:latest"
 
-test:cargo:
-  tags:
-    - akita
+default:
   before_script:
-    - rustc --version && cargo --version
+    - rustc --version
+    - cargo --version
     - sed -i "s/ssh:\/\/git/https:\/\/gitlab-ci-token:$CI_JOB_TOKEN/" Cargo.toml
     - apt-get update
     - apt-get install -y gfortran
     - apt-get install -y build-essential
+
+stages:
+  - lint
+  - test
+
+linting:
+  stage: lint
+  tags:
+    - akita
+  script:
+    - rustup component add clippy
+    - cargo clippy
+
+
+testing:
+  stage: test
+  tags:
+    - akita
   script:
     - RUST_LOG=warn cargo test

@@ -26,12 +26,11 @@ impl PreprocessorHelper {
         let spikes: Array1<f32> = indices.into_iter().map(|x| {
             x.mod_floor(&2) as f32
         }).collect();
-        let processed = spikes * std + slice;
-        processed
+        spikes * std + slice
     }
 
     fn preprocess(&mut self, column: usize, std: f32) -> Array1<f32> {
-        let data = self.data.column(column).to_owned().clone();
+        let data = self.data.column(column).to_owned();
         let mut flat_regions: Vec<Vec<usize>> = vec![];
         let mut current_flat_region: Vec<usize> = vec![];
         let mut last_v = data[0];
@@ -44,7 +43,7 @@ impl PreprocessorHelper {
                 }
                 current_flat_region.clear();
             }
-            last_v = v.clone();
+            last_v = *v;
         }
         if current_flat_region.len() > self.window_size {
             flat_regions.push(current_flat_region.clone());

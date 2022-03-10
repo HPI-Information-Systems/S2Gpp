@@ -29,7 +29,7 @@ impl MinMaxCalculator for DataManager {
         let max = self.data.as_ref().unwrap().to_shared().max_axis(Axis(0));
 
         let main = match self.cluster_nodes.get_main_node() {
-            None => AnyAddr::Local(addr.clone()),
+            None => AnyAddr::Local(addr),
             Some(remote_addr) => {
                 let mut remote_addr = remote_addr.clone();
                 remote_addr.change_id("DataManager".to_string());
@@ -50,10 +50,10 @@ impl Handler<MinMaxNodeMessage> for DataManager {
         match (&minmax_calculation.min, &minmax_calculation.max) {
             (Some(min), Some(max)) => {
                 let new_min: Array1<f32> = msg.min.iter().zip(min.iter()).map(|(sent, local)| {
-                    sent.min(local.clone())
+                    sent.min(*local)
                 }).collect();
                 let new_max: Array1<f32> = msg.max.iter().zip(max.iter()).map(|(sent, local)| {
-                    sent.max(local.clone())
+                    sent.max(*local)
                 }).collect();
 
                 minmax_calculation.min = Some(new_min);

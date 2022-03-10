@@ -22,7 +22,7 @@ pub(crate) trait ScoringWeights {
 impl ScoringWeights for Training {
     fn count_edges_in_time(&mut self) -> Vec<usize> {
         let start_point = self.transposition.range_start_point.unwrap_or(0);
-        let pseudo_edge = Edge::new(IndependentNode::new(0, 0, 0).to_ref(), IndependentNode::new(0, 0, 0).to_ref()).to_ref();
+        let pseudo_edge = Edge::new(IndependentNode::new(0, 0, 0).into_ref(), IndependentNode::new(0, 0, 0).into_ref()).into_ref();
         let mut edges_in_time = vec![];
         let mut last_point_id = None;
         let mut last_len: usize = 0;
@@ -89,7 +89,7 @@ impl ScoringWeights for Training {
         self.scoring.node_degrees_rotation_protocol.start(self.cluster_nodes.len());
         self.scoring.node_degrees_rotation_protocol.resolve_buffer(ctx.address().recipient());
         self.cluster_nodes.get_as(&self.cluster_nodes.get_next_idx().unwrap(), "Training").unwrap()
-            .do_send(NodeDegrees { degrees: self.scoring.node_degrees.iter().map(|(node, degree)| (node.deref().deref().clone(), degree.clone())).collect() });
+            .do_send(NodeDegrees { degrees: self.scoring.node_degrees.iter().map(|(node, degree)| (node.deref().deref().clone(), *degree)).collect() });
         self.scoring.node_degrees_rotation_protocol.sent();
     }
 
@@ -119,9 +119,9 @@ impl Handler<NodeDegrees> for Training {
         }
 
         for (node, degree) in msg.degrees.iter() {
-            let node_ref = node.clone().to_ref();
+            let node_ref = node.clone().into_ref();
             match self.scoring.node_degrees.get_mut(&node_ref) {
-                None => {self.scoring.node_degrees.insert(node_ref, degree.clone());},
+                None => {self.scoring.node_degrees.insert(node_ref, *degree);},
                 Some(old_degree) => { *old_degree += degree; }
             }
         }
@@ -147,7 +147,7 @@ impl Handler<EdgeWeights> for Training {
 
         for (edge, weight) in msg.weights.iter() {
             match self.scoring.edge_weight.get_mut(edge) {
-                None => {self.scoring.edge_weight.insert(edge.clone(), weight.clone());},
+                None => {self.scoring.edge_weight.insert(edge.clone(), *weight);},
                 Some(old_weight) => { *old_weight += weight; }
             }
         }

@@ -100,18 +100,15 @@ impl Rotator for Training {
         let k_: Vec<Array2<f32>> = k.axis_iter(Axis(2)).map(|x| x.dot(&x)).collect();
         i + k + stack(Axis(2), k_.iter().map(|x| x.view())
             .collect::<Vec<ArrayView2<f32>>>().as_slice()
-        ).unwrap() * ((1.0 - c) / s_.clone().mul(s_.clone()))
+        ).unwrap() * ((1.0 - c) / s_.clone().mul(s_))
     }
 
     fn broadcast_rotation_matrix(&mut self, addr: Addr<Self>) {
-        match &self.parameters.role {
-            Role::Main { .. } => {
-                let rotation_matrix = self.get_rotation_matrix();
-                for nodes in self.cluster_nodes.to_any_as(addr.clone(), "Training") {
-                    nodes.do_send(RotationMatrixMessage { rotation_matrix: rotation_matrix.clone() })
-                }
-            },
-            _ => ()
+        if let Role::Main { .. } = &self.parameters.role {
+            let rotation_matrix = self.get_rotation_matrix();
+            for nodes in self.cluster_nodes.to_any_as(addr.clone(), "Training") {
+                nodes.do_send(RotationMatrixMessage { rotation_matrix: rotation_matrix.clone() })
+            }
         }
         if let Some(rotation_matrix_msg) = self.rotation.rotation_matrix_buffer.take() {
             addr.do_send(rotation_matrix_msg);

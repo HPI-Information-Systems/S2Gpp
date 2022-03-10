@@ -19,6 +19,7 @@ use crate::training::Training;
 
 
 #[derive(Default)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct PCA {
     id: usize,
     n_components: usize,
@@ -78,16 +79,13 @@ impl PCAnalyzer for Training {
     }
 
     fn send_to_main(&mut self) {
-        match self.cluster_nodes.get(&0) {
-            Some(addr) => {
-                let mut addr = addr.clone();
-                addr.change_id("Training".to_string());
-                addr.do_send(PCAMeansMessage {
-                    columns_means: self.rotation.pca.column_means.as_ref().unwrap().clone(),
-                    n: self.rotation.pca.data.as_ref().unwrap().shape()[0],
-                })
-            },
-            None => ()
+        if let Some(addr) = self.cluster_nodes.get(&0) {
+            let mut addr = addr.clone();
+            addr.change_id("Training".to_string());
+            addr.do_send(PCAMeansMessage {
+                columns_means: self.rotation.pca.column_means.as_ref().unwrap().clone(),
+                n: self.rotation.pca.data.as_ref().unwrap().shape()[0],
+            })
         }
     }
 
@@ -133,10 +131,10 @@ impl PCAnalyzer for Training {
 
     fn finalize(&mut self) {
         let column_means = self.rotation.pca.column_means.as_ref().unwrap().to_owned();
-        let dim = column_means.shape()[1].clone();
+        let dim = column_means.shape()[1];
         let n = self.rotation.pca.n.as_ref().unwrap().view();
         let n_reshaped = n.broadcast((dim, n.len())).unwrap();
-        let global_means = (n_reshaped.t().to_owned() * column_means.clone().to_owned()).sum_axis(Axis(0)) / n.sum();
+        let global_means = (n_reshaped.t().to_owned() * column_means.to_owned()).sum_axis(Axis(0)) / n.sum();
 
         let squared_n = n_reshaped.t().mapv(f32::sqrt);
         let mean_diff = column_means.to_owned() - global_means.broadcast((n.len(), dim)).unwrap().to_owned();
@@ -178,7 +176,7 @@ impl PCAnalyzer for Training {
         }
 
         match &self.own_addr {
-            Some(own_addr) => own_addr.do_send(msg.clone()),
+            Some(own_addr) => own_addr.do_send(msg),
             None => panic!("own_addr not yet set")
         }
     }

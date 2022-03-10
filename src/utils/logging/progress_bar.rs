@@ -24,7 +24,7 @@ impl S2GppProgressBar {
     }
 
     pub fn check_correct_env(env: &str) -> bool {
-        std::env::var("RUST_LOG").unwrap_or(String::from("info")).eq(env)
+        std::env::var("RUST_LOG").unwrap_or_else(|_| String::from("info")).eq(env)
     }
 
     pub fn create_pb(&mut self, len: usize) {

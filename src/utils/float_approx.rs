@@ -16,12 +16,12 @@ impl<A> FloatApprox<A>
     }
 
     pub fn from_array_view_clone(array: ArrayView1<A>) -> Vec<Self> {
-        array.into_iter().map(|x| FloatApprox((*x).clone())).collect()
+        array.into_iter().map(|x| FloatApprox(*x)).collect()
     }
 
     #[allow(dead_code)]
     pub fn from_array_view(array: ArrayView1<A>) -> Vec<FloatApprox<&A>> {
-        array.into_iter().map(|x| FloatApprox(x)).collect()
+        array.into_iter().map(FloatApprox).collect()
     }
 }
 

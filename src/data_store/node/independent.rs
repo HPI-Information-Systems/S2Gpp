@@ -32,7 +32,7 @@ impl IndependentNode {
         self.from_point_id
     }
 
-    pub fn to_ref(self) -> NodeRef {
+    pub fn into_ref(self) -> NodeRef {
         NodeRef::new(self)
     }
 }
