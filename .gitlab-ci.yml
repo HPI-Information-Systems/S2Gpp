@@ -1,4 +1,4 @@
-image: "mut:5000/rust:latest"
+image: "sopedu:5000/rust:latest"
 
 default:
   before_script:

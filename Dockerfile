@@ -1,4 +1,4 @@
-FROM mut:5000/akita/rust-base:latest as build
+FROM sopedu:5000/akita/rust-base:latest as build
 
 # install requirements
 RUN set -eux; \
@@ -15,7 +15,7 @@ COPY ./Cargo.toml /app/Cargo.toml
 RUN cargo build --release --package s2gpp --bin s2gpp
 
 
-FROM mut:5000/akita/rust-base:latest
+FROM sopedu:5000/akita/rust-base:latest
 
 LABEL maintainer="phillip.wenig@hpi.de"
 
