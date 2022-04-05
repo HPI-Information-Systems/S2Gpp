@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-use indexmap::IndexMap;
 use crate::data_store::intersection::IntersectionRef;
 use crate::data_store::node::NodeRef;
 use crate::data_store::point::PointRef;
-
+use indexmap::IndexMap;
+use std::collections::HashMap;
 
 #[derive(Default, Clone)]
 pub(crate) struct DataStoreIndex {
@@ -12,7 +11,7 @@ pub(crate) struct DataStoreIndex {
     /// HashMap: Key=SegmentId, Value=Vec<Intersections in segment SegmentID>
     intersections: HashMap<usize, Vec<IntersectionRef>>,
     /// HashMap: Key=PointId, Value=Vec<NodeRef from starting point PointID>
-    nodes: HashMap<usize, Vec<NodeRef>>
+    nodes: HashMap<usize, Vec<NodeRef>>,
 }
 
 impl DataStoreIndex {
@@ -37,7 +36,10 @@ impl DataStoreIndex {
     pub fn add_intersection(&mut self, intersection: IntersectionRef) {
         match &mut self.intersections.get_mut(&intersection.get_segment_id()) {
             Some(intersections) => intersections.push(intersection),
-            None => { self.intersections.insert(intersection.get_segment_id(), vec![intersection]); }
+            None => {
+                self.intersections
+                    .insert(intersection.get_segment_id(), vec![intersection]);
+            }
         }
     }
 
@@ -51,7 +53,9 @@ impl DataStoreIndex {
         let start_point = node_ref.get_from_id();
         match self.nodes.get_mut(&start_point) {
             Some(nodes) => nodes.push(node_ref),
-            None => { self.nodes.insert(start_point, vec![node_ref]); }
+            None => {
+                self.nodes.insert(start_point, vec![node_ref]);
+            }
         }
     }
 

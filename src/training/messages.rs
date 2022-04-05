@@ -1,9 +1,8 @@
-use actix::prelude::*;
 use crate::utils::ClusterNodes;
-
+use actix::prelude::*;
 
 #[derive(Message)]
 #[rtype(Result = "()")]
 pub struct StartTrainingMessage {
-    pub nodes: ClusterNodes
+    pub nodes: ClusterNodes,
 }

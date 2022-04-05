@@ -1,14 +1,13 @@
 use std::sync::{Arc, Mutex};
 
-use actix::{System};
+use actix::System;
 use ndarray::{arr3, Array3};
 use ndarray_linalg::close_l1;
 
 use crate::parameters::Parameters;
 use crate::training::Training;
 
-use crate::training::rotation::{Rotator};
-
+use crate::training::rotation::Rotator;
 
 #[test]
 fn test_rotation_matrix() {
@@ -16,15 +15,22 @@ fn test_rotation_matrix() {
     let rotation_matrix_clone = rotation_matrix.clone();
 
     let expects = arr3(&[
-         [[ 1.39886206e-03,  3.49516576e-03],
-          [ 9.43944169e-04,  8.26974144e-03],
-          [ 9.99998576e-01,  9.99959697e-01]],
-         [[ 9.43944169e-04,  8.26974144e-03],
-          [ 9.99999108e-01,  9.99931372e-01],
-          [-9.45265121e-04, -8.29841247e-03]],
-         [[-9.99998576e-01, -9.99959697e-01],
-          [ 9.45265121e-04,  8.29841247e-03],
-          [ 1.39796979e-03,  3.42653727e-03]]]);
+        [
+            [1.39886206e-03, 3.49516576e-03],
+            [9.43944169e-04, 8.26974144e-03],
+            [9.99998576e-01, 9.99959697e-01],
+        ],
+        [
+            [9.43944169e-04, 8.26974144e-03],
+            [9.99999108e-01, 9.99931372e-01],
+            [-9.45265121e-04, -8.29841247e-03],
+        ],
+        [
+            [-9.99998576e-01, -9.99959697e-01],
+            [9.45265121e-04, 8.29841247e-03],
+            [1.39796979e-03, 3.42653727e-03],
+        ],
+    ]);
 
     let _system = System::new().block_on(async move {
         let mut training = Training::new(Parameters::default());
@@ -33,11 +39,11 @@ fn test_rotation_matrix() {
         training.rotation.phase_space = Some(dummy_data.to_shared());
         training.rotation.data_ref = Some(dummy_data.to_shared());
 
-        training.rotation.reduced_ref = Some(arr3(&[
-            [[-2.32510113e+01, -1.84500066e+01],
-             [ 2.19784013e-02,  1.53111935e-01],
-             [ 3.25042576e-02,  6.32221831e-02]]
-        ]));
+        training.rotation.reduced_ref = Some(arr3(&[[
+            [-2.32510113e+01, -1.84500066e+01],
+            [2.19784013e-02, 1.53111935e-01],
+            [3.25042576e-02, 6.32221831e-02],
+        ]]));
 
         *(rotation_matrix_clone.lock().unwrap()) = Some(training.get_rotation_matrix());
         System::current().stop();

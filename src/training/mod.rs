@@ -1,40 +1,66 @@
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
-use std::ops::Sub;
 use log::*;
 use ndarray::arr1;
-use num_integer::Integer;
+use std::ops::Sub;
 
 use crate::data_manager::{DataLoadedAndProcessed, DataManager, DatasetStats, LoadDataMessage};
-use crate::data_store::{DataStore};
+use crate::data_store::DataStore;
 use crate::messages::PoisonPill;
-use crate::parameters::{Parameters};
+use crate::parameters::Parameters;
 use crate::training::edge_estimation::{EdgeEstimationDone, EdgeEstimator};
-use crate::training::intersection_calculation::{IntersectionCalculation, IntersectionCalculationDone, IntersectionCalculator, SegmentID, IntersectionRotationMessage};
+use crate::training::intersection_calculation::{
+    IntersectionCalculation, IntersectionCalculationDone, IntersectionCalculator,
+    IntersectionRotationMessage, SegmentID,
+};
 pub use crate::training::messages::StartTrainingMessage;
-use crate::training::node_estimation::{NodeEstimation, NodeEstimationDone, NodeEstimator, AskForForeignNodes, ForeignNodesAnswer};
-use crate::training::rotation::{Rotation, Rotator, RotationDoneMessage, RotationMatrixMessage, PCAComponents, PCAMeansMessage, PCADecompositionMessage};
-use crate::training::segmentation::{Segmentation, SegmentedMessage, Segmenter};
-use crate::training::segmentation::messages::{SegmentMessage, SendFirstPointMessage};
-use crate::utils::{ClusterNodes, ConsoleLogger};
-use crate::training::scoring::{Scoring, Scorer};
-use crate::training::scoring::messages::{NodeDegrees, SubScores, EdgeWeights, OverlapRotation, ScoringDone};
-use crate::training::scoring::weights::ScoringWeights;
-use crate::training::transposition::{Transposition, Transposer, TranspositionDone, TranspositionRotationMessage};
 pub use crate::training::node_estimation::Clustering;
+use crate::training::node_estimation::{
+    AskForForeignNodes, ForeignNodesAnswer, NodeEstimation, NodeEstimationDone, NodeEstimator,
+};
+use crate::training::rotation::{
+    PCAComponents, PCADecompositionMessage, PCAMeansMessage, Rotation, RotationDoneMessage,
+    RotationMatrixMessage, Rotator,
+};
+use crate::training::scoring::messages::{
+    EdgeWeights, NodeDegrees, OverlapRotation, ScoringDone, SubScores,
+};
+use crate::training::scoring::weights::ScoringWeights;
+use crate::training::scoring::{Scorer, Scoring};
+use crate::training::segmentation::messages::{SegmentMessage, SendFirstPointMessage};
+use crate::training::segmentation::{Segmentation, SegmentedMessage, Segmenter};
+use crate::training::transposition::{
+    Transposer, Transposition, TranspositionDone, TranspositionRotationMessage,
+};
+use crate::utils::{ClusterNodes, ConsoleLogger};
+use num_integer::Integer;
 
-mod messages;
-mod segmentation;
-mod intersection_calculation;
-mod node_estimation;
 mod edge_estimation;
+mod intersection_calculation;
+mod messages;
+mod node_estimation;
 mod rotation;
 mod scoring;
+mod segmentation;
 mod transposition;
 
-
 #[derive(RemoteActor)]
-#[remote_messages(ForeignNodesAnswer, AskForForeignNodes, NodeDegrees, SubScores, EdgeWeights, OverlapRotation, TranspositionRotationMessage, IntersectionRotationMessage, SegmentMessage, SendFirstPointMessage, PCAMeansMessage, PCADecompositionMessage, PCAComponents, RotationMatrixMessage)]
+#[remote_messages(
+    ForeignNodesAnswer,
+    AskForForeignNodes,
+    NodeDegrees,
+    SubScores,
+    EdgeWeights,
+    OverlapRotation,
+    TranspositionRotationMessage,
+    IntersectionRotationMessage,
+    SegmentMessage,
+    SendFirstPointMessage,
+    PCAMeansMessage,
+    PCADecompositionMessage,
+    PCAComponents,
+    RotationMatrixMessage
+)]
 pub struct Training {
     own_addr: Option<Addr<Self>>,
     parameters: Parameters,
@@ -48,9 +74,8 @@ pub struct Training {
     transposition: Transposition,
     scoring: Scoring,
     data_store: DataStore,
-    num_rotated: Option<usize>
+    num_rotated: Option<usize>,
 }
-
 
 impl Training {
     pub fn new(parameters: Parameters) -> Self {
@@ -67,7 +92,7 @@ impl Training {
             transposition: Transposition::default(),
             scoring: Scoring::default(),
             data_store: DataStore::default(),
-            num_rotated: None
+            num_rotated: None,
         }
     }
 
@@ -89,11 +114,14 @@ impl Actor for Training {
         self.register(ctx.address().recipient());
         self.own_addr = Some(ctx.address());
 
-        self.data_manager = Some(DataManager::new(
-            self.cluster_nodes.clone(),
-            self.parameters.clone(),
-            ctx.address().recipient()
-        ).start());
+        self.data_manager = Some(
+            DataManager::new(
+                self.cluster_nodes.clone(),
+                self.parameters.clone(),
+                ctx.address().recipient(),
+            )
+            .start(),
+        );
     }
 }
 
@@ -102,7 +130,12 @@ impl Handler<StartTrainingMessage> for Training {
 
     fn handle(&mut self, msg: StartTrainingMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.cluster_nodes = msg.nodes;
-        self.data_manager.as_ref().unwrap().do_send(LoadDataMessage { nodes: self.cluster_nodes.clone() });
+        self.data_manager
+            .as_ref()
+            .unwrap()
+            .do_send(LoadDataMessage {
+                nodes: self.cluster_nodes.clone(),
+            });
     }
 }
 
@@ -141,10 +174,17 @@ impl Handler<SegmentedMessage> for Training {
 impl Handler<IntersectionCalculationDone> for Training {
     type Result = ();
 
-    fn handle(&mut self, _msg: IntersectionCalculationDone, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(
+        &mut self,
+        _msg: IntersectionCalculationDone,
+        ctx: &mut Self::Context,
+    ) -> Self::Result {
         ConsoleLogger::new(9, 12, "Estimating Nodes".to_string()).print();
 
-        self.node_estimation.current_segment_id = self.parameters.rate.div_floor(&self.cluster_nodes.len_incl_own()) * self.cluster_nodes.get_own_idx();
+        self.node_estimation.current_segment_id = num_integer::Integer::div_floor(
+            &self.parameters.rate,
+            &self.cluster_nodes.len_incl_own(),
+        ) * self.cluster_nodes.get_own_idx();
         self.estimate_nodes(ctx.address().recipient());
     }
 }
@@ -189,7 +229,10 @@ impl Handler<ScoringDone> for Training {
     type Result = ();
 
     fn handle(&mut self, _msg: ScoringDone, ctx: &mut Self::Context) -> Self::Result {
-        debug!("score {}", self.scoring.score.as_ref().unwrap_or(&arr1(&[])));
+        debug!(
+            "score {}",
+            self.scoring.score.as_ref().unwrap_or(&arr1(&[]))
+        );
 
         ctx.stop();
         System::current().stop();

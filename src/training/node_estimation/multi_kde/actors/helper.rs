@@ -1,11 +1,13 @@
-use std::f32::consts::PI;
-use std::ops::{Div, Mul, Range};
+use crate::messages::PoisonPill;
+use crate::training::node_estimation::multi_kde::actors::messages::{
+    EstimatorResponse, EstimatorTask,
+};
 use actix::{Actor, ActorContext, Handler, Recipient, SyncContext};
-use ndarray::{ArcArray2, Array1, Array2, Dim, s};
+use ndarray::{s, ArcArray2, Array1, Array2, Dim};
 use ndarray_linalg::Cholesky;
 use ndarray_linalg::UPLO::Lower;
-use crate::messages::PoisonPill;
-use crate::training::node_estimation::multi_kde::actors::messages::{EstimatorResponse, EstimatorTask};
+use std::f32::consts::PI;
+use std::ops::{Div, Mul, Range};
 
 pub(in crate::training::node_estimation::multi_kde::actors) struct EstimatorHelper {
     pub(crate) data: ArcArray2<f32>,
@@ -13,14 +15,29 @@ pub(in crate::training::node_estimation::multi_kde::actors) struct EstimatorHelp
     whitening_factors: Array2<f32>,
     weights: Array2<f32>,
     norm: f32,
-    receiver: Recipient<EstimatorResponse>
+    receiver: Recipient<EstimatorResponse>,
 }
 
 impl EstimatorHelper {
-    pub fn new(data: ArcArray2<f32>, weights: Array2<f32>, grid: Array2<f32>, precision: Array2<f32>, receiver: Recipient<EstimatorResponse>) -> Self {
+    pub fn new(
+        data: ArcArray2<f32>,
+        weights: Array2<f32>,
+        grid: Array2<f32>,
+        precision: Array2<f32>,
+        receiver: Recipient<EstimatorResponse>,
+    ) -> Self {
         let d = data.shape()[1];
-        assert_eq!(grid.shape()[1], d, "points and grid must have the same shape at dimension 1: {} != {}", grid.shape()[1], d);
-        assert!((precision.shape()[0] == d) && (precision.shape()[1] == d), "precision matrix must match point dimensions");
+        assert_eq!(
+            grid.shape()[1],
+            d,
+            "points and grid must have the same shape at dimension 1: {} != {}",
+            grid.shape()[1],
+            d
+        );
+        assert!(
+            (precision.shape()[0] == d) && (precision.shape()[1] == d),
+            "precision matrix must match point dimensions"
+        );
 
         let whitening = precision.cholesky(Lower).unwrap();
         let white_grid = grid.dot(&whitening);
@@ -36,7 +53,7 @@ impl EstimatorHelper {
             whitening_factors: whitening,
             weights,
             norm,
-            receiver
+            receiver,
         }
     }
 
@@ -78,7 +95,9 @@ impl Handler<EstimatorTask> for EstimatorHelper {
 
     fn handle(&mut self, msg: EstimatorTask, _ctx: &mut Self::Context) -> Self::Result {
         let estimate = self.evaluate(msg.data_range);
-        self.receiver.do_send(EstimatorResponse { estimate }).unwrap();
+        self.receiver
+            .do_send(EstimatorResponse { estimate })
+            .unwrap();
     }
 }
 

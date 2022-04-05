@@ -1,23 +1,22 @@
 #[cfg(test)]
 mod tests;
 
-
-use ndarray::{Array2, Axis, ArrayBase, Array3, s};
 use crate::parameters::Parameters;
+use ndarray::{s, Array2, Array3, ArrayBase, Axis};
 
-use crate::utils::{linspace};
 use crate::data_manager::stats_collector::DatasetStats;
+use crate::utils::linspace;
 
 pub struct ReferenceDatasetBuilder {
     data_stats: DatasetStats,
-    parameters: Parameters
+    parameters: Parameters,
 }
 
 impl ReferenceDatasetBuilder {
     pub fn new(data_stats: DatasetStats, parameters: Parameters) -> Self {
         Self {
             data_stats,
-            parameters
+            parameters,
         }
     }
 
@@ -33,13 +32,19 @@ impl ReferenceDatasetBuilder {
         let mut tmp: Array2<f32> = ArrayBase::zeros((width, dim));
         let mut t: Array2<f32> = ArrayBase::zeros((self.parameters.pattern_length, dim));
 
-        for (i, v) in linspace(min_cols.clone(), max_cols.clone(), length).axis_iter(Axis(1)).enumerate() {
+        for (i, v) in linspace(min_cols.clone(), max_cols.clone(), length)
+            .axis_iter(Axis(1))
+            .enumerate()
+        {
             tmp.fill(0.0);
             t.fill(0.0);
             t = t + v;
 
             for j in 0..width {
-                tmp.slice_mut(s![j, ..]).assign(&t.slice(s![j..j+self.parameters.latent, ..]).sum_axis(Axis(0)));
+                tmp.slice_mut(s![j, ..]).assign(
+                    &t.slice(s![j..j + self.parameters.latent, ..])
+                        .sum_axis(Axis(0)),
+                );
             }
 
             data_ref.index_axis_mut(Axis(0), i).assign(&tmp);

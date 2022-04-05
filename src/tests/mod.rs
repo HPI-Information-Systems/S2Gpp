@@ -1,24 +1,22 @@
 pub mod utils;
 
-use std::env::temp_dir;
-use std::fs::remove_file;
-use std::path::Path;
+use crate::cluster_listener::ClusterMemberListener;
+use crate::data_manager::data_reader::read_data_;
+use crate::parameters::{Parameters, Role};
+use crate::training::{Clustering, StartTrainingMessage, Training};
+use crate::utils::ClusterNodes;
 use actix::prelude::*;
 use actix_rt::System;
 use actix_telepathy::Cluster;
 use ndarray_linalg::close_l1;
 use port_scanner::request_open_port;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use crate::cluster_listener::ClusterMemberListener;
-use crate::data_manager::data_reader::read_data_;
-use crate::parameters::{Parameters, Role};
-use crate::training::{Clustering, StartTrainingMessage, Training};
-use crate::utils::ClusterNodes;
-
+use std::env::temp_dir;
+use std::fs::remove_file;
+use std::path::Path;
 
 const ESTIMATED_SCORES_PATH: &str = "ts_0.csv.scores";
 const EXPECTED_SCORES_PATH: &str = "data/ts_0.csv.scores";
-
 
 fn get_output_path() -> String {
     let mut dir = temp_dir();
@@ -26,12 +24,13 @@ fn get_output_path() -> String {
     dir.to_str().unwrap().to_string()
 }
 
-
 #[test]
 #[ignore] // takes some time
 fn global_test_kde_clustering() {
     let params: Parameters = Parameters {
-        role: Role::Main { data_path: "data/ts_0.csv".to_string() },
+        role: Role::Main {
+            data_path: "data/ts_0.csv".to_string(),
+        },
         local_host: "127.0.0.1:1992".parse().unwrap(),
         score_output_path: Some(get_output_path()),
         clustering: Clustering::MultiKDE,
@@ -45,12 +44,13 @@ fn global_test_kde_clustering() {
     assert!(path.exists())
 }
 
-
 #[test]
 #[ignore] // takes some time
 fn global_comut_not_distributed() {
     let params: Parameters = Parameters {
-        role: Role::Main { data_path: "data/ts_0.csv".to_string() },
+        role: Role::Main {
+            data_path: "data/ts_0.csv".to_string(),
+        },
         local_host: "127.0.0.1:1992".parse().unwrap(),
         score_output_path: Some(get_output_path()),
         ..Default::default()
@@ -61,13 +61,11 @@ fn global_comut_not_distributed() {
     check_for_comut_score();
 }
 
-
 #[test]
 #[ignore] // takes some time
 fn global_comut_distributed_2() {
     setup_distributed_global_comut(1)
 }
-
 
 #[test]
 #[ignore] // takes some time
@@ -75,29 +73,34 @@ fn global_comut_distributed_3() {
     setup_distributed_global_comut(2)
 }
 
-
 #[test]
 #[ignore] // takes some time
 fn global_comut_distributed_4() {
     setup_distributed_global_comut(3)
 }
 
-
 fn setup_distributed_global_comut(n_subhosts: usize) {
-    let mainhost = format!("127.0.0.1:{}", request_open_port().unwrap_or(1992)).parse().unwrap();
+    let mainhost = format!("127.0.0.1:{}", request_open_port().unwrap_or(1992))
+        .parse()
+        .unwrap();
 
-    let mut parameters = vec![
-        Parameters {
-            role: Role::Main { data_path: "data/ts_0.csv".to_string() },
-            local_host: mainhost,
-            score_output_path: Some(get_output_path()),
-            n_cluster_nodes: n_subhosts + 1,
-            ..Default::default()
-        }
-    ];
+    let mut parameters = vec![Parameters {
+        role: Role::Main {
+            data_path: "data/ts_0.csv".to_string(),
+        },
+        local_host: mainhost,
+        score_output_path: Some(get_output_path()),
+        n_cluster_nodes: n_subhosts + 1,
+        ..Default::default()
+    }];
 
     for i in 0..n_subhosts {
-        let subhost = format!("127.0.0.1:{}", request_open_port().unwrap_or((1993 + i) as u16)).parse().unwrap();
+        let subhost = format!(
+            "127.0.0.1:{}",
+            request_open_port().unwrap_or((1993 + i) as u16)
+        )
+        .parse()
+        .unwrap();
 
         parameters.push(Parameters {
             role: Role::Sub { mainhost },
@@ -107,11 +110,12 @@ fn setup_distributed_global_comut(n_subhosts: usize) {
         });
     }
 
-    parameters.into_par_iter().for_each(|p| run_single_global_comut(p));
+    parameters
+        .into_par_iter()
+        .for_each(|p| run_single_global_comut(p));
 
     check_for_comut_score();
 }
-
 
 fn run_single_global_comut(params: Parameters) {
     let system = System::new();
@@ -120,7 +124,7 @@ fn run_single_global_comut(params: Parameters) {
         let host = params.local_host;
         let seed_nodes = match &params.role {
             Role::Sub { mainhost } => vec![mainhost.clone()],
-            _ => vec![]
+            _ => vec![],
         };
 
         let training = Training::new(params.clone()).start();
@@ -135,7 +139,6 @@ fn run_single_global_comut(params: Parameters) {
 
     system.run().unwrap();
 }
-
 
 fn check_for_comut_score() {
     let estimated_scores_path = get_output_path();

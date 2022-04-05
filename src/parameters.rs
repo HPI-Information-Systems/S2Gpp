@@ -1,7 +1,6 @@
-use structopt::StructOpt;
-use std::net::SocketAddr;
-use num_integer::Integer;
 use crate::training::Clustering;
+use std::net::SocketAddr;
+use structopt::StructOpt;
 
 #[derive(Debug, StructOpt, Clone)]
 #[structopt(name = "Role")]
@@ -9,22 +8,23 @@ pub enum Role {
     #[structopt(name = "main")]
     Main {
         #[structopt(short = "d", long = "data-path")]
-        data_path: String
+        data_path: String,
     },
 
     #[structopt(name = "sub")]
     Sub {
         #[structopt(short = "h", long = "mainhost")]
-        mainhost: SocketAddr
-    }
+        mainhost: SocketAddr,
+    },
 }
 
 impl Default for Role {
     fn default() -> Self {
-        Role::Main {data_path: "".to_string()}
+        Role::Main {
+            data_path: "".to_string(),
+        }
     }
 }
-
 
 #[derive(StructOpt, Debug, Clone)]
 pub struct Parameters {
@@ -62,19 +62,19 @@ pub struct Parameters {
     pub column_end: isize,
 
     #[structopt(long = "clustering", default_value = "meanshift")]
-    pub clustering: Clustering
+    pub clustering: Clustering,
 }
 
 impl Parameters {
     pub fn is_main_addr(&self, addr: SocketAddr) -> bool {
         match &self.role {
-            Role::Sub { mainhost} => addr.eq(mainhost),
-            Role::Main { .. } => addr.eq(&self.local_host)
+            Role::Sub { mainhost } => addr.eq(mainhost),
+            Role::Main { .. } => addr.eq(&self.local_host),
         }
     }
 
     pub fn segments_per_node(&self) -> usize {
-        self.rate.div_floor(&self.n_cluster_nodes)
+        num_integer::Integer::div_floor(&self.rate, &self.n_cluster_nodes)
     }
 
     pub fn segment_id_to_assignment(&self, segment_id: usize) -> usize {
@@ -88,7 +88,8 @@ impl Parameters {
     }
 
     pub fn first_segment_of_i_next_cluster_node(&self, segment_id: usize, i: usize) -> usize {
-        let i_next_cluster_node_id = (self.segment_id_to_assignment(segment_id) + i) % self.n_cluster_nodes;
+        let i_next_cluster_node_id =
+            (self.segment_id_to_assignment(segment_id) + i) % self.n_cluster_nodes;
         i_next_cluster_node_id * self.segments_per_node()
     }
 }
@@ -107,7 +108,7 @@ impl Default for Parameters {
             score_output_path: None,
             column_start: 0,
             column_end: 0,
-            clustering: Clustering::MeanShift
+            clustering: Clustering::MeanShift,
         }
     }
 }

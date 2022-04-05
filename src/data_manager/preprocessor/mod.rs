@@ -1,27 +1,24 @@
-mod messages;
 mod helper;
+mod messages;
 
-use actix::{Handler, Addr, SyncArbiter, AsyncContext};
-use ndarray::{ArcArray2};
-pub use crate::data_manager::preprocessor::messages::{ProcessedColumnMessage, PreprocessColumnMessage, PreprocessingDoneMessage};
+pub use crate::data_manager::preprocessor::messages::{
+    PreprocessColumnMessage, PreprocessingDoneMessage, ProcessedColumnMessage,
+};
+use actix::{Addr, AsyncContext, Handler, SyncArbiter};
+use ndarray::ArcArray2;
 
-use crate::data_manager::preprocessor::helper::{PreprocessorHelper};
-
-
-
+use crate::data_manager::preprocessor::helper::PreprocessorHelper;
 
 use crate::messages::PoisonPill;
 
 use crate::data_manager::DataManager;
 
-
 pub struct Preprocessing {
     helpers: Addr<PreprocessorHelper>,
     n_cols_total: usize,
     n_cols_processed: usize,
-    n_cols_distributed: usize
+    n_cols_distributed: usize,
 }
-
 
 impl Preprocessing {
     pub fn new(data: ArcArray2<f32>, n_threads: usize, window_size: usize) -> Self {
@@ -34,25 +31,32 @@ impl Preprocessing {
             helpers,
             n_cols_total,
             n_cols_processed: 0,
-            n_cols_distributed: 0
+            n_cols_distributed: 0,
         }
     }
 }
 
-
 pub trait Preprocessor {
-    fn distribute_work(&mut self, source: Addr<Self>) where Self: actix::Actor;
+    fn distribute_work(&mut self, source: Addr<Self>)
+    where
+        Self: actix::Actor;
 }
-
 
 impl Preprocessor for DataManager {
     fn distribute_work(&mut self, source: Addr<Self>) {
         let preprocessing = self.preprocessing.as_mut().unwrap();
-        let max_distribution = self.parameters.n_threads - (preprocessing.n_cols_distributed - preprocessing.n_cols_processed);
+        let max_distribution = self.parameters.n_threads
+            - (preprocessing.n_cols_distributed - preprocessing.n_cols_processed);
 
-        for (i, column) in (preprocessing.n_cols_distributed..preprocessing.n_cols_total).enumerate() {
+        for (i, column) in
+            (preprocessing.n_cols_distributed..preprocessing.n_cols_total).enumerate()
+        {
             if i < max_distribution {
-                preprocessing.helpers.do_send(PreprocessColumnMessage { column, source: source.clone(), std: 0.0 });
+                preprocessing.helpers.do_send(PreprocessColumnMessage {
+                    column,
+                    source: source.clone(),
+                    std: 0.0,
+                });
                 preprocessing.n_cols_distributed += 1;
             } else {
                 break;
@@ -60,7 +64,6 @@ impl Preprocessor for DataManager {
         }
     }
 }
-
 
 impl Handler<ProcessedColumnMessage> for DataManager {
     type Result = ();

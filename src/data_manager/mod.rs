@@ -1,36 +1,43 @@
+use actix::{Actor, ActorContext, Addr, AsyncContext, Context, Handler, Recipient};
 use std::cmp::Ordering;
-use actix::{Actor, ActorContext, Context, Handler, Recipient, Addr, AsyncContext};
 
-use ndarray::{Array2, Array3, Array1, Dim};
+use ndarray::{Array1, Array2, Array3, Dim};
 
-pub use crate::data_manager::messages::{LoadDataMessage, DataLoadedAndProcessed};
-use crate::data_manager::data_reader::{DataReader, DataPartitionMessage, DataReading};
-use crate::data_manager::preprocessor::{Preprocessor, PreprocessingDoneMessage, Preprocessing};
+use crate::data_manager::data_reader::{DataPartitionMessage, DataReader, DataReading};
+pub use crate::data_manager::messages::{DataLoadedAndProcessed, LoadDataMessage};
+use crate::data_manager::preprocessor::{Preprocessing, PreprocessingDoneMessage, Preprocessor};
 use crate::parameters::{Parameters, Role};
 use actix_telepathy::prelude::*;
 
-
-use crate::utils::{ClusterNodes, ConsoleLogger};
-use crate::data_manager::reference_dataset_builder::ReferenceDatasetBuilder;
 use crate::data_manager::phase_spacer::PhaseSpacer;
-use crate::messages::PoisonPill;
+use crate::data_manager::reference_dataset_builder::ReferenceDatasetBuilder;
 pub use crate::data_manager::stats_collector::DatasetStats;
-use crate::data_manager::stats_collector::{MinMaxNodeMessage, MinMaxDoneMessage, StdNodeMessage, StdDoneMessage, MinMaxCalculation, MinMaxCalculator, StdCalculator, StdCalculation};
-use std::str::FromStr;
+use crate::data_manager::stats_collector::{
+    MinMaxCalculation, MinMaxCalculator, MinMaxDoneMessage, MinMaxNodeMessage, StdCalculation,
+    StdCalculator, StdDoneMessage, StdNodeMessage,
+};
+use crate::messages::PoisonPill;
 use crate::utils::itertools::FromToAble;
+use crate::utils::{ClusterNodes, ConsoleLogger};
+use std::str::FromStr;
 
-#[cfg(test)]
-mod tests;
-mod messages;
 pub mod data_reader;
+mod messages;
+mod phase_spacer;
 mod preprocessor;
 mod reference_dataset_builder;
-mod phase_spacer;
 mod stats_collector;
-
+#[cfg(test)]
+mod tests;
 
 #[derive(RemoteActor)]
-#[remote_messages(DataPartitionMessage, StdNodeMessage, StdDoneMessage, MinMaxNodeMessage, MinMaxDoneMessage)]
+#[remote_messages(
+    DataPartitionMessage,
+    StdNodeMessage,
+    StdDoneMessage,
+    MinMaxNodeMessage,
+    MinMaxDoneMessage
+)]
 pub struct DataManager {
     data: Option<Array2<f32>>,
     cluster_nodes: ClusterNodes,
@@ -42,11 +49,15 @@ pub struct DataManager {
     receiver: Recipient<DataLoadedAndProcessed>,
     dataset_stats: DatasetStats,
     reference_dataset: Option<Array3<f32>>,
-    phase_space: Option<Array3<f32>>
+    phase_space: Option<Array3<f32>>,
 }
 
 impl DataManager {
-    pub fn new(mut nodes: ClusterNodes, parameters: Parameters, receiver: Recipient<DataLoadedAndProcessed>) -> Self {
+    pub fn new(
+        mut nodes: ClusterNodes,
+        parameters: Parameters,
+        receiver: Recipient<DataLoadedAndProcessed>,
+    ) -> Self {
         nodes.change_ids("DataManager");
 
         Self {
@@ -60,19 +71,22 @@ impl DataManager {
             receiver,
             dataset_stats: DatasetStats::default(),
             reference_dataset: None,
-            phase_space: None
+            phase_space: None,
         }
     }
 
     fn calculate_datastats(&mut self, addr: Addr<Self>) {
-        self.minmax_calculation = Some(MinMaxCalculation { nodes: vec![], min: None, max: None });
+        self.minmax_calculation = Some(MinMaxCalculation {
+            nodes: vec![],
+            min: None,
+            max: None,
+        });
         self.std_calculation = Some(StdCalculation {
             nodes: vec![],
             n: None,
             mean: None,
-            m2: None
+            m2: None,
         });
-
 
         self.calculate_minmax(addr.clone());
         self.calculate_std(addr);
@@ -88,35 +102,41 @@ impl DataManager {
         ConsoleLogger::new(3, 12, "Preprocessing Data".to_string()).print();
         match &self.data {
             Some(data) => {
-                self.preprocessing = Some(Preprocessing::new(data.to_shared(), self.parameters.n_threads, self.parameters.pattern_length));
+                self.preprocessing = Some(Preprocessing::new(
+                    data.to_shared(),
+                    self.parameters.n_threads,
+                    self.parameters.pattern_length,
+                ));
                 self.distribute_work(addr);
-            },
-            None => panic!("Data should be set by now!")
+            }
+            None => panic!("Data should be set by now!"),
         }
     }
 
     fn build_reference_dataset(&mut self) {
-        let reference_dataset = ReferenceDatasetBuilder::new(
-            self.dataset_stats.clone(),
-            self.parameters.clone()
-        ).build();
+        let reference_dataset =
+            ReferenceDatasetBuilder::new(self.dataset_stats.clone(), self.parameters.clone())
+                .build();
         self.reference_dataset = Some(reference_dataset);
     }
 
     fn build_phase_space(&mut self) {
         let phase_space = PhaseSpacer::new(
             self.data.as_ref().unwrap().to_shared(),
-            self.parameters.clone()
-        ).build();
+            self.parameters.clone(),
+        )
+        .build();
         self.phase_space = Some(phase_space);
     }
 
     fn finalize(&mut self) {
-        self.receiver.do_send(DataLoadedAndProcessed {
-            data_ref: self.reference_dataset.as_ref().unwrap().to_shared(),
-            phase_space: self.phase_space.as_ref().unwrap().to_shared(),
-            dataset_stats: self.dataset_stats.clone()
-        }).unwrap();
+        self.receiver
+            .do_send(DataLoadedAndProcessed {
+                data_ref: self.reference_dataset.as_ref().unwrap().to_shared(),
+                phase_space: self.phase_space.as_ref().unwrap().to_shared(),
+                dataset_stats: self.dataset_stats.clone(),
+            })
+            .unwrap();
     }
 }
 
@@ -134,10 +154,13 @@ impl Handler<LoadDataMessage> for DataManager {
     fn handle(&mut self, msg: LoadDataMessage, ctx: &mut Self::Context) -> Self::Result {
         ConsoleLogger::new(1, 12, "Reading Data".to_string()).print();
         self.cluster_nodes = msg.nodes;
-        self.data_reading = Some(DataReading { with_header: true, overlap: self.parameters.pattern_length - 1 });
+        self.data_reading = Some(DataReading {
+            with_header: true,
+            overlap: self.parameters.pattern_length - 1,
+        });
 
         let role = self.parameters.role.clone();
-        if let Role::Main {data_path} = role {
+        if let Role::Main { data_path } = role {
             self.read_csv(&data_path, ctx.address())
         }
     }
@@ -152,18 +175,27 @@ impl Handler<DataPartitionMessage> for DataManager {
         let until_column = match self.parameters.column_end.cmp(&0) {
             Ordering::Equal => msg.data[0].len(),
             Ordering::Greater => self.parameters.column_end as usize,
-            Ordering::Less => (msg.data[0].len() as isize + self.parameters.column_end) as usize
+            Ordering::Less => (msg.data[0].len() as isize + self.parameters.column_end) as usize,
         };
 
         let n_columns = until_column - self.parameters.column_start;
 
-        let flat_data: Array1<f32> = msg.data.into_iter().flat_map(|rec| {
-            rec.iter().fromto(self.parameters.column_start, until_column).map(|b| {
-                f32::from_str(b).unwrap()
-            }).collect::<Vec<f32>>()
-        }).collect();
+        let flat_data: Array1<f32> = msg
+            .data
+            .into_iter()
+            .flat_map(|rec| {
+                rec.iter()
+                    .fromto(self.parameters.column_start, until_column)
+                    .map(|b| f32::from_str(b).unwrap())
+                    .collect::<Vec<f32>>()
+            })
+            .collect();
 
-        self.data = Some(flat_data.into_shape(Dim([n_rows, n_columns])).expect("Could not deserialize sent data"));
+        self.data = Some(
+            flat_data
+                .into_shape(Dim([n_rows, n_columns]))
+                .expect("Could not deserialize sent data"),
+        );
 
         self.calculate_datastats(ctx.address());
     }

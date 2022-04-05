@@ -1,25 +1,26 @@
-use std::ops::{Deref, Range};
-use std::slice::Iter;
-use ndarray::{Array1};
 use crate::data_store::edge::{Edge, EdgeRef, MaterializedEdge};
 use crate::data_store::index::DataStoreIndex;
 use crate::data_store::intersection::{Intersection, IntersectionRef};
 use crate::data_store::materialize::Materialize;
 use crate::data_store::node::{IndependentNode, Node, NodeRef};
 use crate::data_store::point::{Point, PointRef};
-use crate::data_store::transition::{MaterializedTransition, Transition, TransitionMixin, TransitionRef};
+use crate::data_store::transition::{
+    MaterializedTransition, Transition, TransitionMixin, TransitionRef,
+};
+use ndarray::Array1;
+use std::ops::{Deref, Range};
+use std::slice::Iter;
 
-pub(crate) mod point;
-pub(crate) mod intersection;
-pub(crate) mod transition;
-pub(crate) mod node;
 pub(crate) mod edge;
-pub(crate) mod materialize;
-mod tests;
-mod utils;
 mod index;
+pub(crate) mod intersection;
+pub(crate) mod materialize;
+pub(crate) mod node;
 pub(crate) mod node_questions;
-
+pub(crate) mod point;
+mod tests;
+pub(crate) mod transition;
+mod utils;
 
 #[derive(Default, Clone)]
 pub(crate) struct DataStore {
@@ -28,7 +29,7 @@ pub(crate) struct DataStore {
     intersections: Vec<IntersectionRef>,
     nodes: Vec<NodeRef>,
     edges: Vec<EdgeRef>,
-    index: DataStoreIndex
+    index: DataStoreIndex,
 }
 
 impl DataStore {
@@ -51,11 +52,16 @@ impl DataStore {
         self.add_points_with_offset(points, 0, n_segments)
     }
 
-    pub fn add_points_with_offset(&mut self, points: Vec<Array1<f32>>, offset: usize, n_segments: usize) {
+    pub fn add_points_with_offset(
+        &mut self,
+        points: Vec<Array1<f32>>,
+        offset: usize,
+        n_segments: usize,
+    ) {
         let mut next_id = offset;
 
         for point in points.into_iter() {
-            self.add_point(Point::new_calculate_segment(next_id,point, n_segments));
+            self.add_point(Point::new_calculate_segment(next_id, point, n_segments));
             next_id += 1;
         }
     }
@@ -171,7 +177,8 @@ impl DataStore {
     }
 
     pub fn sort_edges(&mut self) {
-        self.edges.sort_by(|edge_a, edge_b| edge_a.get_to_id().partial_cmp(&edge_b.get_to_id()).unwrap());
+        self.edges
+            .sort_by(|edge_a, edge_b| edge_a.get_to_id().partial_cmp(&edge_b.get_to_id()).unwrap());
     }
 
     // --- Misc

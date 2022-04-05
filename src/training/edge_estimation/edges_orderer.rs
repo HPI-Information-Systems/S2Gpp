@@ -22,7 +22,7 @@ pub(crate) struct EdgesOrderer {
     pub edges_large: Vec<Edge>,
     pub first_node: Option<NodeRef>,
     pub middle_node: Option<NodeRef>,
-    pub last_node: Option<NodeRef>
+    pub last_node: Option<NodeRef>,
 }
 
 impl EdgesOrderer {
@@ -36,21 +36,24 @@ impl EdgesOrderer {
     fn push(&mut self, value: Edge) {
         match self.last_node {
             Some(_) => self.edges_large.push(value),
-            None => self.edges_small.push(value)
+            None => self.edges_small.push(value),
         }
     }
 
     fn check_for_gap(&mut self, previous_node: &NodeRef, current_node: &NodeRef) -> bool {
         let this_segment = current_node.get_segment_id();
         let last_segment = previous_node.get_segment_id();
-        if this_segment.ne(&(last_segment + 1)){
+        if this_segment.ne(&(last_segment + 1)) {
             self.last_node = Some(previous_node.clone());
             self.middle_node = Some(match self.edges_small.get(0) {
                 Some(first_edge) => first_edge.get_from_node(),
-                None => previous_node.clone()
+                None => previous_node.clone(),
             });
             if let Some(previous_transition_node) = &self.previous_transition_node {
-                self.edges_large.push(Edge::new(previous_transition_node.clone(), current_node.clone()));
+                self.edges_large.push(Edge::new(
+                    previous_transition_node.clone(),
+                    current_node.clone(),
+                ));
             }
             true
         } else {
@@ -65,9 +68,12 @@ impl EdgesOrderer {
     /// First this struct will sort \[97, 98, 99, 0\] and then prepend _96_.
     pub fn add_node(&mut self, previous_node: &Option<NodeRef>, current_node: &NodeRef) {
         // in case of previous transition node is same as first node, second node becomes first node...
-        if self.previous_transition_node.eq(previous_node) && self.edges_small.is_empty() && self.first_node.is_none() {
+        if self.previous_transition_node.eq(previous_node)
+            && self.edges_small.is_empty()
+            && self.first_node.is_none()
+        {
             self.first_node = Some(current_node.clone());
-            return
+            return;
         }
         if let Some(previous_node) = previous_node {
             if !self.check_for_gap(previous_node, current_node) {
@@ -79,21 +85,32 @@ impl EdgesOrderer {
     pub fn into_vec(mut self) -> Vec<Edge> {
         match &self.middle_node {
             Some(middle_node) => {
-                let previous_node = self.edges_large.last().as_ref().expect("Should be filled, we have a middle_node!").get_to_node();
+                let previous_node = self
+                    .edges_large
+                    .last()
+                    .as_ref()
+                    .expect("Should be filled, we have a middle_node!")
+                    .get_to_node();
                 let connecting_edge = Edge::new(previous_node, middle_node.clone());
                 self.push(connecting_edge);
 
                 let edges_small = self.edges_small.clone();
                 let edges_large = self.edges_large.clone();
 
-                edges_large.into_iter().chain(edges_small.into_iter()).collect()
-            },
+                edges_large
+                    .into_iter()
+                    .chain(edges_small.into_iter())
+                    .collect()
+            }
             None => {
-                if self.previous_transition_node.is_some(){
+                if self.previous_transition_node.is_some() {
                     self.edges_small.insert(
                         0,
-                        Edge::new(self.previous_transition_node.as_ref().unwrap().clone(),
-                                  self.first_node.as_ref().unwrap().clone()));
+                        Edge::new(
+                            self.previous_transition_node.as_ref().unwrap().clone(),
+                            self.first_node.as_ref().unwrap().clone(),
+                        ),
+                    );
                 }
                 self.edges_small.clone()
             }
@@ -114,12 +131,18 @@ mod tests {
         let nodes = vec![
             IndependentNode::new(0, 0, 0).into_ref(),
             IndependentNode::new(1, 0, 0).into_ref(),
-            IndependentNode::new(2, 0, 0).into_ref()
+            IndependentNode::new(2, 0, 0).into_ref(),
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(0, 0, 14).into_ref(), IndependentNode::new(1, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(1, 0, 14).into_ref(), IndependentNode::new(2, 0, 0).into_ref()),
+            Edge::new(
+                IndependentNode::new(0, 0, 14).into_ref(),
+                IndependentNode::new(1, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(1, 0, 14).into_ref(),
+                IndependentNode::new(2, 0, 0).into_ref(),
+            ),
         ];
 
         let mut previous_node = None;
@@ -133,14 +156,12 @@ mod tests {
 
     #[test]
     fn orders_edges_without_gap_one_node() {
+        let nodes = vec![IndependentNode::new(14, 0, 0).into_ref()];
 
-        let nodes = vec![
-            IndependentNode::new(14, 0, 0).into_ref()
-        ];
-
-        let expected_edges = vec![
-            Edge::new(IndependentNode::new(13, 2, 9897).into_ref(), IndependentNode::new(14, 0, 0).into_ref()),
-        ];
+        let expected_edges = vec![Edge::new(
+            IndependentNode::new(13, 2, 9897).into_ref(),
+            IndependentNode::new(14, 0, 0).into_ref(),
+        )];
 
         let mut previous_node = Some(IndependentNode::new(13, 2, 0).into_ref());
         let mut edges = EdgesOrderer::new(previous_node.clone());
@@ -154,7 +175,6 @@ mod tests {
 
     #[test]
     fn orders_edges_without_gap_with_previous() {
-
         let nodes = vec![
             IndependentNode::new(14, 0, 0).into_ref(),
             IndependentNode::new(15, 0, 0).into_ref(),
@@ -162,9 +182,18 @@ mod tests {
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(13, 2, 9916).into_ref(), IndependentNode::new(14, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(14, 0, 9916).into_ref(), IndependentNode::new(15, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(15, 0, 9916).into_ref(), IndependentNode::new(16, 0, 0).into_ref()),
+            Edge::new(
+                IndependentNode::new(13, 2, 9916).into_ref(),
+                IndependentNode::new(14, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(14, 0, 9916).into_ref(),
+                IndependentNode::new(15, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(15, 0, 9916).into_ref(),
+                IndependentNode::new(16, 0, 0).into_ref(),
+            ),
         ];
 
         let mut previous_node = Some(IndependentNode::new(13, 2, 0).into_ref());
@@ -179,7 +208,6 @@ mod tests {
 
     #[test]
     fn orders_edges_without_gap_same_segment_previous() {
-
         let nodes = vec![
             IndependentNode::new(14, 0, 0).into_ref(),
             IndependentNode::new(15, 0, 0).into_ref(),
@@ -187,9 +215,18 @@ mod tests {
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(14, 2, 9916).into_ref(), IndependentNode::new(14, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(14, 0, 9916).into_ref(), IndependentNode::new(15, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(15, 0, 9916).into_ref(), IndependentNode::new(16, 0, 0).into_ref()),
+            Edge::new(
+                IndependentNode::new(14, 2, 9916).into_ref(),
+                IndependentNode::new(14, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(14, 0, 9916).into_ref(),
+                IndependentNode::new(15, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(15, 0, 9916).into_ref(),
+                IndependentNode::new(16, 0, 0).into_ref(),
+            ),
         ];
 
         let mut previous_node = Some(IndependentNode::new(14, 2, 0).into_ref());
@@ -211,14 +248,26 @@ mod tests {
             IndependentNode::new(1, 0, 0).into_ref(),
             IndependentNode::new(2, 0, 0).into_ref(),
             IndependentNode::new(98, 0, 0).into_ref(),
-            IndependentNode::new(99, 0, 0).into_ref()
+            IndependentNode::new(99, 0, 0).into_ref(),
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(98, 0, 14).into_ref(), IndependentNode::new(99, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(99, 0, 14).into_ref(), IndependentNode::new(0, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(0, 0, 14).into_ref(), IndependentNode::new(1, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(1, 0, 14).into_ref(), IndependentNode::new(2, 0, 0).into_ref()),
+            Edge::new(
+                IndependentNode::new(98, 0, 14).into_ref(),
+                IndependentNode::new(99, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(99, 0, 14).into_ref(),
+                IndependentNode::new(0, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(0, 0, 14).into_ref(),
+                IndependentNode::new(1, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(1, 0, 14).into_ref(),
+                IndependentNode::new(2, 0, 0).into_ref(),
+            ),
         ];
 
         let mut previous_node = None;
@@ -239,15 +288,30 @@ mod tests {
             IndependentNode::new(1, 0, 0).into_ref(),
             IndependentNode::new(2, 0, 0).into_ref(),
             IndependentNode::new(98, 0, 0).into_ref(),
-            IndependentNode::new(99, 0, 0).into_ref()
+            IndependentNode::new(99, 0, 0).into_ref(),
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(97, 0, 14).into_ref(), IndependentNode::new(98, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(98, 0, 14).into_ref(), IndependentNode::new(99, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(99, 0, 14).into_ref(), IndependentNode::new(0, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(0, 0, 14).into_ref(), IndependentNode::new(1, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(1, 0, 14).into_ref(), IndependentNode::new(2, 0, 0).into_ref()),
+            Edge::new(
+                IndependentNode::new(97, 0, 14).into_ref(),
+                IndependentNode::new(98, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(98, 0, 14).into_ref(),
+                IndependentNode::new(99, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(99, 0, 14).into_ref(),
+                IndependentNode::new(0, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(0, 0, 14).into_ref(),
+                IndependentNode::new(1, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(1, 0, 14).into_ref(),
+                IndependentNode::new(2, 0, 0).into_ref(),
+            ),
         ];
 
         let mut previous_node = Some(IndependentNode::new(97, 0, 0).into_ref());
@@ -266,13 +330,22 @@ mod tests {
         let nodes = vec![
             IndependentNode::new(0, 0, 0).into_ref(),
             IndependentNode::new(98, 0, 0).into_ref(),
-            IndependentNode::new(99, 0, 0).into_ref()
+            IndependentNode::new(99, 0, 0).into_ref(),
         ];
 
         let expected_edges = vec![
-            Edge::new(IndependentNode::new(97, 0, 14).into_ref(), IndependentNode::new(98, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(98, 0, 14).into_ref(), IndependentNode::new(99, 0, 0).into_ref()),
-            Edge::new(IndependentNode::new(99, 0, 14).into_ref(), IndependentNode::new(0, 0, 0).into_ref()),
+            Edge::new(
+                IndependentNode::new(97, 0, 14).into_ref(),
+                IndependentNode::new(98, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(98, 0, 14).into_ref(),
+                IndependentNode::new(99, 0, 0).into_ref(),
+            ),
+            Edge::new(
+                IndependentNode::new(99, 0, 14).into_ref(),
+                IndependentNode::new(0, 0, 0).into_ref(),
+            ),
         ];
 
         let mut previous_node = Some(IndependentNode::new(97, 0, 0).into_ref());
@@ -288,12 +361,26 @@ mod tests {
     fn orders_edges_with_gap_with_predecessor2() {
         let mut edges = EdgesOrderer::new(Some(IndependentNode::new(64, 0, 0).into_ref()));
 
-        let mut nodes: Vec<NodeRef> = (65..100).into_iter().map(|x| IndependentNode::new(x, 0, 0).into_ref()).collect();
+        let mut nodes: Vec<NodeRef> = (65..100)
+            .into_iter()
+            .map(|x| IndependentNode::new(x, 0, 0).into_ref())
+            .collect();
         nodes.insert(0, IndependentNode::new(0, 0, 0).into_ref());
 
-        let mut expected_edges: Vec<Edge> = (64..99).into_iter().map(|x| Edge::new(IndependentNode::new(x, 0, 14).into_ref(), IndependentNode::new(x+1, 0, 14).into_ref())).collect();
+        let mut expected_edges: Vec<Edge> = (64..99)
+            .into_iter()
+            .map(|x| {
+                Edge::new(
+                    IndependentNode::new(x, 0, 14).into_ref(),
+                    IndependentNode::new(x + 1, 0, 14).into_ref(),
+                )
+            })
+            .collect();
 
-        expected_edges.push(Edge::new(IndependentNode::new(99, 0, 14).into_ref(), IndependentNode::new(0, 0, 0).into_ref()));
+        expected_edges.push(Edge::new(
+            IndependentNode::new(99, 0, 14).into_ref(),
+            IndependentNode::new(0, 0, 0).into_ref(),
+        ));
 
         let mut previous_node = Some(IndependentNode::new(64, 0, 0).into_ref());
         for node in nodes.iter() {

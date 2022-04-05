@@ -1,8 +1,8 @@
 use crate::data_store::edge::Edge;
 use crate::data_store::node::IndependentNode;
 use crate::parameters::Parameters;
-use crate::training::{Training};
 use crate::training::transposition::Transposer;
+use crate::training::Training;
 
 #[test]
 fn test_assignments() {
@@ -14,11 +14,26 @@ fn test_assignments() {
     training.transposition.partition_len = Some(2);
 
     training.data_store.add_edges(vec![
-        Edge::new(IndependentNode::new(0, 0, 0).into_ref(), IndependentNode::new(1, 0, 0).into_ref()),
-        Edge::new(IndependentNode::new(1, 0, 1).into_ref(), IndependentNode::new(2, 0, 1).into_ref()),
-        Edge::new(IndependentNode::new(2, 0, 1).into_ref(), IndependentNode::new(3, 0, 1).into_ref()),
-        Edge::new(IndependentNode::new(3, 0, 2).into_ref(), IndependentNode::new(4, 0, 2).into_ref()),
-        Edge::new(IndependentNode::new(4, 0, 3).into_ref(), IndependentNode::new(5, 0, 3).into_ref()),
+        Edge::new(
+            IndependentNode::new(0, 0, 0).into_ref(),
+            IndependentNode::new(1, 0, 0).into_ref(),
+        ),
+        Edge::new(
+            IndependentNode::new(1, 0, 1).into_ref(),
+            IndependentNode::new(2, 0, 1).into_ref(),
+        ),
+        Edge::new(
+            IndependentNode::new(2, 0, 1).into_ref(),
+            IndependentNode::new(3, 0, 1).into_ref(),
+        ),
+        Edge::new(
+            IndependentNode::new(3, 0, 2).into_ref(),
+            IndependentNode::new(4, 0, 2).into_ref(),
+        ),
+        Edge::new(
+            IndependentNode::new(4, 0, 3).into_ref(),
+            IndependentNode::new(5, 0, 3).into_ref(),
+        ),
     ]);
 
     let assignments = training.assign_edges_to_neighbours();

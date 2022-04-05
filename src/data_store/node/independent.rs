@@ -1,13 +1,12 @@
-use std::hash::{Hash, Hasher};
-use serde::{Serialize, Deserialize};
 use crate::data_store::node::NodeRef;
-
+use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct IndependentNode {
     segment: usize,
     cluster: usize,
-    from_point_id: usize
+    from_point_id: usize,
 }
 
 impl IndependentNode {
@@ -15,7 +14,7 @@ impl IndependentNode {
         Self {
             segment,
             cluster,
-            from_point_id
+            from_point_id,
         }
     }
 

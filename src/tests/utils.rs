@@ -1,21 +1,17 @@
 use std::net::SocketAddr;
 
-use actix::{Actor, Context, System, Handler, AsyncContext, Addr, Message};
+use actix::{Actor, Addr, AsyncContext, Context, Handler, Message, System};
+use actix_broker::BrokerSubscribe;
 use actix_telepathy::prelude::*;
-use actix_broker::{BrokerSubscribe};
 use log::*;
-use std::collections::{HashSet, HashMap};
-use serde::{Serialize, Deserialize};
-
-
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 
 use crate::utils::ClusterNodes;
 use std::sync::{Arc, Mutex};
 
-
 #[derive(RemoteMessage, Serialize, Deserialize)]
 struct TestSortedMembersMessage(pub Vec<SocketAddr>);
-
 
 #[derive(RemoteActor)]
 #[remote_messages(TestSortedMembersMessage)]
@@ -28,13 +24,17 @@ pub struct TestClusterMemberListener {
     main_node: Option<RemoteAddr>,
     pub(crate) sorted_nodes: HashMap<usize, RemoteAddr>,
     pub(crate) cluster_nodes: Arc<Mutex<Option<ClusterNodes>>>,
-    sorted_addr_buffer: Vec<SocketAddr>
+    sorted_addr_buffer: Vec<SocketAddr>,
 }
 
-
 impl TestClusterMemberListener {
-    pub fn new(is_main: bool, main_socket_addr: SocketAddr, n_cluster_nodes: usize, local_host: SocketAddr,
-               cluster_nodes: Arc<Mutex<Option<ClusterNodes>>>) -> Self {
+    pub fn new(
+        is_main: bool,
+        main_socket_addr: SocketAddr,
+        n_cluster_nodes: usize,
+        local_host: SocketAddr,
+        cluster_nodes: Arc<Mutex<Option<ClusterNodes>>>,
+    ) -> Self {
         Self {
             is_main,
             main_socket_addr,
@@ -44,7 +44,7 @@ impl TestClusterMemberListener {
             main_node: None,
             sorted_nodes: HashMap::new(),
             cluster_nodes,
-            sorted_addr_buffer: vec![]
+            sorted_addr_buffer: vec![],
         }
     }
 
@@ -63,8 +63,8 @@ impl TestClusterMemberListener {
                 Some(ra) => {
                     connected_nodes.remove(&ra);
                     self.sorted_nodes.insert(i, ra);
-                },
-                None => ()
+                }
+                None => (),
             }
         }
     }
@@ -73,7 +73,6 @@ impl TestClusterMemberListener {
         *(self.cluster_nodes.lock().unwrap()) = Some(ClusterNodes::from(self.sorted_nodes.clone()));
     }
 }
-
 
 impl Actor for TestClusterMemberListener {
     type Context = Context<Self>;
@@ -104,12 +103,19 @@ impl Handler<ClusterLog> for TestClusterMemberListener {
                 if self.connected_nodes.len() == self.n_cluster_nodes - 1 {
                     if self.is_main {
                         let mut sorted_members = vec![self.local_host.clone()];
-                        sorted_members.append(&mut self.connected_nodes.iter().map(|x| x.socket_addr.clone()).collect());
+                        sorted_members.append(
+                            &mut self
+                                .connected_nodes
+                                .iter()
+                                .map(|x| x.socket_addr.clone())
+                                .collect(),
+                        );
 
                         for node in self.connected_nodes.iter() {
                             let mut remote_listener = node.clone();
                             remote_listener.change_id("TestClusterMemberListener".to_string());
-                            remote_listener.do_send(TestSortedMembersMessage(sorted_members.clone()))
+                            remote_listener
+                                .do_send(TestSortedMembersMessage(sorted_members.clone()))
                         }
 
                         self.sort_members(sorted_members);
@@ -119,7 +125,7 @@ impl Handler<ClusterLog> for TestClusterMemberListener {
                         self.finish_intro();
                     }
                 }
-            },
+            }
             ClusterLog::MemberLeft(addr) => {
                 debug!("member left {:?}", addr);
             }

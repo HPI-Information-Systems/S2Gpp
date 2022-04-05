@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-use std::ops::Range;
-use actix::prelude::*;
 use crate::data_store::edge::{EdgeRef, MaterializedEdge};
 use crate::data_store::materialize::Materialize;
 use crate::data_store::node::NodeRef;
 use crate::messages::PoisonPill;
 use crate::training::scoring::messages::{ScoringHelperInstruction, ScoringHelperResponse};
+use actix::prelude::*;
+use std::collections::HashMap;
+use std::ops::Range;
 
 pub(crate) struct ScoringHelper {
     pub edges: Vec<EdgeRef>,
@@ -13,7 +13,7 @@ pub(crate) struct ScoringHelper {
     pub edge_weight: HashMap<MaterializedEdge, usize>,
     pub node_degrees: HashMap<NodeRef, usize>,
     pub query_length: usize,
-    pub receiver: Recipient<ScoringHelperResponse>
+    pub receiver: Recipient<ScoringHelperResponse>,
 }
 
 impl ScoringHelper {
@@ -21,9 +21,16 @@ impl ScoringHelper {
         let p_edge = self.edges[edge_range].iter();
         let len_score = p_edge.len();
         let alpha = 0.00000001 + (len_score as f32);
-        let score: f32 = p_edge.map(|edge| {
-            (self.edge_weight.get(&edge.materialize()).unwrap() * (self.node_degrees.get(&edge.get_from_node()).expect("Edge with unknown Node found!") - 1)) as f32
-        }).sum();
+        let score: f32 = p_edge
+            .map(|edge| {
+                (self.edge_weight.get(&edge.materialize()).unwrap()
+                    * (self
+                        .node_degrees
+                        .get(&edge.get_from_node())
+                        .expect("Edge with unknown Node found!")
+                        - 1)) as f32
+            })
+            .sum();
         (score / alpha, len_score)
     }
 }
@@ -39,7 +46,7 @@ impl Handler<ScoringHelperInstruction> for ScoringHelper {
         let mut single_scores: Vec<f32> = vec![];
         let mut first_empty = false;
 
-        for i in msg.start..msg.start+msg.length {
+        for i in msg.start..msg.start + msg.length {
             let from_edge_idx = self.edges_in_time[i];
             let to_edge_idx = self.edges_in_time[i + self.query_length - 1];
 
@@ -57,11 +64,13 @@ impl Handler<ScoringHelperInstruction> for ScoringHelper {
                 -score
             });
         }
-        self.receiver.do_send(ScoringHelperResponse {
-            start: msg.start,
-            scores: single_scores,
-            first_empty
-        }).unwrap();
+        self.receiver
+            .do_send(ScoringHelperResponse {
+                start: msg.start,
+                scores: single_scores,
+                first_empty,
+            })
+            .unwrap();
     }
 }
 

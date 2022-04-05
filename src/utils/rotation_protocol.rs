@@ -6,7 +6,7 @@ pub struct RotationProtocol<T: Message + RemoteMessage + Clone> {
     n_total: usize,
     pub n_received: usize,
     n_sent: usize,
-    buffer: Vec<T>
+    buffer: Vec<T>,
 }
 
 impl<T: Message + RemoteMessage + Clone> RotationProtocol<T> {
@@ -32,7 +32,10 @@ impl<T: Message + RemoteMessage + Clone> RotationProtocol<T> {
         (self.n_received < self.n_total) || (self.n_sent < self.n_total)
     }
 
-    pub fn resolve_buffer(&mut self, rec: Recipient<T>) where T::Result: Send {
+    pub fn resolve_buffer(&mut self, rec: Recipient<T>)
+    where
+        T::Result: Send,
+    {
         for _ in 0..self.buffer.len() {
             rec.do_send(self.buffer.remove(0)).unwrap();
         }
