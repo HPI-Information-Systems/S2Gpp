@@ -10,21 +10,39 @@ default:
     - apt-get install -y build-essential
 
 stages:
-  - lint
   - test
-
-linting:
-  stage: lint
-  tags:
-    - akita
-  script:
-    - rustup component add clippy
-    - cargo clippy
-
 
 testing:
   stage: test
   tags:
     - akita
   script:
-    - RUST_LOG=warn cargo test
+    - cargo install cargo-tarpaulin
+    - RUST_LOG=warn cargo tarpaulin --ignore-tests --out Xml --output-dir .
+  artifacts:
+    reports:
+      cobertura: cobertura.xml
+
+linting:
+  stage: test
+  tags:
+    - akita
+  script:
+    - rustup component add clippy
+    - cargo clippy
+
+formatting:
+  stage: test
+  tags:
+    - akita
+  script:
+    - rustup component add rustfmt
+    - cargo fmt -- --check
+
+#auditing:
+#  stage: test
+#  tags:
+#    - akita
+#  script:
+#    - cargo install cargo-audit
+#    - cargo audit
