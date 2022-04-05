@@ -1,18 +1,21 @@
+use ndarray::ArrayView1;
+use num_traits::Float;
 use std::hash::{Hash, Hasher};
 use std::ops::Mul;
-use ndarray::ArrayView1;
-use num_traits::{Float};
 
 #[repr(transparent)]
 #[derive(Debug, Clone)]
 pub(crate) struct FloatApprox<A>(A);
 
 impl<A> FloatApprox<A>
-    where
-        A: Mul + Float
+where
+    A: Mul + Float,
 {
     pub fn approximate(&self, tolerance: usize) -> isize {
-        self.0.mul(A::from(10 * tolerance).unwrap()).to_isize().unwrap()
+        self.0
+            .mul(A::from(10 * tolerance).unwrap())
+            .to_isize()
+            .unwrap()
     }
 
     pub fn from_array_view_clone(array: ArrayView1<A>) -> Vec<Self> {
@@ -26,8 +29,8 @@ impl<A> FloatApprox<A>
 }
 
 impl<A> Mul for FloatApprox<A>
-    where
-        A: Mul + Float
+where
+    A: Mul + Float,
 {
     type Output = Self;
 
@@ -46,20 +49,19 @@ impl Eq for FloatApprox<f32> {}
 impl Eq for FloatApprox<f64> {}
 
 impl<A> Hash for FloatApprox<A>
-    where
-        A: Mul + Float
+where
+    A: Mul + Float,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.approximate(8).hash(state);
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use crate::utils::float_approx::FloatApprox;
     use ndarray::aview1;
-    use crate::utils::float_approx::{FloatApprox};
+    use std::collections::HashSet;
 
     #[test]
     fn approx_float() {

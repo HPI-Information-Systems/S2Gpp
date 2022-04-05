@@ -1,27 +1,25 @@
-use std::collections::{HashMap};
-use std::ops::{BitAnd, BitAndAssign, Div, Mul, Sub};
-use ndarray::{arr1, Array, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use ndarray_stats::{QuantileExt};
 use anyhow::Result;
+use ndarray::{arr1, Array, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray_stats::QuantileExt;
 use num_traits::ToPrimitive;
+use std::collections::HashMap;
+use std::ops::{BitAnd, BitAndAssign, Div, Mul, Sub};
 
 use crate::training::node_estimation::multi_kde::gaussian_kde::GaussianKDEBase;
 use crate::utils::boolean::BooleanCollectives;
 use crate::utils::float_approx::FloatApprox;
-use crate::utils::itertools::{FromToAble};
+use crate::utils::itertools::FromToAble;
 use crate::utils::stack::Stack;
 
+pub(crate) mod actors;
 mod gaussian_kde;
 mod gaussian_kernel_estimate;
-pub(crate) mod actors;
-
 
 #[derive(Debug, Clone)]
 pub(crate) struct MultiKDEBase {
     resolution: usize,
     peak_order: usize,
 }
-
 
 impl MultiKDEBase {
     #[allow(dead_code)]
@@ -56,9 +54,15 @@ impl MultiKDEBase {
         Ok(Array::from(labels))
     }
 
-    fn find_peak_values(&self, kernel_estimate: ArrayView1<f32>, grid_min: f32, grid_max: f32) -> Vec<f32> {
+    fn find_peak_values(
+        &self,
+        kernel_estimate: ArrayView1<f32>,
+        grid_min: f32,
+        grid_max: f32,
+    ) -> Vec<f32> {
         let step_size = ((grid_max + 1.) - grid_min).div(self.resolution as f32);
-        let result = self.find_peak_index(kernel_estimate)
+        let result = self
+            .find_peak_index(kernel_estimate)
             .iter()
             .map(|i| grid_min + step_size.mul(i.to_f32().unwrap()))
             .collect();
@@ -68,24 +72,33 @@ impl MultiKDEBase {
     fn find_peak_index(&self, kernel_estimate: ArrayView1<f32>) -> Vec<usize> {
         let mut results: Array1<bool> = arr1(vec![true; kernel_estimate.len()].as_slice());
         let datalen = results.len();
-        for shift in 1..self.peak_order+1 {
+        for shift in 1..self.peak_order + 1 {
             let last_element = vec![&kernel_estimate[datalen - 1]; shift];
             let first_element = vec![kernel_estimate[0]; shift];
-            let plus_iter = kernel_estimate.iter().fromto(shift, datalen).chain(last_element);
-            let minus_iter = first_element.iter().chain(kernel_estimate.iter().fromto(0, datalen - shift));
+            let plus_iter = kernel_estimate
+                .iter()
+                .fromto(shift, datalen)
+                .chain(last_element);
+            let minus_iter = first_element
+                .iter()
+                .chain(kernel_estimate.iter().fromto(0, datalen - shift));
 
-            let current_results = kernel_estimate.iter().zip(plus_iter).zip(minus_iter).map(|((main, plus), minus)|
-                main.gt(plus).bitand(main.gt(minus))
-            ).collect::<Array1<bool>>();
+            let current_results = kernel_estimate
+                .iter()
+                .zip(plus_iter)
+                .zip(minus_iter)
+                .map(|((main, plus), minus)| main.gt(plus).bitand(main.gt(minus)))
+                .collect::<Array1<bool>>();
 
             results.bitand_assign(&current_results);
 
             if !results.any() {
-                break
+                break;
             }
         }
 
-        results.indexed_iter()
+        results
+            .indexed_iter()
             .filter_map(|(index, bit)| if *bit { Some(index) } else { None })
             .collect()
     }
@@ -94,10 +107,15 @@ impl MultiKDEBase {
         let n_points = points.len();
         let n_peaks = peaks.len();
         let broadcast_shape = [n_points, n_peaks];
-        let mut peaks_arr = Array1::from(peaks.clone()).broadcast(broadcast_shape).unwrap().to_owned();
+        let mut peaks_arr = Array1::from(peaks.clone())
+            .broadcast(broadcast_shape)
+            .unwrap()
+            .to_owned();
         let broadcast_points = points.broadcast(broadcast_shape).unwrap();
         peaks_arr = peaks_arr.sub(broadcast_points);
-        peaks_arr.mapv(f32::abs).map_axis(Axis(1), |d| peaks[d.argmin().unwrap()])
+        peaks_arr
+            .mapv(f32::abs)
+            .map_axis(Axis(1), |d| peaks[d.argmin().unwrap()])
     }
 
     fn extract_labels_from_centers(&self, cluster_centers: Array2<f32>) -> Vec<usize> {
@@ -119,7 +137,6 @@ impl MultiKDEBase {
     }
 }
 
-
 impl Default for MultiKDEBase {
     fn default() -> Self {
         Self {
@@ -129,12 +146,11 @@ impl Default for MultiKDEBase {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use ndarray::{arr1, arr2, Array1, Axis};
     use crate::data_manager::data_reader::read_data_;
     use crate::training::node_estimation::multi_kde::MultiKDEBase;
+    use ndarray::{arr1, arr2, Array1, Axis};
 
     #[test]
     fn find_peak() {
@@ -179,19 +195,16 @@ mod tests {
         let expected = arr1(&[2., 2., 2., 5., 5., 5.]);
         let mkde = MultiKDEBase::default();
         for col in points.axis_iter(Axis(1)) {
-            let assignments = mkde.assign_closest_peak_values(col.insert_axis(Axis(1)), peaks.clone());
+            let assignments =
+                mkde.assign_closest_peak_values(col.insert_axis(Axis(1)), peaks.clone());
             assert_eq!(assignments, expected);
-            break
+            break;
         }
     }
 
     #[test]
     fn returns_labels_from_cluster_centers() {
-        let arr = arr2(&[
-            [1., 2.],
-            [2., 1.],
-            [1., 2.]
-        ]);
+        let arr = arr2(&[[1., 2.], [2., 1.], [1., 2.]]);
         let expected = vec![0, 1, 0];
         let mkde = MultiKDEBase::default();
         let labels = mkde.extract_labels_from_centers(arr);
@@ -208,7 +221,7 @@ mod tests {
             [-1.1, -0.9],
             [-0.9, -1.1],
             [-1.1, -1.1],
-            [-0.9, -0.9]
+            [-0.9, -0.9],
         ]);
         let expected = arr1(&[0, 0, 0, 0, 1, 1, 1, 1]);
         let mkde = MultiKDEBase::default();

@@ -1,14 +1,14 @@
-use std::ops::{AddAssign, Mul};
+use crate::messages::PoisonPill;
+use crate::training::node_estimation::multi_kde::actors::helper::EstimatorHelper;
+use crate::training::node_estimation::multi_kde::actors::messages::{
+    EstimatorResponse, EstimatorTask, GaussianKDEMessage, GaussianKDEResponse,
+};
+use crate::utils::HelperProtocol;
 use actix::{Actor, ActorContext, Addr, AsyncContext, Context, Handler, Recipient, SyncArbiter};
 use ndarray::{ArcArray2, Array, Array1, Array2, ArrayView2, Axis, Dim};
 use ndarray_linalg::Inverse;
 use ndarray_stats::{CorrelationExt, QuantileExt};
-use num_integer::Integer;
-use crate::messages::PoisonPill;
-use crate::training::node_estimation::multi_kde::actors::helper::EstimatorHelper;
-use crate::training::node_estimation::multi_kde::actors::messages::{EstimatorResponse, EstimatorTask, GaussianKDEMessage, GaussianKDEResponse};
-use crate::utils::HelperProtocol;
-
+use std::ops::{AddAssign, Mul};
 
 pub(in crate::training::node_estimation::multi_kde::actors) struct GaussianKDEActor {
     n_threads: usize,
@@ -17,11 +17,15 @@ pub(in crate::training::node_estimation::multi_kde::actors) struct GaussianKDEAc
     helper: Option<Addr<EstimatorHelper>>,
     helper_protocol: HelperProtocol,
     estimate: Option<Array1<f32>>,
-    receiver: Option<Recipient<GaussianKDEResponse>>
+    receiver: Option<Recipient<GaussianKDEResponse>>,
 }
 
 impl GaussianKDEActor {
-    pub fn new(n_threads: usize, resolution: usize, receiver: Recipient<GaussianKDEResponse>) -> Self {
+    pub fn new(
+        n_threads: usize,
+        resolution: usize,
+        receiver: Recipient<GaussianKDEResponse>,
+    ) -> Self {
         Self {
             n_threads,
             resolution,
@@ -41,7 +45,8 @@ impl GaussianKDEActor {
         let grid_min = *data.min().unwrap();
         let grid_max = *data.max().unwrap();
         let padding = (grid_max - grid_min).mul(0.1);
-        let grid = Array::linspace(grid_min - padding, grid_max + padding, self.resolution).insert_axis(Axis(1));
+        let grid = Array::linspace(grid_min - padding, grid_max + padding, self.resolution)
+            .insert_axis(Axis(1));
         self.data = Some(data);
 
         let weights = self.calculate_weights();
@@ -50,11 +55,23 @@ impl GaussianKDEActor {
         self.evaluate(grid, weights, precision, ctx);
     }
 
-    fn evaluate(&mut self, grid: Array2<f32>, weights: Array2<f32>, precision: Array2<f32>, ctx: &mut Context<Self>) {
+    fn evaluate(
+        &mut self,
+        grid: Array2<f32>,
+        weights: Array2<f32>,
+        precision: Array2<f32>,
+        ctx: &mut Context<Self>,
+    ) {
         let data = (*self.data.as_ref().unwrap()).clone();
         let receiver = ctx.address().recipient();
         self.helper = Some(SyncArbiter::start(self.n_threads, move || {
-            EstimatorHelper::new(data.clone(), weights.clone(), grid.clone(), precision.clone(), receiver.clone())
+            EstimatorHelper::new(
+                data.clone(),
+                weights.clone(),
+                grid.clone(),
+                precision.clone(),
+                receiver.clone(),
+            )
         }));
         self.helper_protocol.n_total = self.n_threads;
 
@@ -63,16 +80,16 @@ impl GaussianKDEActor {
 
     fn send_tasks(&mut self) {
         let n = self.data.as_ref().unwrap().shape()[0];
-        let chunk_size = n.div_floor(&self.n_threads);
+        let chunk_size = num_integer::Integer::div_floor(&n, &self.n_threads);
         for t in 0..self.n_threads {
             let start = t.mul(chunk_size);
             let end = if (t + 1) < self.n_threads {
-                (t+1).mul(chunk_size)
+                (t + 1).mul(chunk_size)
             } else {
                 n
             };
             self.helper.as_ref().unwrap().do_send(EstimatorTask {
-                data_range: start..end
+                data_range: start..end,
             });
             self.helper_protocol.sent();
         }
@@ -86,7 +103,7 @@ impl GaussianKDEActor {
 
     fn scotts_factor(&self, weights: ArrayView2<f32>) -> f32 {
         let d = self.data.as_ref().unwrap().shape()[1];
-        let exponent = -1.0 / ((d+4) as f32);
+        let exponent = -1.0 / ((d + 4) as f32);
         self.neff(weights).powf(exponent)
     }
 
@@ -95,7 +112,7 @@ impl GaussianKDEActor {
         1.0 / weights_sum
     }
 
-    fn calculate_weights(&self) -> Array2<f32>{
+    fn calculate_weights(&self) -> Array2<f32> {
         let n = self.data.as_ref().unwrap().shape()[0];
         Array2::ones(Dim([n, 1])) / (n as f32)
     }
@@ -110,7 +127,7 @@ impl Default for GaussianKDEActor {
             helper: None,
             helper_protocol: HelperProtocol::default(),
             estimate: None,
-            receiver: None
+            receiver: None,
         }
     }
 }
@@ -145,9 +162,13 @@ impl Handler<EstimatorResponse> for GaussianKDEActor {
             let estimate = (*self.estimate.as_ref().unwrap()).clone();
             self.estimate = None;
 
-            self.receiver.as_ref().unwrap().do_send(GaussianKDEResponse {
-                kernel_estimate: estimate
-            }).unwrap();
+            self.receiver
+                .as_ref()
+                .unwrap()
+                .do_send(GaussianKDEResponse {
+                    kernel_estimate: estimate,
+                })
+                .unwrap();
         }
     }
 }

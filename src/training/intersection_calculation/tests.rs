@@ -1,22 +1,21 @@
-use actix::prelude::*;
-use crate::training::Training;
-use crate::parameters::Parameters;
-use crate::training::segmentation::{Segmentation, SegmentedMessage};
-use std::f32::consts::PI;
-use ndarray::arr1;
-use actix_telepathy::Cluster;
-use port_scanner::request_open_port;
-use tokio::time::{Duration, sleep};
-use crate::training::intersection_calculation::IntersectionCalculationDone;
-use std::sync::{Arc, Mutex};
-use crate::data_store::DataStore;
 use crate::data_store::point::Point;
-use crate::data_store::transition::{Transition};
-
+use crate::data_store::transition::Transition;
+use crate::data_store::DataStore;
+use crate::parameters::Parameters;
+use crate::training::intersection_calculation::IntersectionCalculationDone;
+use crate::training::segmentation::{Segmentation, SegmentedMessage};
+use crate::training::Training;
+use actix::prelude::*;
+use actix_telepathy::Cluster;
+use ndarray::arr1;
+use port_scanner::request_open_port;
+use std::f32::consts::PI;
+use std::sync::{Arc, Mutex};
+use tokio::time::{sleep, Duration};
 
 #[derive(Default)]
 struct Checker {
-    pub success: Arc<Mutex<bool>>
+    pub success: Arc<Mutex<bool>>,
 }
 
 impl Actor for Checker {
@@ -34,18 +33,19 @@ impl Handler<CheckingMessage> for Checker {
 impl Handler<IntersectionCalculationDone> for Checker {
     type Result = ();
 
-    fn handle(&mut self, _msg: IntersectionCalculationDone, _ctx: &mut Self::Context) -> Self::Result {
-
+    fn handle(
+        &mut self,
+        _msg: IntersectionCalculationDone,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
     }
 }
-
 
 #[derive(Message)]
 #[rtype(Result = "()")]
 struct CheckingMessage {
-    pub rec: Option<Recipient<CheckingMessage>>
+    pub rec: Option<Recipient<CheckingMessage>>,
 }
-
 
 impl Handler<CheckingMessage> for Training {
     type Result = ();
@@ -61,19 +61,29 @@ impl Handler<CheckingMessage> for Training {
             }
         }
 
-        msg.rec.unwrap().do_send(CheckingMessage { rec: None }).unwrap();
+        msg.rec
+            .unwrap()
+            .do_send(CheckingMessage { rec: None })
+            .unwrap();
     }
 }
 
-
 #[actix_rt::test]
 async fn get_intersections() {
-    let _cluster = Cluster::new(format!("127.0.0.1:{}", request_open_port().unwrap_or(8000)).parse().unwrap(), vec![]);
+    let _cluster = Cluster::new(
+        format!("127.0.0.1:{}", request_open_port().unwrap_or(8000))
+            .parse()
+            .unwrap(),
+        vec![],
+    );
     let parameters = Parameters::default();
     let mut training = Training::new(parameters);
 
     let success = Arc::new(Mutex::new(false));
-    let checker = Checker { success: success.clone() }.start();
+    let checker = Checker {
+        success: success.clone(),
+    }
+    .start();
 
     training.segmentation = Segmentation::default();
     generate_segmented_transitions(&mut training.data_store);
@@ -81,11 +91,12 @@ async fn get_intersections() {
     let training_addr = training.start();
     training_addr.do_send(SegmentedMessage);
     sleep(Duration::from_millis(3000)).await;
-    training_addr.do_send(CheckingMessage{ rec: Some(checker.recipient()) });
+    training_addr.do_send(CheckingMessage {
+        rec: Some(checker.recipient()),
+    });
     sleep(Duration::from_millis(200)).await;
     assert!(*success.lock().unwrap())
 }
-
 
 fn generate_segmented_transitions(data_store: &mut DataStore) {
     let segments = 100;
@@ -96,9 +107,9 @@ fn generate_segmented_transitions(data_store: &mut DataStore) {
         let segment_id = (theta / segment_size) as usize % segments;
         let radius = x as f32;
         let coords = arr1(&[radius * theta.cos(), radius * theta.sin()]);
-        let point = Point::new(x-1, coords, segment_id);
+        let point = Point::new(x - 1, coords, segment_id);
         data_store.add_point(point);
-    };
+    }
 
     let mut transitions = vec![];
     let mut last_point = None;
@@ -108,8 +119,8 @@ fn generate_segmented_transitions(data_store: &mut DataStore) {
             Some(last_point) => {
                 let transition = Transition::new(last_point, point.clone());
                 transitions.push(transition);
-            },
-            None => ()
+            }
+            None => (),
         }
         last_point = Some(point);
     }

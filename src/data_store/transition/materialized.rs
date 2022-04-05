@@ -1,14 +1,13 @@
-use std::ops::Deref;
 use crate::data_store::materialize::Materialize;
 use crate::data_store::point::{Point, PointRef};
 use crate::data_store::transition::{Transition, TransitionMixin};
-use serde::{Serialize, Deserialize};
-
+use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct MaterializedTransition {
     from_point: Point,
-    to_point: Point
+    to_point: Point,
 }
 
 impl MaterializedTransition {
@@ -27,12 +26,11 @@ impl TransitionMixin for MaterializedTransition {
     }
 }
 
-
 impl Materialize<MaterializedTransition> for Transition {
     fn materialize(&self) -> MaterializedTransition {
         MaterializedTransition {
             from_point: self.from_point.deref().clone(),
-            to_point: self.to_point.deref().clone()
+            to_point: self.to_point.deref().clone(),
         }
     }
 }

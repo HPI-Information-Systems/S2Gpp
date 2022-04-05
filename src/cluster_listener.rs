@@ -1,20 +1,17 @@
-use std::net::SocketAddr;
 use crate::parameters::{Parameters, Role};
-use actix::{Actor, Context, System, Handler, ActorContext, AsyncContext, Addr, Message};
+use actix::{Actor, ActorContext, Addr, AsyncContext, Context, Handler, Message, System};
+use actix_broker::BrokerSubscribe;
 use actix_telepathy::prelude::*;
-use actix_broker::{BrokerSubscribe};
 use log::*;
-use std::collections::{HashSet, HashMap};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+use std::net::SocketAddr;
 
-
-use crate::training::{Training, StartTrainingMessage};
+use crate::training::{StartTrainingMessage, Training};
 use crate::utils::ClusterNodes;
-
 
 #[derive(RemoteMessage, Serialize, Deserialize)]
 struct SortedMembersMessage(pub Vec<SocketAddr>);
-
 
 #[derive(RemoteActor)]
 #[remote_messages(SortedMembersMessage)]
@@ -24,7 +21,7 @@ pub struct ClusterMemberListener {
     main_node: Option<RemoteAddr>,
     training: Addr<Training>,
     sorted_nodes: HashMap<usize, RemoteAddr>,
-    sorted_addr_buffer: Vec<SocketAddr>
+    sorted_addr_buffer: Vec<SocketAddr>,
 }
 
 impl ClusterMemberListener {
@@ -35,7 +32,7 @@ impl ClusterMemberListener {
             main_node: None,
             training,
             sorted_nodes: HashMap::new(),
-            sorted_addr_buffer: vec![]
+            sorted_addr_buffer: vec![],
         }
     }
 
@@ -95,27 +92,32 @@ impl Handler<ClusterLog> for ClusterMemberListener {
                     match &self.parameters.role {
                         Role::Main { .. } => {
                             let mut sorted_members = vec![self.parameters.local_host];
-                            sorted_members.append(&mut self.connected_nodes.iter().map(|x| x.socket_addr).collect());
+                            sorted_members.append(
+                                &mut self.connected_nodes.iter().map(|x| x.socket_addr).collect(),
+                            );
 
                             for node in self.connected_nodes.iter() {
                                 let mut remote_listener = node.clone();
                                 remote_listener.change_id("ClusterMemberListener".to_string());
-                                remote_listener.do_send(SortedMembersMessage(sorted_members.clone()))
+                                remote_listener
+                                    .do_send(SortedMembersMessage(sorted_members.clone()))
                             }
 
                             self.sort_members(sorted_members);
                             self.start_training();
-                        },
-                        _ => if !self.sorted_addr_buffer.is_empty() {
-                            self.sort_members(self.sorted_addr_buffer.clone());
-                            self.start_training();
+                        }
+                        _ => {
+                            if !self.sorted_addr_buffer.is_empty() {
+                                self.sort_members(self.sorted_addr_buffer.clone());
+                                self.start_training();
+                            }
                         }
                     }
                 }
-            },
+            }
             ClusterLog::MemberLeft(addr) => {
                 debug!("member left {:?}", addr);
-                if let Role::Sub {mainhost} = &self.parameters.role {
+                if let Role::Sub { mainhost } = &self.parameters.role {
                     if addr.eq(mainhost) {
                         ctx.stop();
                     }

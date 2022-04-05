@@ -1,28 +1,25 @@
 mod materialized;
 
-use std::sync::Arc;
 use num_integer::Integer;
+use std::sync::Arc;
 
+use crate::data_store::point::PointRef;
 pub(crate) use materialized::MaterializedTransition;
-use crate::data_store::point::{PointRef};
-
 
 #[derive(Clone, Debug)]
 pub(crate) struct Transition {
     from_point: PointRef,
-    to_point: PointRef
+    to_point: PointRef,
 }
-
 
 impl Transition {
     pub fn new(from_point: PointRef, to_point: PointRef) -> Self {
         Self {
             from_point,
-            to_point
+            to_point,
         }
     }
 }
-
 
 pub(crate) trait TransitionMixin {
     fn get_from_point(&self) -> PointRef;
@@ -33,7 +30,9 @@ pub(crate) trait TransitionMixin {
     }
 
     fn crosses_segments(&self) -> bool {
-        self.get_from_point().get_segment().ne(&self.get_to_point().get_segment())
+        self.get_from_point()
+            .get_segment()
+            .ne(&self.get_to_point().get_segment())
     }
 
     fn has_valid_direction(&self, rate: isize) -> bool {
@@ -41,11 +40,11 @@ pub(crate) trait TransitionMixin {
         let to_segment = self.get_to_point().get_segment() as isize;
 
         let raw_diff_counter = (rate + to_segment) - from_segment;
-        let half_rate = rate.div_floor(&2);
+        let half_rate = num_integer::Integer::div_floor(&rate, &2);
         let raw_diff = self.raw_diff();
 
-        (0 <= raw_diff && raw_diff <= half_rate) ||
-            (raw_diff < 0 && (0 <= raw_diff_counter && raw_diff_counter <= half_rate))
+        (0 <= raw_diff && raw_diff <= half_rate)
+            || (raw_diff < 0 && (0 <= raw_diff_counter && raw_diff_counter <= half_rate))
     }
 
     fn segment_diff(&self) -> usize {
@@ -73,7 +72,6 @@ pub(crate) trait TransitionMixin {
     }
 }
 
-
 impl TransitionMixin for Transition {
     fn get_from_point(&self) -> PointRef {
         self.from_point.clone()
@@ -83,6 +81,5 @@ impl TransitionMixin for Transition {
         self.to_point.clone()
     }
 }
-
 
 pub(crate) type TransitionRef = Arc<Transition>;

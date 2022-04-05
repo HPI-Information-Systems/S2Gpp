@@ -1,22 +1,25 @@
-use serde::{Serialize, Deserialize};
-
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug)]
 pub(crate) struct NodeInQuestion {
     prev_point_id: usize,
     prev_point_segment_id: usize,
     point_id: usize,
-    segment_id: usize
+    segment_id: usize,
 }
 
-
 impl NodeInQuestion {
-    pub fn new(prev_point_id: usize, prev_point_segment_id: usize, point_id: usize, segment_id: usize) -> Self {
+    pub fn new(
+        prev_point_id: usize,
+        prev_point_segment_id: usize,
+        point_id: usize,
+        segment_id: usize,
+    ) -> Self {
         Self {
             prev_point_id,
             prev_point_segment_id,
             point_id,
-            segment_id
+            segment_id,
         }
     }
 

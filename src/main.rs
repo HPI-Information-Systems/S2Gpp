@@ -5,28 +5,25 @@ use structopt::StructOpt;
 use crate::parameters::{Parameters, Role};
 
 use crate::cluster_listener::ClusterMemberListener;
+use crate::training::{StartTrainingMessage, Training};
+use crate::utils::ClusterNodes;
 use actix_telepathy::Cluster;
 use env_logger::Env;
 use std::io::Write;
-use crate::training::{Training, StartTrainingMessage};
-use crate::utils::ClusterNodes;
 
-mod data_manager;
-mod parameters;
 mod cluster_listener;
-mod training;
-mod utils;
+mod data_manager;
+mod data_store;
 mod messages;
+mod parameters;
 #[cfg(test)]
 mod tests;
-mod data_store;
-
+mod training;
+mod utils;
 
 fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info"))
-        .format(|buf, record| {
-            writeln!(buf, "{} [S2G++]: {}", record.level(), record.args())
-        })
+        .format(|buf, record| writeln!(buf, "{} [S2G++]: {}", record.level(), record.args()))
         .init();
 
     let params: Parameters = Parameters::from_args();
@@ -38,7 +35,7 @@ fn main() {
         let host = params.local_host;
         let seed_nodes = match &params.role {
             Role::Sub { mainhost } => vec![*mainhost],
-            _ => vec![]
+            _ => vec![],
         };
 
         let training = Training::new(params.clone()).start();

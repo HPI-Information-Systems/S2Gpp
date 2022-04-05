@@ -1,8 +1,7 @@
-use ndarray::{arr1, Array, Array1, ArrayBase, ArrayView, Axis, Data, Dim, stack};
-use anyhow::{Result, Error};
+use anyhow::{Error, Result};
+use ndarray::{arr1, stack, Array, Array1, ArrayBase, ArrayView, Axis, Data, Dim};
 
-pub trait IndexArr<A, D>
-{
+pub trait IndexArr<A, D> {
     fn get_multiple(&self, indices: Array1<usize>, axis: Axis) -> Result<Array<A, D>>;
 }
 
@@ -11,8 +10,14 @@ where
     A: Copy,
     S: Data<Elem = A>,
 {
-    fn get_multiple(&self, indices: Array1<usize>, axis: Axis) -> Result<Array<A, Dim<[usize; 2]>>> {
-        let indexed_vec: Vec<ArrayView<_, _>> = indices.to_vec().into_iter()
+    fn get_multiple(
+        &self,
+        indices: Array1<usize>,
+        axis: Axis,
+    ) -> Result<Array<A, Dim<[usize; 2]>>> {
+        let indexed_vec: Vec<ArrayView<_, _>> = indices
+            .to_vec()
+            .into_iter()
             .map(|index| self.index_axis(axis, index))
             .collect();
         Ok(stack(axis, indexed_vec.as_slice())?)
@@ -22,23 +27,30 @@ where
 impl<A, S> IndexArr<A, Dim<[usize; 1]>> for ArrayBase<S, Dim<[usize; 1]>>
 where
     A: Clone,
-    S: Data<Elem = A>
+    S: Data<Elem = A>,
 {
-    fn get_multiple(&self, indices: Array1<usize>, _axis: Axis) -> Result<Array<A, Dim<[usize; 1]>>> {
-        let indexed_vec = indices.to_vec().into_iter()
-            .map(|index| self.get(index).ok_or_else(|| Error::msg(format!("Index {} out of bounds", index))))
+    fn get_multiple(
+        &self,
+        indices: Array1<usize>,
+        _axis: Axis,
+    ) -> Result<Array<A, Dim<[usize; 1]>>> {
+        let indexed_vec = indices
+            .to_vec()
+            .into_iter()
+            .map(|index| {
+                self.get(index)
+                    .ok_or_else(|| Error::msg(format!("Index {} out of bounds", index)))
+            })
             .map(|x| x.map(|x| (*x).clone()))
             .collect::<Result<Vec<A>, _>>()?;
         Ok(arr1(indexed_vec.as_slice()))
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use ndarray::{arr1, arr2, Axis};
     use crate::utils::ndarray_extensions::index_arr::IndexArr;
-
+    use ndarray::{arr1, arr2, Axis};
 
     #[test]
     fn array1_get_multiple() {

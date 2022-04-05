@@ -1,9 +1,8 @@
-
 #[derive(Default)]
 pub struct HelperProtocol {
     pub n_total: usize,
     pub n_sent: usize,
-    pub n_received: usize
+    pub n_received: usize,
 }
 
 impl HelperProtocol {

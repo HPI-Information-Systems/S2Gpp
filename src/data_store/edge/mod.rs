@@ -1,23 +1,19 @@
-use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 use crate::data_store::node::NodeRef;
 pub(crate) use materialized::MaterializedEdge;
+use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 
 mod materialized;
-
 
 #[derive(Clone, Debug)]
 pub(crate) struct Edge {
     from_node: NodeRef,
-    to_node: NodeRef
+    to_node: NodeRef,
 }
 
 impl Edge {
     pub fn new(from_node: NodeRef, to_node: NodeRef) -> Self {
-        Self {
-            from_node,
-            to_node
-        }
+        Self { from_node, to_node }
     }
 
     pub fn get_from_node(&self) -> NodeRef {
@@ -51,6 +47,5 @@ impl Hash for Edge {
 }
 
 impl Eq for Edge {}
-
 
 pub(crate) type EdgeRef = Arc<Edge>;

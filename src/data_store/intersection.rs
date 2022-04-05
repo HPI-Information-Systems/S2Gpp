@@ -1,14 +1,13 @@
-use std::sync::Arc;
-use ndarray::{Array1, ArrayView1};
 use crate::data_store::transition::{TransitionMixin, TransitionRef};
-use serde::{Serialize, Deserialize};
-
+use ndarray::{Array1, ArrayView1};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct Intersection {
     from_point_id: usize,
     coordinates: Array1<f32>,
-    segment_id: usize
+    segment_id: usize,
 }
 
 impl Intersection {
@@ -16,7 +15,7 @@ impl Intersection {
         Self {
             from_point_id: transition.get_from_id(),
             coordinates,
-            segment_id
+            segment_id,
         }
     }
 
@@ -36,6 +35,5 @@ impl Intersection {
         IntersectionRef::new(self)
     }
 }
-
 
 pub(crate) type IntersectionRef = Arc<Intersection>;

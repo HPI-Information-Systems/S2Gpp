@@ -1,20 +1,15 @@
-use console::{style};
+use console::style;
 use log::*;
-
 
 pub struct ConsoleLogger {
     step: usize,
     from: usize,
-    title: String
+    title: String,
 }
 
 impl ConsoleLogger {
     pub fn new(step: usize, from: usize, title: String) -> Self {
-        Self {
-            step,
-            from,
-            title
-        }
+        Self { step, from, title }
     }
 
     fn format_step(&self) -> String {

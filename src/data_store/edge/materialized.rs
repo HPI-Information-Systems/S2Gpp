@@ -1,14 +1,13 @@
-use std::ops::Deref;
-use crate::data_store::materialize::Materialize;
-use serde::{Serialize, Deserialize};
 use crate::data_store::edge::Edge;
+use crate::data_store::materialize::Materialize;
 use crate::data_store::node::IndependentNode;
-
+use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 
 #[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq, Hash)]
 pub(crate) struct MaterializedEdge {
     from_node: IndependentNode,
-    to_node: IndependentNode
+    to_node: IndependentNode,
 }
 
 impl MaterializedEdge {
@@ -25,12 +24,11 @@ impl MaterializedEdge {
     }
 }
 
-
 impl Materialize<MaterializedEdge> for Edge {
     fn materialize(&self) -> MaterializedEdge {
         MaterializedEdge {
             from_node: self.from_node.deref().clone(),
-            to_node: self.to_node.deref().clone()
+            to_node: self.to_node.deref().clone(),
         }
     }
 }

@@ -1,19 +1,16 @@
+use crate::utils::ndarray_extensions::index_arr::IndexArr;
+use ndarray::{concatenate, Array, ArrayBase, Axis, Data, Dim};
 use std::cmp::Ordering;
 use std::iter::FromIterator;
-use ndarray::{Array, ArrayBase, Axis, concatenate, Data, Dim};
-use crate::utils::ndarray_extensions::index_arr::IndexArr;
 
-
-pub(crate) trait Shift<A, D>
-{
+pub(crate) trait Shift<A, D> {
     fn shift(&self, by: isize, axis: Axis) -> Array<A, D>;
 }
-
 
 impl<A, S> Shift<A, Dim<[usize; 1]>> for ArrayBase<S, Dim<[usize; 1]>>
 where
     A: Copy,
-    S: Data<Elem = A>
+    S: Data<Elem = A>,
 {
     fn shift(&self, by: isize, axis: Axis) -> Array<A, Dim<[usize; 1]>> {
         let shape = self.shape();
@@ -23,25 +20,24 @@ where
                 let first = Array::zeros(Dim([by as usize]));
                 let second = Array::from_iter(0..(shape[axis_int] - by as usize));
                 concatenate![Axis(0), first, second]
-            },
+            }
             Ordering::Less => {
                 let by = (-by) as usize;
                 let first = Array::from_iter(by..shape[axis_int]);
                 let second = Array::zeros(Dim([by])) + (shape[axis_int] - 1);
                 concatenate![Axis(0), first, second]
-            },
-            Ordering::Equal => Array::from_iter(0..shape[axis_int])
+            }
+            Ordering::Equal => Array::from_iter(0..shape[axis_int]),
         };
 
         self.get_multiple(loc, axis).unwrap()
     }
 }
 
-
 impl<A, S> Shift<A, Dim<[usize; 2]>> for ArrayBase<S, Dim<[usize; 2]>>
 where
     A: Copy,
-    S: Data<Elem = A>
+    S: Data<Elem = A>,
 {
     fn shift(&self, by: isize, axis: Axis) -> Array<A, Dim<[usize; 2]>> {
         let shape = self.shape();
@@ -51,25 +47,24 @@ where
                 let first = Array::zeros(Dim([by as usize]));
                 let second = Array::from_iter(0..(shape[axis_int] - by as usize));
                 concatenate![Axis(0), first, second]
-            },
+            }
             Ordering::Less => {
                 let by = (-by) as usize;
                 let first = Array::from_iter(by..shape[axis_int]);
                 let second = Array::zeros(Dim([by])) + shape[axis_int];
                 concatenate![Axis(0), first, second]
-            },
-            Ordering::Equal => Array::from_iter(0..shape[axis_int])
+            }
+            Ordering::Equal => Array::from_iter(0..shape[axis_int]),
         };
 
         self.get_multiple(loc, axis).unwrap()
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use ndarray::{arr1, arr2, Axis};
     use crate::utils::ndarray_extensions::shift::Shift;
+    use ndarray::{arr1, arr2, Axis};
 
     #[test]
     fn shift_forward_array1() {

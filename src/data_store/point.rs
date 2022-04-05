@@ -1,16 +1,15 @@
+use crate::data_store::utils::get_segment_id;
+use crate::utils::PolarCoords;
+use ndarray::{Array1, ArrayView1};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
-use ndarray::{Array1, ArrayView1};
-use crate::utils::PolarCoords;
-use serde::{Serialize, Deserialize};
-use crate::data_store::utils::get_segment_id;
-
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct Point {
     id: usize,
     coordinates: Array1<f32>,
-    segment: usize
+    segment: usize,
 }
 
 impl Point {
@@ -18,7 +17,7 @@ impl Point {
         Self {
             id,
             coordinates,
-            segment
+            segment,
         }
     }
 
@@ -46,9 +45,12 @@ impl Point {
 
 impl Display for Point {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Point({}-({}) => {})", self.id, self.segment, self.coordinates)
+        write!(
+            f,
+            "Point({}-({}) => {})",
+            self.id, self.segment, self.coordinates
+        )
     }
 }
-
 
 pub(crate) type PointRef = Arc<Point>;
