@@ -23,10 +23,11 @@ use ndarray_stats::QuantileExt;
 
 use crate::data_store::intersection::Intersection;
 use crate::data_store::transition::{TransitionMixin, TransitionRef};
-use crate::utils::logging::progress_bar::S2GppProgressBar;
 use crate::utils::rotation_protocol::RotationProtocol;
 use ndarray_linalg::Norm;
 use num_integer::Integer;
+
+use self::messages::IntersectionTask;
 
 pub type SegmentID = usize;
 
@@ -39,7 +40,6 @@ pub(crate) struct IntersectionCalculation {
     pub pairs: Vec<(TransitionRef, SegmentID, Array2<f32>, Array2<f32>)>,
     pub helper_protocol: HelperProtocol,
     pub recipient: Option<Recipient<IntersectionCalculationDone>>,
-    pub(crate) progress_bar: S2GppProgressBar,
     pub rotation_protocol: RotationProtocol<IntersectionRotationMessage>,
 }
 
@@ -163,12 +163,7 @@ impl IntersectionCalculator for Training {
                 ));
             }
         }
-        self.intersection_calculation.helper_protocol.n_total =
-            self.intersection_calculation.pairs.len();
-        self.intersection_calculation.progress_bar = S2GppProgressBar::new_from_len(
-            "info",
-            self.intersection_calculation.helper_protocol.n_total,
-        );
+        self.intersection_calculation.helper_protocol.n_total = self.parameters.n_threads;
 
         self.intersection_calculation.helpers =
             Some(SyncArbiter::start(self.parameters.n_threads, move || {
@@ -179,27 +174,33 @@ impl IntersectionCalculator for Training {
     }
 
     fn parallel_intersection_tasks(&mut self, rec: Recipient<IntersectionResultMessage>) {
-        for _ in
-            0..(self.parameters.n_threads - self.intersection_calculation.helper_protocol.n_sent)
-        {
-            let pair = self.intersection_calculation.pairs.pop();
-            match pair {
-                None => {}
-                Some((transition, segment_id, line_points, plane_points)) => {
-                    self.intersection_calculation
-                        .helpers
-                        .as_ref()
-                        .unwrap()
-                        .do_send(IntersectionTaskMessage {
-                            transition,
-                            segment_id,
-                            line_points,
-                            plane_points,
-                            source: rec.clone(),
-                        });
-                    self.intersection_calculation.helper_protocol.sent();
+        let chunk_size = num_integer::div_ceil(
+            self.intersection_calculation.pairs.len(),
+            self.parameters.n_threads,
+        );
+        for _ in 0..self.parameters.n_threads {
+            let mut tasks = vec![];
+            for _ in 0..(self.intersection_calculation.pairs.len().min(chunk_size)) {
+                if let Some((transition, segment_id, line_points, plane_points)) =
+                    self.intersection_calculation.pairs.pop()
+                {
+                    tasks.push(IntersectionTask {
+                        transition,
+                        segment_id,
+                        line_points,
+                        plane_points,
+                    });
                 }
             }
+            self.intersection_calculation
+                .helpers
+                .as_ref()
+                .unwrap()
+                .do_send(IntersectionTaskMessage {
+                    tasks,
+                    source: rec.clone(),
+                });
+            self.intersection_calculation.helper_protocol.sent();
         }
     }
 
@@ -256,17 +257,16 @@ impl Handler<IntersectionResultMessage> for Training {
 
     fn handle(&mut self, msg: IntersectionResultMessage, ctx: &mut Self::Context) -> Self::Result {
         self.intersection_calculation.helper_protocol.received();
-        self.intersection_calculation.progress_bar.inc();
 
-        self.assign_received_intersection(msg.segment_id, msg.transition, msg.intersection);
+        for result in msg.results {
+            self.assign_received_intersection(
+                result.segment_id,
+                result.transition,
+                result.intersection,
+            );
+        }
 
-        if self.intersection_calculation.helper_protocol.is_running() {
-            self.parallel_intersection_tasks(ctx.address().recipient());
-        } else {
-            self.intersection_calculation
-                .progress_bar
-                .finish_and_clear();
-
+        if !self.intersection_calculation.helper_protocol.is_running() {
             self.intersection_calculation
                 .helpers
                 .as_ref()

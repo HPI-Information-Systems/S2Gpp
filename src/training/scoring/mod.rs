@@ -16,7 +16,6 @@ use crate::training::scoring::messages::{
 use crate::training::scoring::weights::ScoringWeights;
 use crate::training::Training;
 use crate::utils::itertools::LengthAble;
-use crate::utils::logging::progress_bar::S2GppProgressBar;
 use crate::utils::rotation_protocol::RotationProtocol;
 use crate::utils::HelperProtocol;
 use actix::{Addr, AsyncContext, Context, Handler, SyncArbiter};
@@ -46,7 +45,6 @@ pub(crate) struct Scoring {
     helpers: Option<Addr<ScoringHelper>>,
     score_rotation_protocol: RotationProtocol<SubScores>,
     helper_protocol: HelperProtocol,
-    progress_bar: S2GppProgressBar,
     helper_buffer: HashMap<usize, ScoringHelperResponse>,
 }
 
@@ -80,9 +78,7 @@ impl Scorer for Training {
         }
 
         let score_length = self.scoring.edges_in_time.len() - (self.parameters.query_length - 1);
-
         self.scoring.helper_protocol.n_total = self.parameters.n_threads;
-        self.scoring.progress_bar = S2GppProgressBar::new_from_len("info", score_length);
 
         let edges = self.data_store.get_edges();
         let edges_in_time = self.scoring.edges_in_time.clone();
@@ -242,11 +238,9 @@ impl Handler<ScoringHelperResponse> for Training {
                 }
             }
         }
-        self.scoring.progress_bar.inc_by(scores.len() as u64);
         self.scoring.single_scores.extend(scores);
 
         if !self.scoring.helper_protocol.is_running() {
-            self.scoring.progress_bar.finish_and_clear();
             self.finalize_parallel_score(ctx);
         } else {
             match self

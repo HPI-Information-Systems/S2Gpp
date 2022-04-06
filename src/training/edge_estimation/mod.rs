@@ -8,7 +8,6 @@ use crate::data_store::node::NodeRef;
 use crate::training::edge_estimation::edges_orderer::EdgesOrderer;
 pub use crate::training::edge_estimation::messages::EdgeEstimationDone;
 use crate::training::Training;
-use crate::utils::logging::progress_bar::S2GppProgressBar;
 use actix::prelude::*;
 
 pub trait EdgeEstimator {
@@ -33,7 +32,6 @@ impl EdgeEstimator for Training {
 
         let mut previous_node: Option<NodeRef> = None;
 
-        let progress_bar = S2GppProgressBar::new_from_len("info", len_dataset);
         for point_id in 0..len_dataset {
             if let Some(intersection_nodes) = self.data_store.get_nodes_by_point_id(point_id) {
                 let mut edges = EdgesOrderer::new(previous_node.clone());
@@ -58,10 +56,8 @@ impl EdgeEstimator for Training {
                     }
                 }
             }
-            progress_bar.inc();
         }
         self.node_estimation.next_foreign_node.clear();
-        progress_bar.finish_and_clear();
     }
 
     fn finalize_edge_estimation(&mut self, ctx: &mut Context<Training>) {
