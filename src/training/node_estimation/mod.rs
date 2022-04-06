@@ -21,7 +21,6 @@ pub(crate) use crate::training::node_estimation::messages::{
 };
 use crate::training::node_estimation::multi_kde::actors::messages::MultiKDEMessage;
 use crate::training::node_estimation::multi_kde::actors::MultiKDEActor;
-use crate::utils::logging::progress_bar::S2GppProgressBar;
 use crate::utils::rotation_protocol::RotationProtocol;
 
 #[derive(Default)]
@@ -29,7 +28,6 @@ pub(crate) struct NodeEstimation {
     pub next_foreign_node: HashMap<(usize, usize), (usize, IndependentNode)>,
     pub(crate) current_intersections: Vec<IntersectionRef>,
     pub(crate) current_segment_id: usize,
-    pub(crate) progress_bar: S2GppProgressBar,
     pub(crate) source: Option<Recipient<NodeEstimationDone>>,
     asking_rotation_protocol: RotationProtocol<AskForForeignNodes>,
     answering_rotation_protocol: RotationProtocol<ForeignNodesAnswer>,
@@ -53,14 +51,6 @@ pub(crate) trait NodeEstimator {
 
 impl NodeEstimator for Training {
     fn estimate_nodes(&mut self, clustering_recipient: Recipient<ClusteringResponse<f32>>) {
-        self.node_estimation.progress_bar.inc_or_set(
-            "info",
-            num_integer::Integer::div_floor(
-                &self.parameters.rate,
-                &self.parameters.n_cluster_nodes,
-            ),
-        );
-
         let segment_id = self.node_estimation.current_segment_id;
 
         match self.data_store.get_intersections_from_segment(segment_id) {
@@ -231,8 +221,6 @@ impl Handler<ClusteringResponse<f32>> for Training {
         if self.node_estimation.current_segment_id < self.parameters.rate {
             self.estimate_nodes(ctx.address().recipient());
         } else {
-            self.node_estimation.progress_bar.inc();
-            self.node_estimation.progress_bar.finish_and_clear();
             self.ask_for_foreign_nodes(ctx);
         }
     }

@@ -15,7 +15,6 @@ use crate::data_manager::DataManager;
 use crate::utils::AnyClusterNodesIterator;
 use std::ops::Not;
 
-use crate::utils::logging::progress_bar::S2GppProgressBar;
 use log::*;
 
 pub struct DataReading {
@@ -54,7 +53,6 @@ impl DataReader for DataManager {
         let mut buffer = vec![];
         let mut overlap_buffer = vec![];
 
-        let bar = S2GppProgressBar::new_from_len("info", n_lines);
         for record in reader.records() {
             match record {
                 Ok(r) => {
@@ -88,7 +86,6 @@ impl DataReader for DataManager {
                 }
                 Err(e) => panic!("{}", e.to_string()),
             }
-            bar.inc();
         }
 
         let mut data = buffer.clone();
@@ -97,7 +94,6 @@ impl DataReader for DataManager {
             .next()
             .unwrap()
             .do_send(DataPartitionMessage { data });
-        bar.finish_and_clear();
         debug!(
             "Sent data to receiver {}",
             receiver_iterator.get_position() - 1

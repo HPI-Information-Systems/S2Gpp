@@ -8,22 +8,30 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use std::collections::HashMap;
 
-#[derive(Message)]
-#[rtype(Result = "()")]
-pub(crate) struct IntersectionTaskMessage {
+pub(crate) struct IntersectionTask {
     pub transition: TransitionRef,
     pub segment_id: usize,
     pub line_points: Array2<f32>,
     pub plane_points: Array2<f32>,
+}
+
+#[derive(Message)]
+#[rtype(Result = "()")]
+pub(crate) struct IntersectionTaskMessage {
+    pub tasks: Vec<IntersectionTask>,
     pub source: Recipient<IntersectionResultMessage>,
+}
+
+pub(crate) struct IntersectionResult {
+    pub transition: TransitionRef,
+    pub segment_id: usize,
+    pub intersection: Array1<f32>,
 }
 
 #[derive(Message)]
 #[rtype(Result = "()")]
 pub(crate) struct IntersectionResultMessage {
-    pub transition: TransitionRef,
-    pub segment_id: usize,
-    pub intersection: Array1<f32>,
+    pub results: Vec<IntersectionResult>,
 }
 
 #[serde_as]
