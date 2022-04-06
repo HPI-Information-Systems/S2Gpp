@@ -93,7 +93,7 @@ fn test_single_pca() {
 
 #[test]
 #[ignore]
-fn test_single_pca_parallel() {
+fn test_single_pca_parallel_2() {
     let ip1: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000))
         .parse()
         .unwrap();
@@ -115,6 +115,44 @@ fn test_single_pca_parallel() {
 
     let parameters = Parameters {
         n_threads: 2,
+        ..Default::default()
+    };
+    run_single_pca_node(
+        p.ip,
+        p.seeds.clone(),
+        p.other_nodes,
+        p.main,
+        p.data,
+        p.expected,
+        parameters,
+    );
+}
+
+#[test]
+#[ignore]
+fn test_single_pca_parallel_8() {
+    let ip1: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000))
+        .parse()
+        .unwrap();
+
+    let dataset = read_data_("data/test.csv");
+
+    let expected: Array2<f32> = arr2(&[
+        [0.7265024, -0.39373094, 0.5631784],
+        [0.57647973, -0.09682596, -0.8113543],
+    ]);
+
+    let p = TestParams {
+        ip: ip1.clone(),
+        seeds: vec![],
+        other_nodes: vec![],
+        main: true,
+        data: dataset.to_shared(),
+        expected: expected.clone(),
+    };
+
+    let parameters = Parameters {
+        n_threads: 8,
         ..Default::default()
     };
     run_single_pca_node(
@@ -326,7 +364,7 @@ async fn run_single_pca_node(
             )
             .start();
         }
-        sleep(Duration::from_millis(200)).await;
+        sleep(Duration::from_millis(400)).await;
         (*arc_cluster_nodes.lock().unwrap())
             .as_ref()
             .unwrap()
@@ -349,5 +387,6 @@ async fn run_single_pca_node(
         .as_ref()
         .expect("Not yet set!")
         .clone();
+    println!("received: {:?}", received);
     close_l1(&received, &expected, 0.00001);
 }

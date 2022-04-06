@@ -32,6 +32,7 @@ pub struct PCA {
     n: Option<Array1<f32>>,
     pub recipient: Option<Recipient<PCAComponents>>,
     helpers: Vec<Addr<PCAHelper>>,
+    buffer: Vec<PCADecompositionMessage>,
 }
 
 impl PCA {
@@ -50,6 +51,7 @@ impl PCA {
 
 pub trait PCAnalyzer {
     fn pca(&mut self, data: ArcArray2<f32>);
+    fn resolve_buffer(&mut self);
     fn center_columns_decomposition(&mut self);
     fn helper_center_columns_decomposition(&mut self);
     fn send_to_main(&mut self);
@@ -68,6 +70,12 @@ impl PCAnalyzer for Training {
             self.helper_center_columns_decomposition();
         } else {
             self.center_columns_decomposition();
+        }
+    }
+
+    fn resolve_buffer(&mut self) {
+        while let Some(msg) = self.rotation.pca.buffer.pop() {
+            self.own_addr.as_ref().unwrap().do_send(msg);
         }
     }
 
@@ -114,7 +122,7 @@ impl PCAnalyzer for Training {
             .data
             .as_ref()
             .expect("PCA started before data is present!");
-        let chunk_size = (data.shape()[0] as f32).div(self.parameters.n_threads as f32) as usize;
+        let chunk_size = num_integer::div_ceil(data.shape()[0], self.parameters.n_threads);
         for (chunk, helper) in data
             .axis_chunks_iter(Axis(0), chunk_size)
             .zip(self.rotation.pca.helpers.iter())
@@ -165,7 +173,7 @@ impl PCAnalyzer for Training {
         {
             self.rotation.pca.r_count += 1;
             self.send_to_neighbor_or_finalize()
-        } else if id == 0 && s == self.rotation.pca.r_count + 1 {
+        } else if id == 0 && threshold == 0 {
             self.finalize()
         }
     }
@@ -270,8 +278,13 @@ impl Handler<PCADecompositionMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: PCADecompositionMessage, _ctx: &mut Self::Context) -> Self::Result {
-        self.rotation.pca.r_count += msg.count;
-        self.combine_remote_r(msg.r);
+        if msg.count == self.rotation.pca.r_count + 1 {
+            self.rotation.pca.r_count = msg.count;
+            self.combine_remote_r(msg.r);
+            self.resolve_buffer();
+        } else {
+            self.rotation.pca.buffer.push(msg);
+        }
     }
 }
 

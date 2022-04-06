@@ -20,6 +20,7 @@ pub(crate) struct PCAHelper {
     n: Option<Array1<f32>>,
     local_r: Option<Array2<f32>>,
     r_count: usize,
+    buffer: Vec<PCAHelperMessage>,
 }
 
 impl PCAHelper {
@@ -48,6 +49,13 @@ impl PCAHelper {
             self.send_to_main();
         }
         self.send_to_neighbor_or_finalize();
+        self.resolve_buffer();
+    }
+
+    fn resolve_buffer(&mut self) {
+        while let Some(msg) = self.buffer.pop() {
+            self.neighbors.get(self.id).unwrap().do_send(msg).unwrap();
+        }
     }
 
     fn send_to_main(&mut self) {
@@ -85,7 +93,7 @@ impl PCAHelper {
         } else if self.r_count == 0 && (id + threshold) >= self.neighbors.len() {
             self.r_count += 1;
             self.send_to_neighbor_or_finalize();
-        } else if id == 0 && s == self.r_count + 1 {
+        } else if id == 0 && threshold == 0 {
             self.finalize();
         }
     }
@@ -144,37 +152,53 @@ impl Handler<PCAHelperMessage> for PCAHelper {
     type Result = ();
 
     fn handle(&mut self, msg: PCAHelperMessage, _ctx: &mut Self::Context) -> Self::Result {
-        match msg {
-            PCAHelperMessage::Setup { neighbors, data } => {
-                self.neighbors.extend(neighbors);
-                self.data = Some(data);
-                self.center_columns_decomposition();
+        if let PCAHelperMessage::Setup { neighbors, data } = msg {
+            self.neighbors.extend(neighbors);
+            self.data = Some(data);
+            self.center_columns_decomposition();
+            return;
+        }
+
+        if self.local_r.is_none() {
+            self.buffer.push(msg);
+        } else {
+            match msg {
+                PCAHelperMessage::Setup {
+                    neighbors: _,
+                    data: _,
+                } => (),
+                PCAHelperMessage::Decomposition { r, count } => {
+                    if count == self.r_count + 1 {
+                        self.r_count = count;
+                        self.combine_sent_r(r);
+                        self.resolve_buffer();
+                    } else {
+                        self.buffer
+                            .push(PCAHelperMessage::Decomposition { r, count });
+                    }
+                }
+                PCAHelperMessage::Means { columns_means, n } => {
+                    self.column_means = Some(concatenate![
+                        Axis(0),
+                        self.column_means.as_ref().unwrap().clone(),
+                        columns_means.view().into_dimensionality().unwrap()
+                    ]);
+                    self.n = Some(concatenate![
+                        Axis(0),
+                        self.n.as_ref().unwrap().clone(),
+                        arr1(&[n as f32])
+                    ]);
+                }
+                PCAHelperMessage::Components {
+                    components: _,
+                    means: _,
+                } => println!("Components received"),
+                PCAHelperMessage::Response {
+                    column_means: _,
+                    n: _,
+                    r: _,
+                } => println!("Response received"),
             }
-            PCAHelperMessage::Decomposition { r, count } => {
-                self.r_count += count;
-                self.combine_sent_r(r);
-            }
-            PCAHelperMessage::Means { columns_means, n } => {
-                self.column_means = Some(concatenate![
-                    Axis(0),
-                    self.column_means.as_ref().unwrap().clone(),
-                    columns_means.view().into_dimensionality().unwrap()
-                ]);
-                self.n = Some(concatenate![
-                    Axis(0),
-                    self.n.as_ref().unwrap().clone(),
-                    arr1(&[n as f32])
-                ]);
-            }
-            PCAHelperMessage::Components {
-                components: _,
-                means: _,
-            } => println!("Components received"),
-            PCAHelperMessage::Response {
-                column_means: _,
-                n: _,
-                r: _,
-            } => println!("Response received"),
         }
     }
 }
