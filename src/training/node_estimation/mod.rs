@@ -115,7 +115,6 @@ impl NodeEstimator for Training {
             node.do_send(msg);
             self.node_estimation.asking_direct_protocol.sent();
         }
-        println!("node_questions: {:?}", self.segmentation.node_questions);
     }
 
     fn search_for_asked_nodes(&mut self, mut node_questions: HashMap<usize, Vec<NodeInQuestion>>) {
