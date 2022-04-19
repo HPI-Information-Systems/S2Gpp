@@ -79,6 +79,7 @@ impl Handler<StdNodeMessage> for DataManager {
                             + m2
                             + delta.clone() * delta * ((n + msg.n) as f32 / global_n as f32),
                     );
+
                     std_calcuation.mean =
                         Some((mean * *n as f32 + msg.mean * msg.n as f32) / global_n as f32);
                     std_calcuation.n = Some(global_n);

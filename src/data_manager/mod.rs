@@ -50,6 +50,7 @@ pub struct DataManager {
     dataset_stats: DatasetStats,
     reference_dataset: Option<Array3<f32>>,
     phase_space: Option<Array3<f32>>,
+    partition_buffer: Vec<DataPartitionMessage>,
 }
 
 impl DataManager {
@@ -72,6 +73,14 @@ impl DataManager {
             dataset_stats: DatasetStats::default(),
             reference_dataset: None,
             phase_space: None,
+            partition_buffer: vec![],
+        }
+    }
+
+    fn resolve_buffer(&mut self, addr: Addr<Self>) {
+        debug!("resolve buffer");
+        while let Some(msg) = self.partition_buffer.pop() {
+            addr.do_send(msg);
         }
     }
 
@@ -162,6 +171,8 @@ impl Handler<LoadDataMessage> for DataManager {
         let role = self.parameters.role.clone();
         if let Role::Main { data_path } = role {
             self.read_csv(&data_path, ctx.address())
+        } else {
+            self.resolve_buffer(ctx.address())
         }
     }
 }
@@ -170,6 +181,14 @@ impl Handler<DataPartitionMessage> for DataManager {
     type Result = ();
 
     fn handle(&mut self, msg: DataPartitionMessage, ctx: &mut Self::Context) -> Self::Result {
+        if !self.cluster_nodes.all_connected(&self.parameters) {
+            debug!("not all nodes are connected");
+            self.partition_buffer.push(msg);
+            return;
+        }
+
+        debug!("all node are now connected");
+
         ConsoleLogger::new(2, 12, "Calculating Data Stats".to_string()).print();
         let n_rows = msg.data.len();
         let until_column = match self.parameters.column_end.cmp(&0) {

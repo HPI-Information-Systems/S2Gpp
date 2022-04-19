@@ -33,6 +33,7 @@ pub struct PCA {
     pub recipient: Option<Recipient<PCAComponents>>,
     helpers: Vec<Addr<PCAHelper>>,
     buffer: Vec<PCADecompositionMessage>,
+    means_buffer: Vec<PCAMeansMessage>,
 }
 
 impl PCA {
@@ -52,6 +53,7 @@ impl PCA {
 pub trait PCAnalyzer {
     fn pca(&mut self, data: ArcArray2<f32>);
     fn resolve_buffer(&mut self);
+    fn resolve_means_buffer(&mut self);
     fn center_columns_decomposition(&mut self);
     fn helper_center_columns_decomposition(&mut self);
     fn send_to_main(&mut self);
@@ -74,8 +76,16 @@ impl PCAnalyzer for Training {
     }
 
     fn resolve_buffer(&mut self) {
+        let own_addr = self.own_addr.as_ref().unwrap();
         while let Some(msg) = self.rotation.pca.buffer.pop() {
-            self.own_addr.as_ref().unwrap().do_send(msg);
+            own_addr.do_send(msg);
+        }
+    }
+
+    fn resolve_means_buffer(&mut self) {
+        let own_addr = self.own_addr.as_ref().unwrap();
+        while let Some(msg) = self.rotation.pca.means_buffer.pop() {
+            own_addr.do_send(msg);
         }
     }
 
@@ -261,16 +271,20 @@ impl Handler<PCAMeansMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: PCAMeansMessage, _ctx: &mut Self::Context) -> Self::Result {
-        self.rotation.pca.column_means = Some(concatenate![
-            Axis(0),
-            self.rotation.pca.column_means.as_ref().unwrap().clone(),
-            msg.columns_means.view().into_dimensionality().unwrap()
-        ]);
-        self.rotation.pca.n = Some(concatenate![
-            Axis(0),
-            self.rotation.pca.n.as_ref().unwrap().clone(),
-            arr1(&[msg.n as f32])
-        ]);
+        if self.rotation.pca.column_means.is_some() {
+            self.rotation.pca.column_means = Some(concatenate![
+                Axis(0),
+                self.rotation.pca.column_means.as_ref().unwrap().clone(),
+                msg.columns_means.view().into_dimensionality().unwrap()
+            ]);
+            self.rotation.pca.n = Some(concatenate![
+                Axis(0),
+                self.rotation.pca.n.as_ref().unwrap().clone(),
+                arr1(&[msg.n as f32])
+            ]);
+        } else {
+            self.rotation.pca.means_buffer.push(msg);
+        }
     }
 }
 
@@ -278,7 +292,7 @@ impl Handler<PCADecompositionMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: PCADecompositionMessage, _ctx: &mut Self::Context) -> Self::Result {
-        if msg.count == self.rotation.pca.r_count + 1 {
+        if msg.count == self.rotation.pca.r_count + 1 && self.rotation.pca.local_r.is_some() {
             self.rotation.pca.r_count = msg.count;
             self.combine_remote_r(msg.r);
             self.resolve_buffer();
@@ -322,6 +336,8 @@ impl Handler<PCAHelperMessage> for Training {
 
             self.send_to_main();
             self.send_to_neighbor_or_finalize();
+            self.resolve_buffer();
+            self.resolve_means_buffer();
         }
     }
 }

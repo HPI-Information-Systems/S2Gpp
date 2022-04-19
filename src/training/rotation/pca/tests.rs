@@ -168,6 +168,44 @@ fn test_single_pca_parallel_8() {
 
 #[test]
 #[ignore]
+fn test_single_pca_parallel_20() {
+    let ip1: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000))
+        .parse()
+        .unwrap();
+
+    let dataset = read_data_("data/test.csv");
+
+    let expected: Array2<f32> = arr2(&[
+        [0.7265024, -0.39373094, 0.5631784],
+        [0.57647973, -0.09682596, -0.8113543],
+    ]);
+
+    let p = TestParams {
+        ip: ip1.clone(),
+        seeds: vec![],
+        other_nodes: vec![],
+        main: true,
+        data: dataset.to_shared(),
+        expected: expected.clone(),
+    };
+
+    let parameters = Parameters {
+        n_threads: 20,
+        ..Default::default()
+    };
+    run_single_pca_node(
+        p.ip,
+        p.seeds.clone(),
+        p.other_nodes,
+        p.main,
+        p.data,
+        p.expected,
+        parameters,
+    );
+}
+
+#[test]
+#[ignore]
 fn test_distributed_pca_2_parallel() {
     let ip1: SocketAddr = format!("127.0.0.1:{}", request_open_port().unwrap_or(8000))
         .parse()

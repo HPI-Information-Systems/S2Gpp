@@ -21,6 +21,7 @@ pub(crate) struct PCAHelper {
     local_r: Option<Array2<f32>>,
     r_count: usize,
     buffer: Vec<PCAHelperMessage>,
+    means_buffer: Vec<PCAHelperMessage>,
 }
 
 impl PCAHelper {
@@ -50,10 +51,17 @@ impl PCAHelper {
         }
         self.send_to_neighbor_or_finalize();
         self.resolve_buffer();
+        self.resolve_means_buffer();
     }
 
     fn resolve_buffer(&mut self) {
         while let Some(msg) = self.buffer.pop() {
+            self.neighbors.get(self.id).unwrap().do_send(msg).unwrap();
+        }
+    }
+
+    fn resolve_means_buffer(&mut self) {
+        while let Some(msg) = self.means_buffer.pop() {
             self.neighbors.get(self.id).unwrap().do_send(msg).unwrap();
         }
     }
@@ -178,16 +186,21 @@ impl Handler<PCAHelperMessage> for PCAHelper {
                     }
                 }
                 PCAHelperMessage::Means { columns_means, n } => {
-                    self.column_means = Some(concatenate![
-                        Axis(0),
-                        self.column_means.as_ref().unwrap().clone(),
-                        columns_means.view().into_dimensionality().unwrap()
-                    ]);
-                    self.n = Some(concatenate![
-                        Axis(0),
-                        self.n.as_ref().unwrap().clone(),
-                        arr1(&[n as f32])
-                    ]);
+                    if self.column_means.is_some() {
+                        self.column_means = Some(concatenate![
+                            Axis(0),
+                            self.column_means.as_ref().unwrap().clone(),
+                            columns_means.view().into_dimensionality().unwrap()
+                        ]);
+                        self.n = Some(concatenate![
+                            Axis(0),
+                            self.n.as_ref().unwrap().clone(),
+                            arr1(&[n as f32])
+                        ]);
+                    } else {
+                        self.means_buffer
+                            .push(PCAHelperMessage::Means { columns_means, n });
+                    }
                 }
                 PCAHelperMessage::Components {
                     components: _,
