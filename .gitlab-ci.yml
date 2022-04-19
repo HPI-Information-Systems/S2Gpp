@@ -13,17 +13,6 @@ stages:
   - test
   - extras
 
-testing:
-  stage: test
-  tags:
-    - akita
-  script:
-    - cargo install cargo-tarpaulin
-    - RUST_LOG=warn cargo tarpaulin --ignore-tests --out Xml --output-dir .
-  artifacts:
-    reports:
-      cobertura: cobertura.xml
-
 linting:
   stage: test
   tags:
