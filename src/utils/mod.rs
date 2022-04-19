@@ -11,6 +11,9 @@ pub use helper_protocol::HelperProtocol;
 pub use logging::console_logger::ConsoleLogger;
 pub use ndarray_extensions::*;
 
+use crate::parameters::Parameters;
+
+pub(crate) mod direct_protocol;
 pub(crate) mod float_approx;
 mod geometry;
 mod helper_protocol;
@@ -115,6 +118,19 @@ impl ClusterNodes {
 
     pub fn iter(&self) -> Iter<'_, usize, RemoteAddr> {
         self.nodes.iter()
+    }
+
+    pub fn iter_any_as<T: Actor>(
+        &self,
+        addr: Addr<T>,
+        remote_actor_id: &str,
+    ) -> AnyClusterNodesIterator<T> {
+        let any_cluster_nodes = self.to_any_as(addr, remote_actor_id);
+        any_cluster_nodes.into_iter()
+    }
+
+    pub fn all_connected(&self, parameters: &Parameters) -> bool {
+        self.len_incl_own().eq(&parameters.n_cluster_nodes)
     }
 }
 

@@ -6,6 +6,7 @@ use actix::{
     Actor, ActorFutureExt, AsyncContext, Context, ContextFutureSpawner, Handler, Recipient,
     WrapFuture,
 };
+use actix_telepathy::AnyAddr;
 use meanshift_rs::{ClusteringResponse, MeanShiftActor, MeanShiftMessage};
 use ndarray::{stack_new_axis, ArrayView1, Axis};
 use std::collections::HashMap;
@@ -21,7 +22,7 @@ pub(crate) use crate::training::node_estimation::messages::{
 };
 use crate::training::node_estimation::multi_kde::actors::messages::MultiKDEMessage;
 use crate::training::node_estimation::multi_kde::actors::MultiKDEActor;
-use crate::utils::rotation_protocol::RotationProtocol;
+use crate::utils::direct_protocol::DirectProtocol;
 
 #[derive(Default)]
 pub(crate) struct NodeEstimation {
@@ -29,22 +30,18 @@ pub(crate) struct NodeEstimation {
     pub(crate) current_intersections: Vec<IntersectionRef>,
     pub(crate) current_segment_id: usize,
     pub(crate) source: Option<Recipient<NodeEstimationDone>>,
-    asking_rotation_protocol: RotationProtocol<AskForForeignNodes>,
-    answering_rotation_protocol: RotationProtocol<ForeignNodesAnswer>,
+    asking_direct_protocol: DirectProtocol<AskForForeignNodes>,
+    answering_direct_protocol: DirectProtocol<ForeignNodesAnswer>,
     answers: HashMap<usize, Vec<(usize, usize, usize, IndependentNode)>>,
 }
 
 pub(crate) trait NodeEstimator {
     fn estimate_nodes(&mut self, clustering_recipient: Recipient<ClusteringResponse<f32>>);
     fn ask_for_foreign_nodes(&mut self, ctx: &mut Context<Training>);
-    fn ask_next(&mut self, asked_nodes: NodeQuestions);
+    fn ask_next(&mut self);
     fn search_for_asked_nodes(&mut self, node_questions: HashMap<usize, Vec<NodeInQuestion>>);
     fn start_anwering(&mut self, ctx: &mut Context<Training>);
-    fn answer_next(
-        &mut self,
-        answers: HashMap<usize, Vec<(usize, usize, usize, IndependentNode)>>,
-        ctx: &mut Context<Training>,
-    );
+    fn answer_next(&mut self, ctx: &mut Context<Training>);
     fn take_in_answers(&mut self, answers: Vec<(usize, usize, usize, IndependentNode)>);
     fn finalize_node_estimation(&mut self, ctx: &mut Context<Training>);
 }
@@ -87,27 +84,38 @@ impl NodeEstimator for Training {
     }
 
     fn ask_for_foreign_nodes(&mut self, ctx: &mut Context<Training>) {
-        if self.cluster_nodes.len() > 0 {
-            self.node_estimation
-                .asking_rotation_protocol
-                .start(self.parameters.n_cluster_nodes);
-            self.node_estimation
-                .asking_rotation_protocol
-                .resolve_buffer(ctx.address().recipient());
-
-            self.ask_next(self.segmentation.node_questions.clone());
-            self.segmentation.node_questions.clear();
-        } else {
+        if self.cluster_nodes.len() == 0 {
             self.finalize_node_estimation(ctx);
+            return;
         }
+        self.node_estimation
+            .asking_direct_protocol
+            .start(self.cluster_nodes.len_incl_own());
+        self.node_estimation
+            .asking_direct_protocol
+            .resolve_buffer(ctx.address().recipient());
+
+        self.ask_next();
     }
 
-    fn ask_next(&mut self, asked_nodes: NodeQuestions) {
-        self.cluster_nodes
-            .get_next_as("Training")
-            .unwrap()
-            .do_send(AskForForeignNodes { asked_nodes });
-        self.node_estimation.asking_rotation_protocol.sent();
+    fn ask_next(&mut self) {
+        for (id, node) in self
+            .cluster_nodes
+            .iter_any_as(self.own_addr.as_ref().unwrap().clone(), "Training")
+            .enumerate()
+        {
+            let msg = match self.segmentation.node_questions.remove(&id) {
+                Some(questions) => AskForForeignNodes {
+                    asked_nodes: NodeQuestions::from_hashmap_with_value(id, questions),
+                },
+                None => AskForForeignNodes {
+                    asked_nodes: NodeQuestions::default(),
+                },
+            };
+            node.do_send(msg);
+            self.node_estimation.asking_direct_protocol.sent();
+        }
+        println!("node_questions: {:?}", self.segmentation.node_questions);
     }
 
     fn search_for_asked_nodes(&mut self, mut node_questions: HashMap<usize, Vec<NodeInQuestion>>) {
@@ -158,28 +166,43 @@ impl NodeEstimator for Training {
 
     fn start_anwering(&mut self, ctx: &mut Context<Training>) {
         self.node_estimation
-            .answering_rotation_protocol
-            .start(self.parameters.n_cluster_nodes);
+            .answering_direct_protocol
+            .start(self.cluster_nodes.len_incl_own());
         self.node_estimation
-            .answering_rotation_protocol
+            .answering_direct_protocol
             .resolve_buffer(ctx.address().recipient());
-        self.answer_next(self.node_estimation.answers.clone(), ctx);
-        self.node_estimation.answers.clear();
+        self.answer_next(ctx);
     }
 
-    fn answer_next(
-        &mut self,
-        answers: HashMap<usize, Vec<(usize, usize, usize, IndependentNode)>>,
-        ctx: &mut Context<Training>,
-    ) {
-        self.cluster_nodes
-            .get_next_as("Training")
-            .unwrap()
-            .wait_send(ForeignNodesAnswer { answers })
-            .into_actor(self)
-            .map(|res, _act, _ctx| if res.is_ok() {})
-            .wait(ctx);
-        self.node_estimation.answering_rotation_protocol.sent();
+    fn answer_next(&mut self, ctx: &mut Context<Training>) {
+        for (id, node) in self
+            .cluster_nodes
+            .iter_any_as(self.own_addr.as_ref().unwrap().clone(), "Training")
+            .enumerate()
+        {
+            let msg = match self.node_estimation.answers.remove(&id) {
+                Some(answers) => {
+                    let mut directed_answers = HashMap::new();
+                    directed_answers.insert(id, answers);
+                    ForeignNodesAnswer {
+                        answers: directed_answers,
+                    }
+                }
+                None => ForeignNodesAnswer {
+                    answers: HashMap::default(),
+                },
+            };
+
+            match &node {
+                AnyAddr::Local(addr) => addr.do_send(msg),
+                AnyAddr::Remote(addr) => addr
+                    .wait_send(msg)
+                    .into_actor(self)
+                    .map(|res, _, _| if res.is_ok() {})
+                    .wait(ctx),
+            }
+            self.node_estimation.answering_direct_protocol.sent();
+        }
     }
 
     fn take_in_answers(&mut self, answers: Vec<(usize, usize, usize, IndependentNode)>) {
@@ -230,20 +253,16 @@ impl Handler<AskForForeignNodes> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: AskForForeignNodes, ctx: &mut Self::Context) -> Self::Result {
-        if !self.node_estimation.asking_rotation_protocol.received(&msg) {
+        if !self.node_estimation.asking_direct_protocol.received(&msg) {
             return;
         }
 
         let mut asked_nodes = msg.asked_nodes;
-        self.search_for_asked_nodes(
-            asked_nodes
-                .remove(&self.cluster_nodes.get_own_idx())
-                .unwrap(),
-        );
+        if let Some(questions) = asked_nodes.remove(&self.cluster_nodes.get_own_idx()) {
+            self.search_for_asked_nodes(questions);
+        }
 
-        if self.node_estimation.asking_rotation_protocol.is_running() {
-            self.ask_next(asked_nodes);
-        } else {
+        if !self.node_estimation.asking_direct_protocol.is_running() {
             self.start_anwering(ctx);
         }
     }
@@ -255,26 +274,18 @@ impl Handler<ForeignNodesAnswer> for Training {
     fn handle(&mut self, msg: ForeignNodesAnswer, ctx: &mut Self::Context) -> Self::Result {
         if !self
             .node_estimation
-            .answering_rotation_protocol
+            .answering_direct_protocol
             .received(&msg)
         {
             return;
         }
 
         let mut answers = msg.answers;
-
-        match answers.remove(&self.cluster_nodes.get_own_idx()) {
-            None => (),
-            Some(own_answers) => self.take_in_answers(own_answers),
+        if let Some(own_answers) = answers.remove(&self.cluster_nodes.get_own_idx()) {
+            self.take_in_answers(own_answers);
         }
 
-        if self
-            .node_estimation
-            .answering_rotation_protocol
-            .is_running()
-        {
-            self.answer_next(answers, ctx);
-        } else {
+        if !self.node_estimation.answering_direct_protocol.is_running() {
             self.finalize_node_estimation(ctx);
         }
     }

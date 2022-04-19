@@ -58,6 +58,7 @@ impl ClusterMemberListener {
 
     fn start_training(&mut self) {
         let nodes = ClusterNodes::from(self.sorted_nodes.clone());
+        debug!("#nodes {}", nodes.len_incl_own());
         self.training.do_send(StartTrainingMessage { nodes });
     }
 }
@@ -84,6 +85,7 @@ impl Handler<ClusterLog> for ClusterMemberListener {
                 debug!("new member {:?}", addr);
 
                 if self.parameters.is_main_addr(addr) {
+                    debug!("is main node");
                     self.main_node = Some(remote_addr.clone());
                 }
                 self.connected_nodes.insert(remote_addr);
@@ -132,6 +134,7 @@ impl Handler<SortedMembersMessage> for ClusterMemberListener {
 
     fn handle(&mut self, msg: SortedMembersMessage, _ctx: &mut Self::Context) -> Self::Result {
         if self.connected_nodes.len() == self.parameters.n_cluster_nodes - 1 {
+            debug!("received {:?}", msg.0);
             self.sort_members(msg.0);
             self.start_training();
         } else {

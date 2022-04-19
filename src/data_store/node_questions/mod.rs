@@ -11,7 +11,7 @@ use std::iter::FromIterator;
 pub(crate) mod node_in_question;
 
 #[serde_as]
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct NodeQuestions {
     #[serde_as(as = "Vec<(_, Vec<(_, _)>)>")]
     node_questions: HashMap<usize, HashMap<usize, Vec<NodeInQuestion>>>,
@@ -38,15 +38,26 @@ impl NodeQuestions {
         }
     }
 
+    pub fn from_hashmap_with_value(
+        answering_node: usize,
+        answering_node_questions: HashMap<usize, Vec<NodeInQuestion>>,
+    ) -> Self {
+        let mut node_questions = HashMap::new();
+        node_questions.insert(answering_node, answering_node_questions);
+        Self::from_hashmap(node_questions)
+    }
+
+    pub fn from_hashmap(
+        node_questions: HashMap<usize, HashMap<usize, Vec<NodeInQuestion>>>,
+    ) -> Self {
+        Self { node_questions }
+    }
+
     pub fn remove(
         &mut self,
         answering_node: &usize,
     ) -> Option<HashMap<usize, Vec<NodeInQuestion>>> {
         self.node_questions.remove(answering_node)
-    }
-
-    pub fn clear(&mut self) {
-        self.node_questions.clear()
     }
 
     fn segment_is_first_transition_intersection(

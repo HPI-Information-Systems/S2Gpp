@@ -23,7 +23,7 @@ use ndarray_stats::QuantileExt;
 
 use crate::data_store::intersection::Intersection;
 use crate::data_store::transition::{TransitionMixin, TransitionRef};
-use crate::utils::rotation_protocol::RotationProtocol;
+use crate::utils::direct_protocol::DirectProtocol;
 use ndarray_linalg::Norm;
 use num_integer::Integer;
 
@@ -40,7 +40,7 @@ pub(crate) struct IntersectionCalculation {
     pub pairs: Vec<(TransitionRef, SegmentID, Array2<f32>, Array2<f32>)>,
     pub helper_protocol: HelperProtocol,
     pub recipient: Option<Recipient<IntersectionCalculationDone>>,
-    pub rotation_protocol: RotationProtocol<IntersectionRotationMessage>,
+    pub direct_protocol: DirectProtocol<IntersectionRotationMessage>,
 }
 
 pub(crate) trait IntersectionCalculator {
@@ -53,10 +53,16 @@ pub(crate) trait IntersectionCalculator {
         transition: TransitionRef,
         intersection: Array1<f32>,
     );
+    fn start_distribution_protocol(&mut self);
 }
 
 impl IntersectionCalculator for Training {
     fn calculate_intersections(&mut self, rec: Recipient<IntersectionResultMessage>) {
+        if self.data_store.count_transitions() == 0 {
+            self.start_distribution_protocol();
+            return;
+        }
+
         let max_value = self
             .data_store
             .get_transitions()
@@ -173,7 +179,24 @@ impl IntersectionCalculator for Training {
         self.parallel_intersection_tasks(rec);
     }
 
+    fn start_distribution_protocol(&mut self) {
+        let own_addr = self.own_addr.as_ref().unwrap().clone();
+        self.intersection_calculation
+            .direct_protocol
+            .start(self.cluster_nodes.len());
+        self.intersection_calculation
+            .direct_protocol
+            .resolve_buffer(own_addr.clone().recipient());
+        self.rotate_foreign_assignments(own_addr.recipient());
+    }
+
     fn parallel_intersection_tasks(&mut self, rec: Recipient<IntersectionResultMessage>) {
+        if self.intersection_calculation.pairs.is_empty() {
+            println!("empty pairs");
+            self.start_distribution_protocol();
+            return;
+        }
+
         let chunk_size = num_integer::div_ceil(
             self.intersection_calculation.pairs.len(),
             self.parameters.n_threads,
@@ -205,20 +228,30 @@ impl IntersectionCalculator for Training {
     }
 
     fn rotate_foreign_assignments(&mut self, rec: Recipient<IntersectionCalculationDone>) {
-        match &self.cluster_nodes.get_next_idx() {
-            Some(next_idx) => {
-                let next_node = self.cluster_nodes.get_as(next_idx, "Training").unwrap();
-                let intersection_coords_by_segment =
-                    self.intersection_calculation.foreign_intersections.clone();
-                self.intersection_calculation.foreign_intersections.clear();
-                next_node.do_send(IntersectionRotationMessage {
-                    intersection_coords_by_segment,
-                });
-                self.intersection_calculation.rotation_protocol.sent();
+        if self.cluster_nodes.len() == 0 {
+            rec.do_send(IntersectionCalculationDone).unwrap();
+            return;
+        }
+
+        let mut intersection_coords_by_segment =
+            self.intersection_calculation.foreign_intersections.clone();
+        self.intersection_calculation.foreign_intersections.clear();
+        for (id, node) in self.cluster_nodes.iter() {
+            let mut training_node = node.clone();
+            training_node.change_id("Training".to_string());
+
+            let mut coords_to_send = HashMap::new();
+            for segment_id in 0..self.parameters.rate {
+                if id.eq(&self.segment_id_to_assignment(segment_id)) {
+                    if let Some(coords) = intersection_coords_by_segment.remove(&segment_id) {
+                        coords_to_send.insert(segment_id, coords);
+                    }
+                }
             }
-            None => {
-                rec.do_send(IntersectionCalculationDone).unwrap();
-            }
+            training_node.do_send(IntersectionRotationMessage {
+                intersection_coords_by_segment: coords_to_send,
+            });
+            self.intersection_calculation.direct_protocol.sent();
         }
     }
 
@@ -255,7 +288,7 @@ impl IntersectionCalculator for Training {
 impl Handler<IntersectionResultMessage> for Training {
     type Result = ();
 
-    fn handle(&mut self, msg: IntersectionResultMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: IntersectionResultMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.intersection_calculation.helper_protocol.received();
 
         for result in msg.results {
@@ -275,13 +308,7 @@ impl Handler<IntersectionResultMessage> for Training {
             match &self.intersection_calculation.recipient {
                 Some(rec) => rec.do_send(IntersectionCalculationDone).unwrap(),
                 None => {
-                    self.intersection_calculation
-                        .rotation_protocol
-                        .start(self.cluster_nodes.len());
-                    self.intersection_calculation
-                        .rotation_protocol
-                        .resolve_buffer(ctx.address().recipient());
-                    self.rotate_foreign_assignments(ctx.address().recipient())
+                    self.start_distribution_protocol();
                 }
             }
         }
@@ -296,11 +323,7 @@ impl Handler<IntersectionRotationMessage> for Training {
         msg: IntersectionRotationMessage,
         ctx: &mut Self::Context,
     ) -> Self::Result {
-        if !self
-            .intersection_calculation
-            .rotation_protocol
-            .received(&msg)
-        {
+        if !self.intersection_calculation.direct_protocol.received(&msg) {
             return;
         }
 
@@ -324,9 +347,7 @@ impl Handler<IntersectionRotationMessage> for Training {
             };
         }
 
-        if self.intersection_calculation.rotation_protocol.is_running() {
-            self.rotate_foreign_assignments(ctx.address().recipient());
-        } else {
+        if !self.intersection_calculation.direct_protocol.is_running() {
             ctx.address().do_send(IntersectionCalculationDone);
         }
     }

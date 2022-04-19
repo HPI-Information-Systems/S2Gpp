@@ -10,8 +10,9 @@ pub use crate::training::segmentation::messages::{
     SegmentMessage, SegmentedMessage, SendFirstPointMessage,
 };
 use crate::training::Training;
-use crate::utils::rotation_protocol::RotationProtocol;
+use crate::utils::direct_protocol::DirectProtocol;
 use actix::prelude::*;
+use log::*;
 use std::collections::HashMap;
 use std::ops::Deref;
 
@@ -25,7 +26,7 @@ pub(crate) struct Segmentation {
     pub send_transition: Option<MaterializedTransition>,
     pub last_point: Option<Point>,
     pub last_transition: Option<Transition>,
-    rotation_protocol: RotationProtocol<SegmentMessage>,
+    direct_protocol: DirectProtocol<SegmentMessage>,
     /// {cluster node id (answering): {cluster node id (asking): \[NodeInQuestion\]}}
     pub node_questions: NodeQuestions,
     pub transitions_for_nodes: TransitionsForNodes,
@@ -69,10 +70,10 @@ impl Segmenter for Training {
         } else {
             // if no other cluster node exists (i.e. local only)
             self.segmentation
-                .rotation_protocol
+                .direct_protocol
                 .start(self.parameters.n_cluster_nodes - 1);
             self.segmentation
-                .rotation_protocol
+                .direct_protocol
                 .resolve_buffer(ctx.address().recipient());
             self.distribute_segments(node_transitions);
         }
@@ -135,7 +136,7 @@ impl Segmenter for Training {
         }
 
         if self.data_store.count_transitions() == 0 {
-            panic!("Could not generate transitions! Try different pattern-length / latent parameter settings!")
+            warn!("Could not generate transitions! Try different pattern-length / latent parameter settings!")
         }
 
         self.segmentation.last_point = last_point.map(|x| x.deref().clone());
@@ -211,7 +212,6 @@ impl Segmenter for Training {
                         .get_as(&prev_idx, "Training")
                         .unwrap()
                         .do_send(SendFirstPointMessage { point, transition });
-                    self.segmentation.rotation_protocol.sent();
                 }
 
                 let own_id = self.cluster_nodes.get_own_idx();
@@ -228,23 +228,22 @@ impl Segmenter for Training {
         }
     }
 
-    fn distribute_segments(&mut self, foreign_data: TransitionsForNodes) {
-        match self.cluster_nodes.get_next_idx() {
-            Some(next_id) => {
-                self.cluster_nodes
-                    .get_as(&next_id, "Training")
-                    .unwrap()
-                    .do_send(SegmentMessage {
-                        segments: foreign_data,
-                    });
-                self.segmentation.rotation_protocol.sent();
+    fn distribute_segments(&mut self, mut foreign_data: TransitionsForNodes) {
+        if self.cluster_nodes.len() == 0 {
+            self.own_addr
+                .as_ref()
+                .expect("Should be set by now")
+                .do_send(SegmentedMessage);
+        }
+
+        for (id, node) in self.cluster_nodes.iter() {
+            let mut training_node = node.clone();
+            training_node.change_id("Training".to_string());
+            match foreign_data.remove(id) {
+                Some(segments) => training_node.do_send(SegmentMessage { segments }),
+                None => training_node.do_send(SegmentMessage { segments: vec![] }),
             }
-            None => {
-                self.own_addr
-                    .as_ref()
-                    .expect("Should be set by now")
-                    .do_send(SegmentedMessage);
-            }
+            self.segmentation.direct_protocol.sent();
         }
     }
 }
@@ -312,10 +311,10 @@ impl Handler<SendFirstPointMessage> for Training {
         let node_transitions = self.segmentation.transitions_for_nodes.clone();
         self.segmentation.transitions_for_nodes.clear();
         self.segmentation
-            .rotation_protocol
+            .direct_protocol
             .start(self.parameters.n_cluster_nodes - 1);
         self.segmentation
-            .rotation_protocol
+            .direct_protocol
             .resolve_buffer(ctx.address().recipient());
         self.distribute_segments(node_transitions);
     }
@@ -325,25 +324,13 @@ impl Handler<SegmentMessage> for Training {
     type Result = ();
 
     fn handle(&mut self, msg: SegmentMessage, ctx: &mut Self::Context) -> Self::Result {
-        if !self.segmentation.rotation_protocol.received(&msg) {
+        if !self.segmentation.direct_protocol.received(&msg) {
             return;
         }
 
-        let own_id = self.cluster_nodes.get_own_idx();
-        let next_id = (own_id + 1) % self.cluster_nodes.len_incl_own();
-        let mut segments = msg.segments;
-        let own_transitions = segments.remove(&own_id).unwrap();
+        self.data_store.add_materialized_transitions(msg.segments);
 
-        self.data_store
-            .add_materialized_transitions(own_transitions);
-
-        if self.segmentation.rotation_protocol.is_running() {
-            self.cluster_nodes
-                .get_as(&next_id, "Training")
-                .unwrap()
-                .do_send(SegmentMessage { segments });
-            self.segmentation.rotation_protocol.sent();
-        } else {
+        if !self.segmentation.direct_protocol.is_running() {
             ctx.address().do_send(SegmentedMessage);
         }
     }

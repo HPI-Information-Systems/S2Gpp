@@ -79,6 +79,12 @@ fn global_comut_distributed_4() {
     setup_distributed_global_comut(3)
 }
 
+#[test]
+#[ignore] // takes some time
+fn global_comut_distributed_8() {
+    setup_distributed_global_comut(8)
+}
+
 fn setup_distributed_global_comut(n_subhosts: usize) {
     let mainhost = format!("127.0.0.1:{}", request_open_port().unwrap_or(1992))
         .parse()
