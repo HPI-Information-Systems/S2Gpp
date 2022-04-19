@@ -7,13 +7,13 @@ pub(crate) use crate::training::transposition::messages::{
     TranspositionDone, TranspositionRotationMessage,
 };
 use crate::training::Training;
-use crate::utils::rotation_protocol::RotationProtocol;
+use crate::utils::direct_protocol::DirectProtocol;
 use actix::prelude::*;
 use std::collections::HashMap;
 
 #[derive(Default)]
 pub(crate) struct Transposition {
-    rotation_protocol: RotationProtocol<TranspositionRotationMessage>,
+    direct_protocol: DirectProtocol<TranspositionRotationMessage>,
     pub(crate) range_start_point: Option<usize>,
     partition_len: Option<usize>,
 }
@@ -36,9 +36,9 @@ impl Transposer for Training {
 
         let assignments = self.assign_edges_to_neighbours();
         self.transposition
-            .rotation_protocol
+            .direct_protocol
             .start(self.cluster_nodes.len());
-        self.transposition.rotation_protocol.resolve_buffer(rec);
+        self.transposition.direct_protocol.resolve_buffer(rec);
         self.transpose_rotation(assignments);
     }
 
@@ -75,20 +75,21 @@ impl Transposer for Training {
         assignments
     }
 
-    fn transpose_rotation(&mut self, assignments: HashMap<usize, Vec<MaterializedEdge>>) {
-        let msg = TranspositionRotationMessage { assignments };
-        let next = self
-            .cluster_nodes
-            .get_as(
-                &self
-                    .cluster_nodes
-                    .get_next_idx()
-                    .expect("No Transposition without other cluster nodes!"),
-                "Training",
-            )
-            .unwrap();
-        next.do_send(msg);
-        self.transposition.rotation_protocol.sent();
+    fn transpose_rotation(&mut self, mut assignments: HashMap<usize, Vec<MaterializedEdge>>) {
+        for (id, node) in self.cluster_nodes.iter() {
+            let mut training_node = node.clone();
+            training_node.change_id("Training".to_string());
+
+            let msg = match assignments.remove(id) {
+                Some(node_assignments) => TranspositionRotationMessage {
+                    assignments: node_assignments,
+                },
+                None => TranspositionRotationMessage::default(),
+            };
+
+            training_node.do_send(msg);
+            self.transposition.direct_protocol.sent();
+        }
     }
 
     fn transpose_finalize(&mut self, ctx: &mut Context<Training>) {
@@ -105,19 +106,13 @@ impl Handler<TranspositionRotationMessage> for Training {
         msg: TranspositionRotationMessage,
         ctx: &mut Self::Context,
     ) -> Self::Result {
-        if !self.transposition.rotation_protocol.received(&msg) {
+        if !self.transposition.direct_protocol.received(&msg) {
             return;
         }
 
-        let own_id = self.cluster_nodes.get_own_idx();
-        let mut assignments = msg.assignments;
-        if let Some(own_edges) = assignments.remove(&own_id) {
-            self.data_store.add_materialized_edges(own_edges);
-        }
+        self.data_store.add_materialized_edges(msg.assignments);
 
-        if self.transposition.rotation_protocol.is_running() {
-            self.transpose_rotation(assignments);
-        } else {
+        if !self.transposition.direct_protocol.is_running() {
             self.transpose_finalize(ctx);
         }
     }
