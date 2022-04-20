@@ -1,5 +1,3 @@
-image: "sopedu:5000/rust:latest"
-
 default:
   before_script:
     - rustc --version
@@ -10,11 +8,13 @@ default:
     - apt-get install -y build-essential
 
 stages:
+  - style
   - test
-  - extras
+  - deploy
 
 linting:
-  stage: test
+  image: "sopedu:5000/rust:latest"
+  stage: style
   tags:
     - akita
   script:
@@ -22,7 +22,8 @@ linting:
     - cargo clippy
 
 formatting:
-  stage: test
+  image: "sopedu:5000/rust:latest"
+  stage: style
   tags:
     - akita
   script:
@@ -31,7 +32,7 @@ formatting:
 
 coverage:
   image: "rustdocker/rust:nightly" 
-  stage: extras
+  stage: test
   tags:
     - akita
   variables:
@@ -56,6 +57,28 @@ coverage:
       - 'coverage'
     reports:
       cobertura: coverage.xml
+
+deploy:
+  stage: deploy
+  only:
+    - main
+  tags:
+    - akita
+  variables:
+    DOCKER_DRIVER: "overlay2"
+    DOCKER_TLS_CERTDIR: "/certs"
+    REGISTRY_NAME: "sopedu:5000"
+    IMAGE_TAG: "${REGISTRY_NAME}/akita/s2gpp"
+  services:
+    - name: "${REGISTRY_NAME}/docker:20.10.2-dind"
+      alias: docker
+  before_script:
+    - docker info
+  script:
+    - S2GPP_VERSION=$(sed -n "s/^version = \"\(.*\)\"$/\1/p" Cargo.toml)
+    - docker build -t "${IMAGE_TAG}:${S2GPP_VERSION}" .
+    - docker push "${IMAGE_TAG}:${S2GPP_VERSION}"
+
 
 #auditing:
 #  stage: test
