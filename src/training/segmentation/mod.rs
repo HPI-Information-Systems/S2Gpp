@@ -11,10 +11,12 @@ pub use crate::training::segmentation::messages::{
 };
 use crate::training::Training;
 use crate::utils::direct_protocol::DirectProtocol;
+use crate::utils::rotation_protocol::RotationProtocol;
 use actix::prelude::*;
 use log::*;
 use std::collections::HashMap;
-use std::ops::Deref;
+
+use self::messages::TransitionCountMessage;
 
 pub(crate) type TransitionsForNodes = HashMap<usize, Vec<MaterializedTransition>>;
 /// (prev_point_id, prev_point_segment_id, point_id, segment_id)
@@ -30,10 +32,17 @@ pub(crate) struct Segmentation {
     /// {cluster node id (answering): {cluster node id (asking): \[NodeInQuestion\]}}
     pub node_questions: NodeQuestions,
     pub transitions_for_nodes: TransitionsForNodes,
+    pub transition_count_protocol: RotationProtocol<TransitionCountMessage>,
+    pub global_transition_count: usize,
 }
 
 pub(crate) trait Segmenter {
     fn segment(&mut self, ctx: &mut Context<Training>);
+    fn distribute_or_wait_for_segments(
+        &mut self,
+        node_transitions: TransitionsForNodes,
+        ctx: &mut Context<Training>,
+    );
     fn build_segments(&mut self) -> TransitionsForNodes;
     fn find_splits(
         &mut self,
@@ -59,11 +68,31 @@ pub(crate) trait Segmenter {
     );
     fn try_send_inter_node_points(&mut self) -> bool;
     fn distribute_segments(&mut self, foreign_data: TransitionsForNodes);
+    fn self_correction(
+        &mut self,
+        node_transitions: TransitionsForNodes,
+        ctx: &mut Context<Training>,
+    );
+    fn try_self_correction(&mut self, ctx: &mut Context<Training>);
+    fn finish_self_correction(&mut self, ctx: &mut Context<Training>);
+    fn clear_segmentation(&mut self);
 }
 
 impl Segmenter for Training {
     fn segment(&mut self, ctx: &mut Context<Training>) {
         let node_transitions = self.build_segments();
+        if self.parameters.self_correction {
+            self.self_correction(node_transitions, ctx);
+        } else {
+            self.distribute_or_wait_for_segments(node_transitions, ctx);
+        }
+    }
+
+    fn distribute_or_wait_for_segments(
+        &mut self,
+        node_transitions: TransitionsForNodes,
+        ctx: &mut Context<Training>,
+    ) {
         let wait_for_points = self.try_send_inter_node_points();
         if wait_for_points {
             self.segmentation.transitions_for_nodes = node_transitions;
@@ -92,7 +121,7 @@ impl Segmenter for Training {
                     let transition = Transition::new(last_point.clone(), point.clone());
 
                     if transition.crosses_segments()
-                        && transition.has_valid_direction(self.parameters.rate as isize)
+                        && (transition.has_valid_direction(self.parameters.rate as isize))
                     {
                         // valid transition
                         let from_node_id = self.segment_id_to_assignment(last_point.get_segment());
@@ -127,7 +156,7 @@ impl Segmenter for Training {
                 }
                 None => {
                     if is_not_first {
-                        self.segmentation.send_point = Some(point.deref().clone());
+                        self.segmentation.send_point = Some(point.deref_clone());
                     }
                 }
             }
@@ -139,8 +168,11 @@ impl Segmenter for Training {
             warn!("Could not generate transitions! Try different pattern-length / latent parameter settings!")
         }
 
-        self.segmentation.last_point = last_point.map(|x| x.deref().clone());
+        self.segmentation.last_point = last_point.map(|x| x.deref_clone());
         self.segmentation.last_transition = last_transition;
+
+        println!("#transitions: {}", self.data_store.count_transitions());
+
         foreign_data
     }
 
@@ -244,6 +276,96 @@ impl Segmenter for Training {
                 None => training_node.do_send(SegmentMessage { segments: vec![] }),
             }
             self.segmentation.direct_protocol.sent();
+        }
+    }
+
+    fn self_correction(
+        &mut self,
+        node_transitions: TransitionsForNodes,
+        ctx: &mut Context<Training>,
+    ) {
+        match self.cluster_nodes.get_next_as("Training") {
+            Some(next_node) => {
+                self.segmentation
+                    .transition_count_protocol
+                    .start(self.cluster_nodes.len());
+                self.segmentation
+                    .transition_count_protocol
+                    .resolve_buffer(ctx.address().recipient());
+                let transition_count = self.data_store.count_transitions()
+                    + node_transitions
+                        .iter()
+                        .map(|(_segment, transitions)| transitions.len())
+                        .sum::<usize>();
+                next_node.do_send(TransitionCountMessage {
+                    count: transition_count,
+                });
+                self.segmentation.transition_count_protocol.sent();
+                self.segmentation.global_transition_count += transition_count;
+                self.segmentation.transitions_for_nodes = node_transitions;
+            }
+            None => {
+                self.segmentation.global_transition_count = self.data_store.count_transitions();
+                self.try_self_correction(ctx);
+            }
+        }
+    }
+
+    fn try_self_correction(&mut self, ctx: &mut Context<Training>) {
+        println!(
+            "{} < {}",
+            self.segmentation.global_transition_count,
+            num_integer::div_floor(*self.dataset_stats.as_ref().unwrap().n.as_ref().unwrap(), 2)
+        );
+        if self
+            .segmentation
+            .global_transition_count
+            .lt(&num_integer::div_floor(
+                *self.dataset_stats.as_ref().unwrap().n.as_ref().unwrap(),
+                2,
+            ))
+        {
+            self.clear_segmentation();
+            self.data_store.mirror_points(self.parameters.rate);
+            let node_transitions = self.build_segments();
+            self.distribute_or_wait_for_segments(node_transitions, ctx);
+        } else {
+            self.finish_self_correction(ctx);
+        }
+    }
+
+    fn finish_self_correction(&mut self, ctx: &mut Context<Training>) {
+        self.distribute_or_wait_for_segments(self.segmentation.transitions_for_nodes.clone(), ctx)
+    }
+
+    fn clear_segmentation(&mut self) {
+        self.data_store.clear_transitions();
+        self.segmentation.node_questions.clear();
+        self.segmentation.send_point.take();
+        self.segmentation.last_point.take();
+        self.segmentation.send_transition.take();
+        self.segmentation.last_transition.take();
+    }
+}
+
+impl Handler<TransitionCountMessage> for Training {
+    type Result = ();
+
+    fn handle(&mut self, msg: TransitionCountMessage, ctx: &mut Self::Context) -> Self::Result {
+        if !self.segmentation.transition_count_protocol.received(&msg) {
+            return;
+        }
+
+        self.segmentation.global_transition_count += msg.count;
+
+        if !self.segmentation.transition_count_protocol.is_running() {
+            self.try_self_correction(ctx);
+        } else {
+            match self.cluster_nodes.get_next_as("Training") {
+                Some(next_node) => next_node.do_send(msg),
+                None => panic!("There is suddenly no more next node."),
+            }
+            self.segmentation.transition_count_protocol.sent();
         }
     }
 }

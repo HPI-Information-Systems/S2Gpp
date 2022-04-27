@@ -4,7 +4,7 @@
 # Series2Graph++
 
 [![pipeline status](https://gitlab.hpi.de/akita/s2gpp/badges/main/pipeline.svg)](https://gitlab.hpi.de/akita/s2gpp/-/commits/main)
-[![release info](https://img.shields.io/badge/Release-0.5.1-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/0.5.1)
+[![release info](https://img.shields.io/badge/Release-0.6.0-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/0.6.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 </div>
 
@@ -75,7 +75,8 @@ Before these sub-commands are used, general parameters must be defined:
 - `score-output-path` (Path the score are written to.)
 - `column-start-idx` (How many columns to skip)
 - `column-end-idx` (Until which column to use (exclusive). Can also take negative numbers to count from the end.)
-
+- `self-correction` (Whether S2G++ will correct the direction of the time embedding if too few
+  transactions are available)
 
 #### Input Format
 

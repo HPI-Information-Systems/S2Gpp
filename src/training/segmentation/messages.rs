@@ -18,3 +18,8 @@ pub struct SendFirstPointMessage {
 #[derive(Message)]
 #[rtype(Result = "()")]
 pub struct SegmentedMessage;
+
+#[derive(RemoteMessage, Serialize, Deserialize, Default, Clone, Debug)]
+pub(crate) struct TransitionCountMessage {
+    pub count: usize,
+}

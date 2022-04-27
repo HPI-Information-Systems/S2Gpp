@@ -63,6 +63,9 @@ pub struct Parameters {
 
     #[structopt(long = "clustering", default_value = "meanshift")]
     pub clustering: Clustering,
+
+    #[structopt(long = "self-correction")]
+    pub self_correction: bool,
 }
 
 impl Parameters {
@@ -109,6 +112,7 @@ impl Default for Parameters {
             column_start: 0,
             column_end: 0,
             clustering: Clustering::MeanShift,
+            self_correction: false,
         }
     }
 }

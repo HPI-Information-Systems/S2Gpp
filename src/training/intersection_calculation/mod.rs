@@ -19,7 +19,6 @@ pub(crate) use crate::training::intersection_calculation::messages::{
 use crate::messages::PoisonPill;
 use crate::training::Training;
 use crate::utils::{HelperProtocol, PolarCoords};
-use ndarray_stats::QuantileExt;
 
 use crate::data_store::intersection::Intersection;
 use crate::data_store::transition::{TransitionMixin, TransitionRef};
@@ -69,16 +68,12 @@ impl IntersectionCalculator for Training {
             .iter()
             .map(|x| {
                 x.get_from_point()
-                    .get_coordinates()
-                    .max()
-                    .unwrap()
-                    .max(x.get_from_point().get_coordinates().min().unwrap().abs())
+                    .get_max_coordinate()
+                    .max(x.get_from_point().get_min_coordinate().abs())
                     .max(
                         x.get_to_point()
-                            .get_coordinates()
-                            .max()
-                            .unwrap()
-                            .max(x.get_to_point().get_coordinates().min().unwrap().abs())
+                            .get_max_coordinate()
+                            .max(x.get_to_point().get_min_coordinate().abs())
                             .abs(),
                     )
             })
@@ -91,8 +86,7 @@ impl IntersectionCalculator for Training {
             .first()
             .expect("Could not generate Segments")
             .get_from_point()
-            .get_coordinates()
-            .len();
+            .get_dims();
 
         let origin = arr1(vec![0_f32; dims].as_slice());
         let planes_end_points: Vec<Array1<f32>> = (0..self.parameters.rate)
@@ -117,8 +111,8 @@ impl IntersectionCalculator for Training {
             let line_points = stack_new_axis(
                 Axis(0),
                 &[
-                    transition.get_from_point().get_coordinates().view(),
-                    transition.get_to_point().get_coordinates().view(),
+                    transition.get_from_point().clone_coordinates().view(),
+                    transition.get_to_point().clone_coordinates().view(),
                 ],
             )
             .unwrap();

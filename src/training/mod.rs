@@ -27,7 +27,9 @@ use crate::training::scoring::messages::{
 };
 use crate::training::scoring::weights::ScoringWeights;
 use crate::training::scoring::{Scorer, Scoring};
-use crate::training::segmentation::messages::{SegmentMessage, SendFirstPointMessage};
+use crate::training::segmentation::messages::{
+    SegmentMessage, SendFirstPointMessage, TransitionCountMessage,
+};
 use crate::training::segmentation::{Segmentation, SegmentedMessage, Segmenter};
 use crate::training::transposition::{
     Transposer, Transposition, TranspositionDone, TranspositionRotationMessage,
@@ -59,7 +61,8 @@ mod transposition;
     PCAMeansMessage,
     PCADecompositionMessage,
     PCAComponents,
-    RotationMatrixMessage
+    RotationMatrixMessage,
+    TransitionCountMessage
 )]
 pub struct Training {
     own_addr: Option<Addr<Self>>,

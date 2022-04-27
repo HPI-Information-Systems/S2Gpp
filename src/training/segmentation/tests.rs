@@ -51,11 +51,11 @@ fn test_segmenting() {
     assert_eq!(node_transitions[&1][0].get_from_segment(), 2);
     assert_eq!(node_transitions[&1][0].get_to_segment(), 3);
     assert_eq!(
-        node_transitions[&1][0].get_from_point().get_coordinates(),
+        node_transitions[&1][0].get_from_point().clone_coordinates(),
         expected_node_transition[0]
     );
     assert_eq!(
-        node_transitions[&1][0].get_to_point().get_coordinates(),
+        node_transitions[&1][0].get_to_point().clone_coordinates(),
         expected_node_transition[1]
     );
 
@@ -66,11 +66,11 @@ fn test_segmenting() {
     assert_eq!(own_transitions[0].get_from_segment(), 0);
     assert_eq!(own_transitions[0].get_to_segment(), 1);
     assert_eq!(
-        own_transitions[0].get_from_point().get_coordinates(),
+        own_transitions[0].get_from_point().clone_coordinates(),
         expected_own_transition[0]
     );
     assert_eq!(
-        own_transitions[0].get_to_point().get_coordinates(),
+        own_transitions[0].get_to_point().clone_coordinates(),
         expected_own_transition[1]
     );
 }
@@ -119,11 +119,11 @@ fn test_segment_distribution() {
     assert_eq!(node_transitions[&1][0].get_from_segment(), 2);
     assert_eq!(node_transitions[&1][0].get_to_segment(), 3);
     assert_eq!(
-        node_transitions[&1][0].get_from_point().get_coordinates(),
+        node_transitions[&1][0].get_from_point().clone_coordinates(),
         expected_node_transition[0]
     );
     assert_eq!(
-        node_transitions[&1][0].get_to_point().get_coordinates(),
+        node_transitions[&1][0].get_to_point().clone_coordinates(),
         expected_node_transition[1]
     );
 
@@ -134,11 +134,11 @@ fn test_segment_distribution() {
     assert_eq!(own_transitions[0].get_from_segment(), 0);
     assert_eq!(own_transitions[0].get_to_segment(), 1);
     assert_eq!(
-        own_transitions[0].get_from_point().get_coordinates(),
+        own_transitions[0].get_from_point().clone_coordinates(),
         expected_own_transition[0]
     );
     assert_eq!(
-        own_transitions[0].get_to_point().get_coordinates(),
+        own_transitions[0].get_to_point().clone_coordinates(),
         expected_own_transition[1]
     );
 }
@@ -179,7 +179,11 @@ fn test_segment_transitions_sub() {
     let _node_transitions = training.build_segments();
 
     assert_eq!(
-        training.segmentation.send_point.unwrap().get_coordinates(),
+        training
+            .segmentation
+            .send_point
+            .unwrap()
+            .get_coordinates_view(),
         arr1(&[1.0, 1.0])
     );
 }
