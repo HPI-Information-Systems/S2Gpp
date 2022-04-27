@@ -59,7 +59,6 @@ coverage:
       cobertura: coverage.xml
 
 deploy:
-  image: "sopedu:5000/akita/ci/build-docker:latest"
   stage: deploy
   only:
     - main
