@@ -72,7 +72,6 @@ impl DataStore {
     }
 
     pub fn mirror_points(&mut self, n_segments: usize) {
-        println!("mirroring in action");
         for point in self.points.iter_mut() {
             point.mirror(n_segments);
         }

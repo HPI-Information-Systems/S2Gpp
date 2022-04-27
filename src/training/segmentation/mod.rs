@@ -171,7 +171,7 @@ impl Segmenter for Training {
         self.segmentation.last_point = last_point.map(|x| x.deref_clone());
         self.segmentation.last_transition = last_transition;
 
-        println!("#transitions: {}", self.data_store.count_transitions());
+        debug!("#transitions: {}", self.data_store.count_transitions());
 
         foreign_data
     }
@@ -312,7 +312,7 @@ impl Segmenter for Training {
     }
 
     fn try_self_correction(&mut self, ctx: &mut Context<Training>) {
-        println!(
+        debug!(
             "{} < {}",
             self.segmentation.global_transition_count,
             num_integer::div_floor(*self.dataset_stats.as_ref().unwrap().n.as_ref().unwrap(), 2)
