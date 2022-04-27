@@ -1,6 +1,6 @@
 [package]
 name = "s2gpp"
-version = "0.5.1"
+version = "0.6.0"
 authors = ["Phillip Wenig <phillip.wenig@hpi.de>"]
 edition = "2018"
 

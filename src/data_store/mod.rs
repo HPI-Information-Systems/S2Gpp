@@ -8,7 +8,7 @@ use crate::data_store::transition::{
     MaterializedTransition, Transition, TransitionMixin, TransitionRef,
 };
 use ndarray::Array1;
-use std::ops::{Deref, Range};
+use std::ops::Range;
 use std::slice::Iter;
 
 pub(crate) mod edge;
@@ -18,6 +18,7 @@ pub(crate) mod materialize;
 pub(crate) mod node;
 pub(crate) mod node_questions;
 pub(crate) mod point;
+#[cfg(test)]
 mod tests;
 pub(crate) mod transition;
 mod utils;
@@ -70,6 +71,13 @@ impl DataStore {
         self.points.clone()
     }
 
+    pub fn mirror_points(&mut self, n_segments: usize) {
+        println!("mirroring in action");
+        for point in self.points.iter_mut() {
+            point.mirror(n_segments);
+        }
+    }
+
     // --- Transitions
 
     pub fn add_transition(&mut self, transition: Transition) {
@@ -85,8 +93,8 @@ impl DataStore {
 
     pub fn add_materialized_transition(&mut self, transition: MaterializedTransition) {
         let (from_point, to_point) = transition.get_points();
-        let from_point = self.add_point_return(from_point.deref().clone());
-        let to_point = self.add_point_return(to_point.deref().clone());
+        let from_point = self.add_point_return(from_point.deref_clone());
+        let to_point = self.add_point_return(to_point.deref_clone());
         self.add_transition(Transition::new(from_point, to_point));
     }
 
@@ -102,6 +110,10 @@ impl DataStore {
 
     pub fn count_transitions(&self) -> usize {
         self.transitions.len()
+    }
+
+    pub fn clear_transitions(&mut self) {
+        self.transitions.clear();
     }
 
     // --- Intersections

@@ -158,4 +158,8 @@ impl NodeQuestions {
             self.add_niq(answering_node, asking_node, node_in_question);
         }
     }
+
+    pub fn clear(&mut self) {
+        self.node_questions.clear();
+    }
 }
