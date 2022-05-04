@@ -7,7 +7,6 @@ use ndarray::*;
 use ndarray_linalg::Norm;
 use num_traits::Float;
 use std::fmt::Debug;
-use std::iter::FromIterator;
 
 pub fn norm(a: ArrayView2<f32>, axis: Axis) -> Array1<f32> {
     a.axis_iter(Axis(1 - axis.0)).map(|x| x.norm()).collect()
@@ -29,7 +28,7 @@ pub fn cross2d<A: Float>(
         .axis_iter(axisa_other)
         .map(|a_| cross1d(a_, b.index_axis(axisb_other, 0)))
         .collect();
-    stack_new_axis(
+    stack(
         axisa,
         crosses
             .iter()

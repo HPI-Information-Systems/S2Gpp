@@ -8,7 +8,7 @@ use actix::{
 };
 use actix_telepathy::AnyAddr;
 use meanshift_rs::{ClusteringResponse, MeanShiftActor, MeanShiftMessage};
-use ndarray::{stack_new_axis, ArrayView1, Axis};
+use ndarray::{stack, ArrayView1, Axis};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::str::FromStr;
@@ -55,7 +55,7 @@ impl NodeEstimator for Training {
                 self.node_estimation.current_intersections = intersections.to_vec();
                 let coordinates: Vec<ArrayView1<f32>> =
                     intersections.iter().map(|x| x.get_coordinates()).collect();
-                let data = stack_new_axis(Axis(0), coordinates.as_slice()).unwrap();
+                let data = stack(Axis(0), coordinates.as_slice()).unwrap();
                 match &self.parameters.clustering {
                     Clustering::MeanShift => {
                         let cluster_addr = MeanShiftActor::new(self.parameters.n_threads).start();
