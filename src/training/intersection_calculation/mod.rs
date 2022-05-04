@@ -5,7 +5,7 @@ mod tests;
 
 use actix::{Addr, AsyncContext, Handler, Recipient, SyncArbiter};
 
-use ndarray::{arr1, concatenate, stack_new_axis, Array1, Array2, Axis};
+use ndarray::{arr1, concatenate, stack, Array1, Array2, Axis};
 use std::collections::HashMap;
 
 use std::f32::consts::PI;
@@ -108,7 +108,7 @@ impl IntersectionCalculator for Training {
             .collect();
 
         for transition in self.data_store.get_transitions() {
-            let line_points = stack_new_axis(
+            let line_points = stack(
                 Axis(0),
                 &[
                     transition.get_from_point().clone_coordinates().view(),
@@ -154,7 +154,7 @@ impl IntersectionCalculator for Training {
                 arrays.extend(corner_points.iter().map(|x| x.view()));
                 arrays.push(planes_end_points[segment_id].view());
 
-                let plane_points = stack_new_axis(Axis(0), arrays.as_slice()).unwrap();
+                let plane_points = stack(Axis(0), arrays.as_slice()).unwrap();
                 self.intersection_calculation.pairs.push((
                     transition.clone(),
                     segment_id,
@@ -163,12 +163,11 @@ impl IntersectionCalculator for Training {
                 ));
             }
         }
-        self.intersection_calculation.helper_protocol.n_total = self.parameters.n_threads;
+        self.intersection_calculation.helper_protocol.n_total = 1; //self.parameters.n_threads;
 
-        self.intersection_calculation.helpers =
-            Some(SyncArbiter::start(self.parameters.n_threads, move || {
-                IntersectionCalculationHelper {}
-            }));
+        self.intersection_calculation.helpers = Some(SyncArbiter::start(1, move || {
+            IntersectionCalculationHelper {}
+        }));
 
         self.parallel_intersection_tasks(rec);
     }
@@ -191,11 +190,8 @@ impl IntersectionCalculator for Training {
             return;
         }
 
-        let chunk_size = num_integer::div_ceil(
-            self.intersection_calculation.pairs.len(),
-            self.parameters.n_threads,
-        );
-        for _ in 0..self.parameters.n_threads {
+        let chunk_size = num_integer::div_ceil(self.intersection_calculation.pairs.len(), 1);
+        for _ in 0..1 {
             let mut tasks = vec![];
             for _ in 0..(self.intersection_calculation.pairs.len().min(chunk_size)) {
                 if let Some((transition, segment_id, line_points, plane_points)) =

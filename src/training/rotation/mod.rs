@@ -87,6 +87,7 @@ impl Rotator for Training {
                     .as_ref()
                     .unwrap()
                     .slice(s![.., .., i]);
+                let shape = x.shape();
                 let x = x.sub(
                     &self
                         .rotation
@@ -94,7 +95,7 @@ impl Rotator for Training {
                         .global_means
                         .as_ref()
                         .unwrap()
-                        .broadcast(x.shape())
+                        .broadcast([shape[0], shape[1]])
                         .unwrap(),
                 );
                 &x.dot(&components)
@@ -112,6 +113,7 @@ impl Rotator for Training {
                     .as_ref()
                     .unwrap()
                     .slice(s![.., .., i]);
+                let shape = x.shape();
                 let x = x.sub(
                     &self
                         .rotation
@@ -119,7 +121,7 @@ impl Rotator for Training {
                         .global_means
                         .as_ref()
                         .unwrap()
-                        .broadcast(x.shape())
+                        .broadcast([shape[0], shape[1]])
                         .unwrap(),
                 );
                 &x.dot(&components)

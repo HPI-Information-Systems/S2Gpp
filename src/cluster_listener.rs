@@ -119,10 +119,8 @@ impl Handler<ClusterLog> for ClusterMemberListener {
             }
             ClusterLog::MemberLeft(addr) => {
                 debug!("member left {:?}", addr);
-                if let Role::Sub { mainhost } = &self.parameters.role {
-                    if addr.eq(mainhost) {
-                        ctx.stop();
-                    }
+                if let Role::Sub { mainhost: _ } = &self.parameters.role {
+                    ctx.stop();
                 }
             }
         }

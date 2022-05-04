@@ -29,4 +29,6 @@ RUN set -eux; \
 COPY --from=build /app/target/release/s2gpp /app/s2gpp
 COPY ./scripts/start_timeeval.sh /app/start_timeeval.sh
 
+EXPOSE 8000
+
 ENV ALGORITHM_MAIN="/app/start_timeeval.sh"

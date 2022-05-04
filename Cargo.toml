@@ -1,6 +1,6 @@
 [package]
 name = "s2gpp"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Phillip Wenig <phillip.wenig@hpi.de>"]
 edition = "2018"
 
@@ -25,10 +25,10 @@ actix-telepathy = "=0.4.1"
 actix-broker = "0.4.1"
 serde = "1.0"
 serde_with = "1.9.1"
-ndarray = { version = "0.14", features = ["serde"] }
-ndarray-linalg = { version = "0.13",  features = ["openblas-static"] }
+ndarray = { version = "0.15", features = ["serde"] }
+ndarray-linalg = { version = "0.14",  features = ["openblas-static"] }
 ndarray_einsum_beta = "0.7.0"
-ndarray-stats = "0.4"
+ndarray-stats = "0.5"
 csv = "1.1.6"
 kdtree = "0.6.0"
 num-traits = "0.2.14"
@@ -38,4 +38,4 @@ anyhow = "1.0.41"
 indexmap = "1.8"
 itertools = "0.10.3"
 
-meanshift-rs = { git = "https://github.com/wenig/meanshift-rs.git", tag = "0.6.0" }
+meanshift-rs = { git = "https://github.com/wenig/meanshift-rs.git", tag = "0.7.0" }

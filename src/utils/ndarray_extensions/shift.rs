@@ -1,7 +1,6 @@
 use crate::utils::ndarray_extensions::index_arr::IndexArr;
 use ndarray::{concatenate, Array, ArrayBase, Axis, Data, Dim};
 use std::cmp::Ordering;
-use std::iter::FromIterator;
 
 pub(crate) trait Shift<A, D> {
     fn shift(&self, by: isize, axis: Axis) -> Array<A, D>;
