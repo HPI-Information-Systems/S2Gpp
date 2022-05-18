@@ -135,6 +135,7 @@ impl DataStore {
 
     // --- Nodes
 
+    #[allow(dead_code)]
     pub fn add_node(&mut self, node: Node) {
         self.add_independent_node(node.to_independent())
     }

@@ -1,6 +1,7 @@
 pub(crate) mod boolean;
 mod index_arr;
 mod shift;
+pub(crate) mod softmax;
 pub(crate) mod stack;
 
 use ndarray::*;

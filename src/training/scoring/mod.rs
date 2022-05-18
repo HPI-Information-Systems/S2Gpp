@@ -8,6 +8,9 @@ pub mod weights;
 use crate::data_store::edge::MaterializedEdge;
 use crate::data_store::node::NodeRef;
 use crate::messages::PoisonPill;
+use crate::training::anomaly_contribution::{
+    QueryClusterContribution, QueryClusterContributionResponse, QueryClustercontributionDone,
+};
 use crate::training::scoring::helper::ScoringHelper;
 use crate::training::scoring::messages::{
     EdgeWeights, NodeDegrees, OverlapRotation, ScoringDone, ScoringHelperInstruction,
@@ -15,18 +18,20 @@ use crate::training::scoring::messages::{
 };
 use crate::training::scoring::weights::ScoringWeights;
 use crate::training::Training;
+use crate::utils::float_approx::FloatApprox;
 use crate::utils::itertools::LengthAble;
 use crate::utils::rotation_protocol::RotationProtocol;
-use crate::utils::HelperProtocol;
+use crate::utils::{ConsoleLogger, HelperProtocol};
 use actix::{Addr, AsyncContext, Context, Handler, SyncArbiter};
 use anyhow::Result;
 use csv::WriterBuilder;
-use ndarray::{concatenate, Array1, ArrayView1, Axis};
+use ndarray::{concatenate, stack, Array1, ArrayView1, Axis};
 use ndarray_stats::QuantileExt;
 use num_traits::Float;
+use num_traits::ToPrimitive;
 use std::collections::HashMap;
 use std::fs::File;
-use std::ops::{Index, IndexMut};
+use std::ops::{Div, Index, IndexMut};
 
 #[derive(Default)]
 pub(crate) struct Scoring {
@@ -51,6 +56,7 @@ pub(crate) struct Scoring {
 pub(crate) trait Scorer {
     fn init_scoring(&mut self, ctx: &mut Context<Training>);
     fn score(&mut self, ctx: &mut Context<Training>);
+    fn build_anomaly_contribution_score(&self, ctx: &mut Context<Training>);
     fn parallel_score(&mut self, score_length: usize);
     fn finalize_parallel_score(&mut self, ctx: &mut Context<Training>);
     fn normalize_score(&mut self, score: &mut Array1<f32>);
@@ -99,6 +105,30 @@ impl Scorer for Training {
         }));
 
         self.parallel_score(score_length);
+    }
+
+    fn build_anomaly_contribution_score(&self, ctx: &mut Context<Training>) {
+        ConsoleLogger::new(13, 12, "(+1) Anomaly Contribution Scoring".to_string()).print();
+
+        let edges = self.data_store.get_edges();
+        let anomaly_contribution = self
+            .anomaly_contribution
+            .as_ref()
+            .expect("Should've been set by now");
+        let end = self.scoring.edges_in_time.len() - (self.parameters.query_length - 1);
+        for i in 0..end {
+            let from_edge_idx = self.scoring.edges_in_time[i];
+            let to_edge_idx = self.scoring.edges_in_time[i + self.parameters.query_length - 1] + 1;
+            let nodes: Vec<NodeRef> = edges[from_edge_idx..to_edge_idx.min(edges.len())]
+                .iter()
+                .map(|e| e.get_from_node())
+                .collect();
+            anomaly_contribution.do_send(QueryClusterContribution { nodes });
+        }
+
+        anomaly_contribution.do_send(QueryClustercontributionDone {
+            receiver: ctx.address().recipient(),
+        });
     }
 
     fn parallel_score(&mut self, score_length: usize) {
@@ -201,7 +231,13 @@ impl Scorer for Training {
             self.output_score(output_path).unwrap();
         }
 
-        ctx.address().do_send(ScoringDone);
+        if self.parameters.explainability {
+            self.build_anomaly_contribution_score(ctx);
+        }
+
+        if !self.parameters.explainability {
+            ctx.address().do_send(ScoringDone);
+        }
     }
 
     fn output_score(&mut self, output_path: String) -> Result<()> {
@@ -295,5 +331,57 @@ impl Handler<SubScores> for Training {
         } else {
             self.finalize_scoring(ctx);
         }
+    }
+}
+
+impl Handler<QueryClusterContributionResponse> for Training {
+    type Result = ();
+
+    fn handle(
+        &mut self,
+        msg: QueryClusterContributionResponse,
+        ctx: &mut Self::Context,
+    ) -> Self::Result {
+        let file = File::create(&self.parameters.anomaly_contribution_output_path).unwrap();
+        let mut writer = WriterBuilder::new().has_headers(false).from_writer(file);
+        let mut last = None;
+        let mut contributions: Vec<ArrayView1<f32>> =
+            msg.contributions.iter().map(|x| x.view()).collect();
+        let mut last_contribution = None;
+        for c in contributions.iter_mut() {
+            if c.sum() == 0.0 {
+                *c = last_contribution.expect("No contribution");
+            } else {
+                last_contribution = Some(*c);
+            }
+        }
+        let mut contributions_matrix = stack(Axis(0), contributions.as_slice()).unwrap();
+
+        for mut dim in contributions_matrix.axis_iter_mut(Axis(1)) {
+            let mut sorted: Vec<FloatApprox<f32>> = dim
+                .iter()
+                .map(|x| FloatApprox(*x))
+                .collect::<Vec<FloatApprox<f32>>>();
+            sorted.sort();
+            let median = sorted
+                .get(sorted.len().to_f32().unwrap().div(2.0).to_usize().unwrap())
+                .unwrap()
+                .0;
+            dim.mapv_inplace(|x| x - median);
+        }
+
+        for s in contributions_matrix.axis_iter(Axis(0)) {
+            let ser = if s.sum() == 0. {
+                match last {
+                    Some(last) => last,
+                    None => s,
+                }
+            } else {
+                s
+            };
+            last = Some(ser);
+            writer.serialize(ser.to_vec()).unwrap();
+        }
+        ctx.address().do_send(ScoringDone);
     }
 }

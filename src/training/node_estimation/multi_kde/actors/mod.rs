@@ -57,14 +57,12 @@ impl MultiKDEActor {
         } else {
             let cluster_centers_vec = self.cluster_centers.pop_clear();
             let cluster_centers = cluster_centers_vec.stack(Axis(1)).unwrap();
-            let labels = self
+            let (labels, cluster_centers) = self
                 .multi_kde_base
                 .extract_labels_from_centers(cluster_centers);
-            let dummy_cluster_centers: Vec<f32> = vec![];
-            let dummy_cluster_centers = Array1::from(dummy_cluster_centers).insert_axis(Axis(1));
             self.receiver
                 .do_send(ClusteringResponse {
-                    cluster_centers: dummy_cluster_centers,
+                    cluster_centers,
                     labels,
                 })
                 .unwrap();

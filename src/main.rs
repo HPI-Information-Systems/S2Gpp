@@ -27,6 +27,9 @@ fn main() {
         .init();
 
     let params: Parameters = Parameters::from_args();
+    if params.explainability && params.n_cluster_nodes > 1 {
+        panic!("The explainability feature is only available in a non-distributed setting.")
+    }
     debug!("Parameters: {:?}", params);
 
     let system = System::new();

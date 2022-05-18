@@ -1,11 +1,12 @@
 use ndarray::ArrayView1;
 use num_traits::Float;
+use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::ops::Mul;
 
 #[repr(transparent)]
 #[derive(Debug, Clone)]
-pub(crate) struct FloatApprox<A>(A);
+pub(crate) struct FloatApprox<A>(pub A);
 
 impl<A> FloatApprox<A>
 where
@@ -25,6 +26,10 @@ where
     #[allow(dead_code)]
     pub fn from_array_view(array: ArrayView1<A>) -> Vec<FloatApprox<&A>> {
         array.into_iter().map(FloatApprox).collect()
+    }
+
+    pub fn to_base(&self) -> A {
+        self.0
     }
 }
 
@@ -54,6 +59,18 @@ where
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.approximate(8).hash(state);
+    }
+}
+
+impl PartialOrd<Self> for FloatApprox<f32> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+
+impl Ord for FloatApprox<f32> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.approximate(8).cmp(&other.approximate(8))
     }
 }
 

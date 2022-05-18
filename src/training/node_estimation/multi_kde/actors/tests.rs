@@ -1,3 +1,4 @@
+use crate::data_manager::data_reader::read_data_;
 use crate::training::node_estimation::multi_kde::actors::messages::MultiKDEMessage;
 use crate::training::node_estimation::multi_kde::actors::MultiKDEActor;
 use actix::{Actor, Context, Handler};
@@ -11,6 +12,7 @@ use tokio::time::sleep;
 
 struct TestReceiver {
     labels: Arc<Mutex<Vec<usize>>>,
+    coords: Option<Arc<Mutex<Option<Array2<f32>>>>>,
 }
 
 impl Actor for TestReceiver {
@@ -22,6 +24,7 @@ impl Handler<ClusteringResponse<f32>> for TestReceiver {
 
     fn handle(&mut self, msg: ClusteringResponse<f32>, _ctx: &mut Self::Context) -> Self::Result {
         *(self.labels.lock().unwrap().deref_mut()) = msg.labels;
+        *(self.coords.as_mut().unwrap().lock().unwrap().deref_mut()) = Some(msg.cluster_centers);
     }
 }
 
@@ -41,6 +44,7 @@ async fn correct_result() {
     let labels = Arc::new(Mutex::new(vec![]));
     let receiver = (TestReceiver {
         labels: labels.clone(),
+        coords: None,
     })
     .start();
     let mkde = MultiKDEActor::new(receiver.recipient(), 1).start();
@@ -56,6 +60,7 @@ async fn correct_result_multithreading() {
     let labels = Arc::new(Mutex::new(vec![]));
     let receiver = (TestReceiver {
         labels: labels.clone(),
+        coords: None,
     })
     .start();
     let mkde = MultiKDEActor::new(receiver.recipient(), 4).start();
