@@ -48,9 +48,10 @@ impl Handler<ScoringHelperInstruction> for ScoringHelper {
 
         for i in msg.start..msg.start + msg.length {
             let from_edge_idx = self.edges_in_time[i];
-            let to_edge_idx = self.edges_in_time[i + self.query_length - 1];
+            let to_edge_idx = self.edges_in_time[i + self.query_length - 1] + 1;
 
-            let (score, len_score) = self.score_p_degree(from_edge_idx..to_edge_idx);
+            let (score, len_score) =
+                self.score_p_degree(from_edge_idx..to_edge_idx.min(self.edges.len()));
 
             single_scores.push(if len_score == 0 {
                 match single_scores.last() {

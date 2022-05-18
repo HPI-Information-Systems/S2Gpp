@@ -5,7 +5,7 @@ pub(crate) use crate::data_store::node::independent::IndependentNode;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct Node {
     intersection: IntersectionRef,
     cluster: usize,

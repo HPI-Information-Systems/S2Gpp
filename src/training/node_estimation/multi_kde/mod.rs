@@ -1,9 +1,9 @@
 use anyhow::Result;
-use ndarray::{arr1, Array, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use itertools::Itertools;
+use ndarray::{arr1, stack, Array, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use ndarray_stats::QuantileExt;
-use num_traits::ToPrimitive;
 use std::collections::HashMap;
-use std::ops::{BitAnd, BitAndAssign, Div, Mul, Sub};
+use std::ops::{BitAnd, BitAndAssign, Mul, Sub};
 
 use crate::training::node_estimation::multi_kde::gaussian_kde::GaussianKDEBase;
 use crate::utils::boolean::BooleanCollectives;
@@ -50,7 +50,7 @@ impl MultiKDEBase {
             cluster_centers.push(assigned_peak_values);
         }
         let cluster_centers = cluster_centers.stack(Axis(1))?;
-        let labels = self.extract_labels_from_centers(cluster_centers);
+        let (labels, _) = self.extract_labels_from_centers(cluster_centers);
         Ok(Array::from(labels))
     }
 
@@ -60,11 +60,12 @@ impl MultiKDEBase {
         grid_min: f32,
         grid_max: f32,
     ) -> Vec<f32> {
-        let step_size = ((grid_max + 1.) - grid_min).div(self.resolution as f32);
+        let padding = (grid_max - grid_min).mul(0.1);
+        let grid = Array::linspace(grid_min - padding, grid_max + padding, self.resolution);
         let result = self
             .find_peak_index(kernel_estimate)
             .iter()
-            .map(|i| grid_min + step_size.mul(i.to_f32().unwrap()))
+            .map(|i| grid[*i])
             .collect();
         result
     }
@@ -118,7 +119,10 @@ impl MultiKDEBase {
             .map_axis(Axis(1), |d| peaks[d.argmin().unwrap()])
     }
 
-    fn extract_labels_from_centers(&self, cluster_centers: Array2<f32>) -> Vec<usize> {
+    fn extract_labels_from_centers(
+        &self,
+        cluster_centers: Array2<f32>,
+    ) -> (Vec<usize>, Array2<f32>) {
         let mut key = 0;
         let mut unique_cluster_centers: HashMap<Vec<FloatApprox<f32>>, usize> = HashMap::new();
         let mut labels = vec![];
@@ -133,7 +137,25 @@ impl MultiKDEBase {
                 }
             }
         }
-        labels
+
+        let sorted: Vec<Array1<f32>> = unique_cluster_centers
+            .into_iter()
+            .sorted_by_key(|(_, k)| *k)
+            .map(|(center, _)| {
+                Array1::from(
+                    center
+                        .into_iter()
+                        .map(|coord| coord.to_base())
+                        .collect_vec(),
+                )
+            })
+            .collect();
+
+        let sorted: Vec<ArrayView1<f32>> = sorted.iter().map(Array1::view).collect();
+
+        let cluster_centers = stack(Axis(0), sorted.as_slice()).unwrap();
+
+        (labels, cluster_centers)
     }
 }
 
@@ -207,7 +229,7 @@ mod tests {
         let arr = arr2(&[[1., 2.], [2., 1.], [1., 2.]]);
         let expected = vec![0, 1, 0];
         let mkde = MultiKDEBase::default();
-        let labels = mkde.extract_labels_from_centers(arr);
+        let (labels, _) = mkde.extract_labels_from_centers(arr);
         assert_eq!(labels, expected)
     }
 

@@ -8,6 +8,7 @@ use crate::data_manager::{DataLoadedAndProcessed, DataManager, DatasetStats, Loa
 use crate::data_store::DataStore;
 use crate::messages::PoisonPill;
 use crate::parameters::Parameters;
+use crate::training::anomaly_contribution::AnomalyContribution;
 use crate::training::edge_estimation::{EdgeEstimationDone, EdgeEstimator};
 use crate::training::intersection_calculation::{
     IntersectionCalculation, IntersectionCalculationDone, IntersectionCalculator,
@@ -35,6 +36,8 @@ use crate::training::transposition::{
     Transposer, Transposition, TranspositionDone, TranspositionRotationMessage,
 };
 use crate::utils::{ClusterNodes, ConsoleLogger};
+
+mod anomaly_contribution;
 use num_integer::Integer;
 
 mod edge_estimation;
@@ -78,6 +81,7 @@ pub struct Training {
     scoring: Scoring,
     data_store: DataStore,
     num_rotated: Option<usize>,
+    anomaly_contribution: Option<Addr<AnomalyContribution>>,
 }
 
 impl Training {
@@ -96,6 +100,7 @@ impl Training {
             scoring: Scoring::default(),
             data_store: DataStore::default(),
             num_rotated: None,
+            anomaly_contribution: None,
         }
     }
 
@@ -125,6 +130,10 @@ impl Actor for Training {
             )
             .start(),
         );
+
+        if self.parameters.explainability {
+            self.anomaly_contribution = Some(AnomalyContribution::start_default());
+        }
     }
 }
 

@@ -6,6 +6,8 @@ use actix::{
     Actor, ActorFutureExt, AsyncContext, Context, ContextFutureSpawner, Handler, Recipient,
     WrapFuture,
 };
+use std::cmp::Ordering;
+
 use actix_telepathy::AnyAddr;
 use meanshift_rs::{ClusteringResponse, MeanShiftActor, MeanShiftMessage};
 use ndarray::{stack, ArrayView1, Axis};
@@ -17,6 +19,7 @@ use crate::data_store::intersection::IntersectionRef;
 use crate::data_store::node::{IndependentNode, Node};
 use crate::data_store::node_questions::node_in_question::NodeInQuestion;
 use crate::data_store::node_questions::NodeQuestions;
+use crate::training::anomaly_contribution::ClusterCenterMessage;
 pub(crate) use crate::training::node_estimation::messages::{
     AskForForeignNodes, ForeignNodesAnswer, NodeEstimationDone,
 };
@@ -56,20 +59,31 @@ impl NodeEstimator for Training {
                 let coordinates: Vec<ArrayView1<f32>> =
                     intersections.iter().map(|x| x.get_coordinates()).collect();
                 let data = stack(Axis(0), coordinates.as_slice()).unwrap();
-                match &self.parameters.clustering {
-                    Clustering::MeanShift => {
-                        let cluster_addr = MeanShiftActor::new(self.parameters.n_threads).start();
-                        cluster_addr.do_send(MeanShiftMessage {
-                            source: Some(clustering_recipient),
-                            data,
-                        });
-                    }
-                    Clustering::MultiKDE => {
-                        let cluster_addr =
-                            MultiKDEActor::new(clustering_recipient, self.parameters.n_threads)
-                                .start();
-                        cluster_addr.do_send(MultiKDEMessage { data });
-                    }
+
+                match data.nrows().cmp(&1) {
+                    Ordering::Greater => match &self.parameters.clustering {
+                        Clustering::MeanShift => {
+                            let cluster_addr =
+                                MeanShiftActor::new(self.parameters.n_threads).start();
+                            cluster_addr.do_send(MeanShiftMessage {
+                                source: Some(clustering_recipient),
+                                data,
+                            });
+                        }
+                        Clustering::MultiKDE => {
+                            let cluster_addr =
+                                MultiKDEActor::new(clustering_recipient, self.parameters.n_threads)
+                                    .start();
+                            cluster_addr.do_send(MultiKDEMessage { data });
+                        }
+                    },
+                    Ordering::Equal => clustering_recipient
+                        .do_send(ClusteringResponse {
+                            cluster_centers: data,
+                            labels: vec![0],
+                        })
+                        .unwrap(),
+                    Ordering::Less => panic!("No Intersection found."),
                 }
             }
             None => {
@@ -233,9 +247,30 @@ impl Handler<ClusteringResponse<f32>> for Training {
             let current_intersections = self.node_estimation.current_intersections.clone();
             self.node_estimation.current_intersections.clear();
 
-            for (intersection, label) in current_intersections.into_iter().zip(msg.labels) {
-                let node = Node::new(intersection.clone(), label);
-                self.data_store.add_node(node);
+            let mut nodes = vec![];
+            for (intersection, label) in current_intersections.into_iter().zip(msg.labels.iter()) {
+                let node = Node::new(intersection.clone(), *label);
+                nodes.push(node.to_independent().into_ref());
+            }
+            if self.parameters.explainability {
+                let mut label_counts: Vec<usize> = (0..(msg.labels.iter().max().unwrap() + 1))
+                    .map(|_| 0)
+                    .collect();
+                for label in msg.labels {
+                    label_counts[label] += 1;
+                }
+
+                self.anomaly_contribution
+                    .as_ref()
+                    .expect("Should've been started by now")
+                    .do_send(ClusterCenterMessage {
+                        cluster_centers: msg.cluster_centers,
+                        nodes: nodes.clone(),
+                        label_counts,
+                    })
+            }
+            for node in nodes {
+                self.data_store.add_node_ref(node)
             }
         }
         self.node_estimation.current_segment_id += 1;

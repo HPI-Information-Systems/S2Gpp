@@ -22,7 +22,6 @@ impl IndependentNode {
         self.segment
     }
 
-    #[cfg(test)]
     pub fn get_cluster(&self) -> usize {
         self.cluster
     }

@@ -64,6 +64,16 @@ pub struct Parameters {
     #[structopt(long = "clustering", default_value = "meanshift")]
     pub clustering: Clustering,
 
+    #[structopt(long = "explainability")]
+    pub explainability: bool,
+
+    #[structopt(
+        long = "anomaly-contribution-output-path",
+        short = "aco",
+        default_value = "anomaly-contribution.csv"
+    )]
+    pub anomaly_contribution_output_path: String,
+
     #[structopt(long = "self-correction")]
     pub self_correction: bool,
 }
@@ -112,6 +122,8 @@ impl Default for Parameters {
             column_start: 0,
             column_end: 0,
             clustering: Clustering::MeanShift,
+            explainability: false,
+            anomaly_contribution_output_path: "anomaly-contribution.csv".to_string(),
             self_correction: false,
         }
     }
