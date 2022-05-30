@@ -31,7 +31,7 @@ impl AnomalyContribution {
         cluster_centers: Array2<f32>,
         label_counts: Vec<usize>,
     ) {
-        let adapted_cluster_centers = cluster_centers;//self.combine_dimensions(cluster_centers).unwrap();
+        let adapted_cluster_centers = cluster_centers; //self.combine_dimensions(cluster_centers).unwrap();
         let dim_scores = self.calculate_dimension_uniqueness(adapted_cluster_centers, label_counts);
         match &self.n_dims {
             None => self.n_dims = Some(dim_scores.shape()[1]),
