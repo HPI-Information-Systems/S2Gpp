@@ -78,6 +78,7 @@ deploy:
       alias: docker
   before_script:
     - docker info
+    - docker login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD $REGISTRY_NAME
   script:
     - S2GPP_VERSION=$(sed -n "s/^version = \"\(.*\)\"$/\1/p" Cargo.toml)
     - docker build -t "${IMAGE_TAG}:${S2GPP_VERSION}" .
