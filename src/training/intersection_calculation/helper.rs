@@ -2,11 +2,11 @@ use crate::messages::PoisonPill;
 use crate::training::intersection_calculation::messages::{
     IntersectionResultMessage, IntersectionTaskMessage,
 };
-use num_integer::div_floor;
 use crate::utils::line_plane_intersection;
 use actix::{Actor, ActorContext, Handler, SyncContext};
 use ndarray::{arr1, Axis};
 use ndarray_linalg::Norm;
+use num_integer::div_floor;
 
 use super::messages::{IntersectionResult, IntersectionTask};
 
@@ -18,7 +18,12 @@ impl IntersectionCalculationHelper {
             Ok(intersection) => {
                 let shape = intersection.shape();
                 let reshaped = intersection.to_shape([2, div_floor(shape[0], 2)]).unwrap();
-                let distance = arr1(&reshaped.axis_iter(Axis(1)).map(|coords| coords.norm()).collect::<Vec<f32>>());
+                let distance = arr1(
+                    &reshaped
+                        .axis_iter(Axis(1))
+                        .map(|coords| coords.norm())
+                        .collect::<Vec<f32>>(),
+                );
                 IntersectionResult {
                     transition: task.transition,
                     segment_id: task.segment_id,

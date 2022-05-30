@@ -1,4 +1,3 @@
-use crate::data_manager::data_reader::read_data_;
 use crate::training::node_estimation::multi_kde::actors::messages::MultiKDEMessage;
 use crate::training::node_estimation::multi_kde::actors::MultiKDEActor;
 use actix::{Actor, Context, Handler};
@@ -124,5 +123,4 @@ async fn test_cov() {
         [-2.6605353],
     ]);
     println!("{:?}", x.t().cov(1.).unwrap());
-    assert!(false)
 }

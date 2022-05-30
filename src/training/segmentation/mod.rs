@@ -34,6 +34,7 @@ pub(crate) struct Segmentation {
     pub transitions_for_nodes: TransitionsForNodes,
     pub transition_count_protocol: RotationProtocol<TransitionCountMessage>,
     pub global_transition_count: usize,
+    pub invalid_transition_directions: usize,
 }
 
 pub(crate) trait Segmenter {
@@ -120,9 +121,11 @@ impl Segmenter for Training {
                 Some(last_point) => {
                     let transition = Transition::new(last_point.clone(), point.clone());
 
-                    if transition.crosses_segments()
-                        && (transition.has_valid_direction(self.parameters.rate as isize))
-                    {
+                    let crosses_segments = transition.crosses_segments();
+                    let valid_direction =
+                        transition.has_valid_direction(self.parameters.rate as isize);
+
+                    if crosses_segments && valid_direction {
                         // valid transition
                         let from_node_id = self.segment_id_to_assignment(last_point.get_segment());
                         let to_node_id = self.segment_id_to_assignment(point.get_segment());
@@ -152,6 +155,11 @@ impl Segmenter for Training {
                                 Some(transition.clone().materialize());
                         }
                         last_transition = Some(transition);
+                    } else if self.parameters.self_correction
+                        && crosses_segments
+                        && !valid_direction
+                    {
+                        self.segmentation.invalid_transition_directions += 1;
                     }
                 }
                 None => {
@@ -299,6 +307,7 @@ impl Segmenter for Training {
                         .sum::<usize>();
                 next_node.do_send(TransitionCountMessage {
                     count: transition_count,
+                    clockwise_count: self.segmentation.invalid_transition_directions,
                 });
                 self.segmentation.transition_count_protocol.sent();
                 self.segmentation.global_transition_count += transition_count;
@@ -315,16 +324,18 @@ impl Segmenter for Training {
         debug!(
             "{} < {}",
             self.segmentation.global_transition_count,
-            num_integer::div_floor(*self.dataset_stats.as_ref().unwrap().n.as_ref().unwrap(), 2)
+            self.segmentation.invalid_transition_directions
         );
         if self
             .segmentation
             .global_transition_count
-            .lt(&num_integer::div_floor(
-                *self.dataset_stats.as_ref().unwrap().n.as_ref().unwrap(),
-                2,
-            ))
+            .lt(&self.segmentation.invalid_transition_directions)
         {
+            warn!(
+                "valid transitions ({}) < clockwise transitions ({}) => starting self-correction",
+                self.segmentation.global_transition_count,
+                self.segmentation.invalid_transition_directions
+            );
             self.clear_segmentation();
             self.data_store.mirror_points(self.parameters.rate);
             let node_transitions = self.build_segments();
@@ -357,6 +368,7 @@ impl Handler<TransitionCountMessage> for Training {
         }
 
         self.segmentation.global_transition_count += msg.count;
+        self.segmentation.invalid_transition_directions += msg.clockwise_count;
 
         if !self.segmentation.transition_count_protocol.is_running() {
             self.try_self_correction(ctx);

@@ -22,4 +22,5 @@ pub struct SegmentedMessage;
 #[derive(RemoteMessage, Serialize, Deserialize, Default, Clone, Debug)]
 pub(crate) struct TransitionCountMessage {
     pub count: usize,
+    pub clockwise_count: usize,
 }

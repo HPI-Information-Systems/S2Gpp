@@ -13,7 +13,7 @@ stages:
   - deploy
 
 linting:
-  image: "sopedu:5000/rust:latest"
+  image: "gitlab.hpi.de/akita/dependency_proxy/containers/rust:latest"
   stage: style
   tags:
     - akita
@@ -22,7 +22,7 @@ linting:
     - cargo clippy
 
 formatting:
-  image: "sopedu:5000/rust:latest"
+  image: "gitlab.hpi.de/akita/dependency_proxy/containers/rust:latest"
   stage: style
   tags:
     - akita
@@ -31,7 +31,7 @@ formatting:
     - cargo fmt -- --check
 
 coverage:
-  image: "rustdocker/rust:nightly" 
+  image: "gitlab.hpi.de/akita/dependency_proxy/containers/rustdocker/rust:nightly" 
   stage: test
   tags:
     - akita
@@ -68,10 +68,13 @@ deploy:
   variables:
     DOCKER_DRIVER: "overlay2"
     DOCKER_TLS_CERTDIR: "/certs"
-    REGISTRY_NAME: "sopedu:5000"
-    IMAGE_TAG: "${REGISTRY_NAME}/akita/s2gpp"
+    REGISTRY_NAME: "registry.gitlab.hpi.de"
+    BASE_IMAGE_NAME: "registry.gitlab.hpi.de/akita/i"
+    REGISTRY_USERNAME: "ci-job-registry"
+    REGISTRY_PASSWORD: "${CI_JOB_REGISTRY_TOKEN}"
+    IMAGE_TAG: "${BASE_IMAGE_NAME}/s2gpp"
   services:
-    - name: "${REGISTRY_NAME}/docker:20.10.2-dind"
+    - name: "gitlab.hpi.de/akita/dependency_proxy/containers/docker:20.10.2-dind"
       alias: docker
   before_script:
     - docker info

@@ -11,7 +11,7 @@ fn test() {
         IndependentNode::new(0, 3, 0).into_ref(),
     ];
 
-    let cluster_centers = arr2(&[[2., 0., 0.], [0., 0., 2.], [-2., 0., 0.], [0., 0., -2.]]);
+    let cluster_centers = arr2(&[[2., 0.], [0., 2.], [-2., 0.], [0., -2.]]);
 
     let expected = vec![
         arr1(&[0.75_f32, 0.5_f32]),

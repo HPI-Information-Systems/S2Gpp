@@ -173,6 +173,7 @@ mod tests {
     use crate::data_manager::data_reader::read_data_;
     use crate::training::node_estimation::multi_kde::MultiKDEBase;
     use ndarray::{arr1, arr2, Array1, Axis};
+    use ndarray_linalg::assert_close_l1;
 
     #[test]
     fn find_peak() {
@@ -207,7 +208,7 @@ mod tests {
         let expected = vec![1., 3.];
         let mkde = MultiKDEBase::new(5, 1);
         let peaks = mkde.find_peak_values(a.view(), 0., 4.);
-        assert_eq!(peaks, expected)
+        assert_close_l1!(&Array1::from_vec(peaks), &Array1::from_vec(expected), 0.4)
     }
 
     #[test]
@@ -216,11 +217,9 @@ mod tests {
         let peaks = vec![2., 5.];
         let expected = arr1(&[2., 2., 2., 5., 5., 5.]);
         let mkde = MultiKDEBase::default();
-        for col in points.axis_iter(Axis(1)) {
-            let assignments =
-                mkde.assign_closest_peak_values(col.insert_axis(Axis(1)), peaks.clone());
+        if let Some(col) = points.axis_iter(Axis(1)).next() {
+            let assignments = mkde.assign_closest_peak_values(col.insert_axis(Axis(1)), peaks);
             assert_eq!(assignments, expected);
-            break;
         }
     }
 
