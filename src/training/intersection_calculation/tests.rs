@@ -5,6 +5,7 @@ use crate::parameters::Parameters;
 use crate::training::intersection_calculation::IntersectionCalculationDone;
 use crate::training::segmentation::{Segmentation, SegmentedMessage};
 use crate::training::Training;
+use crate::SyncInterface;
 use actix::prelude::*;
 use actix_telepathy::Cluster;
 use ndarray::arr1;
@@ -77,7 +78,7 @@ async fn get_intersections() {
         vec![],
     );
     let parameters = Parameters::default();
-    let mut training = Training::new(parameters);
+    let mut training = Training::init(parameters);
 
     let success = Arc::new(Mutex::new(false));
     let checker = Checker {

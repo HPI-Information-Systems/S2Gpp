@@ -42,7 +42,7 @@ pub(crate) struct ScoringHelperInstruction {
     pub length: usize,
 }
 
-#[derive(Message)]
+#[derive(Message, Clone)]
 #[rtype(Result = "()")]
 pub(crate) struct ScoringHelperResponse {
     pub start: usize,

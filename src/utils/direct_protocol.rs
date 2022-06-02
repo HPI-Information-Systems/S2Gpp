@@ -1,7 +1,7 @@
 use actix::{Message, Recipient};
 use actix_telepathy::RemoteMessage;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DirectProtocol<T: Message + RemoteMessage + Clone> {
     n_total: usize,
     pub n_received: usize,

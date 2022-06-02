@@ -1,4 +1,4 @@
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct HelperProtocol {
     pub n_total: usize,
     pub n_sent: usize,

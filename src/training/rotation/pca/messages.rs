@@ -40,13 +40,13 @@ pub enum PCAHelperMessage {
     },
 }
 
-#[derive(RemoteMessage, Serialize, Deserialize)]
+#[derive(RemoteMessage, Serialize, Deserialize, Clone)]
 pub struct PCADecompositionMessage {
     pub r: Array2<f32>,
     pub count: usize,
 }
 
-#[derive(RemoteMessage, Serialize, Deserialize)]
+#[derive(RemoteMessage, Serialize, Deserialize, Clone)]
 pub struct PCAMeansMessage {
     pub columns_means: Array2<f32>,
     pub n: usize,

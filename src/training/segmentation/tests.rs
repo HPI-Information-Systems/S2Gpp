@@ -5,6 +5,7 @@ use crate::parameters::Parameters;
 use crate::training::segmentation::Segmenter;
 use crate::training::Training;
 use crate::utils::ClusterNodes;
+use crate::SyncInterface;
 use actix_telepathy::{AddrRepresentation, RemoteAddr};
 use ndarray::arr1;
 use std::collections::HashMap;
@@ -18,7 +19,7 @@ fn test_segmenting() {
         ..Default::default()
     };
 
-    let mut training = Training::new(parameters.clone());
+    let mut training = Training::init(parameters.clone());
     training.dataset_stats = Some(DatasetStats::new(
         arr1(&[1.0]),
         arr1(&[1.0]),
@@ -85,7 +86,7 @@ fn test_segment_distribution() {
         ..Default::default()
     };
 
-    let mut training = Training::new(parameters.clone());
+    let mut training = Training::init(parameters.clone());
     training.dataset_stats = Some(DatasetStats::new(
         arr1(&[1.0]),
         arr1(&[1.0]),
@@ -151,7 +152,7 @@ fn test_segment_transitions_sub() {
         ..Default::default()
     };
 
-    let mut training = Training::new(parameters.clone());
+    let mut training = Training::init(parameters.clone());
     training.dataset_stats = Some(DatasetStats::new(
         arr1(&[1.0]),
         arr1(&[1.0]),
@@ -196,7 +197,7 @@ fn test_segment_transitions_main() {
         ..Default::default()
     };
 
-    let mut training = Training::new(parameters.clone());
+    let mut training = Training::init(parameters.clone());
     training.dataset_stats = Some(DatasetStats::new(
         arr1(&[1.0]),
         arr1(&[1.0]),
@@ -234,7 +235,7 @@ fn test_node_questions() {
         ..Default::default()
     };
 
-    let mut training = Training::new(parameters.clone());
+    let mut training = Training::init(parameters.clone());
 
     training.dataset_stats = Some(DatasetStats::new(
         arr1(&[1.0]),

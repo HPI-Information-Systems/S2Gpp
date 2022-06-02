@@ -21,7 +21,7 @@ use self::messages::TransitionCountMessage;
 pub(crate) type TransitionsForNodes = HashMap<usize, Vec<MaterializedTransition>>;
 /// (prev_point_id, prev_point_segment_id, point_id, segment_id)
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct Segmentation {
     /// list of points that are endpoints to transitions from the previous cluster node
     pub send_point: Option<Point>,

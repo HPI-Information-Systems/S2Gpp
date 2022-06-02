@@ -10,6 +10,12 @@ pub struct DataPartitionMessage {
 
 #[derive(Message)]
 #[rtype(Result = "()")]
+pub struct LocalReadDataMessage {
+    pub data: Array2<f32>,
+}
+
+#[derive(Message)]
+#[rtype(Result = "()")]
 pub struct DataReceivedMessage {
     pub data: Array2<f32>,
 }

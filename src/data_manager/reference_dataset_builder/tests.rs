@@ -12,7 +12,7 @@ fn test_correct_spacing() {
     let data = read_data_("data/test.csv");
     let parameters = Parameters {
         role: Role::Main {
-            data_path: "data/test.csv".to_string(),
+            data_path: Some("data/test.csv".to_string()),
         },
         local_host: "127.0.0.1:8000".parse().unwrap(),
         pattern_length: 50,
@@ -38,5 +38,5 @@ fn test_correct_spacing() {
         [0.09360752, 0.63319328, 0.0458456],
     ]);
 
-    close_l1(&df_ref.slice(s![0, 0..3, 0..3]), &expected, 0.0005)
+    close_l1(&df_ref.slice(s![0_usize, 0..3, 0..3]), &expected, 0.0005)
 }

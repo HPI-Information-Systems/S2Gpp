@@ -6,6 +6,7 @@ use ndarray_linalg::close_l1;
 
 use crate::parameters::Parameters;
 use crate::training::Training;
+use crate::SyncInterface;
 
 use crate::training::rotation::Rotator;
 
@@ -33,7 +34,7 @@ fn test_rotation_matrix() {
     ]);
 
     let _system = System::new().block_on(async move {
-        let mut training = Training::new(Parameters::default());
+        let mut training = Training::init(Parameters::default());
         let dummy_data = arr3(&[[[0.]]]);
 
         training.rotation.phase_space = Some(dummy_data.to_shared());

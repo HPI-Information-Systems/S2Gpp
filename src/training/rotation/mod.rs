@@ -17,7 +17,7 @@ use crate::utils::{cross2d, norm, repeat};
 mod messages;
 mod pca;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Rotation {
     phase_space: Option<ArcArray<f32, Ix3>>,
     data_ref: Option<ArcArray<f32, Ix3>>,

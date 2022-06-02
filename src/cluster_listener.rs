@@ -59,7 +59,11 @@ impl ClusterMemberListener {
     fn start_training(&mut self) {
         let nodes = ClusterNodes::from(self.sorted_nodes.clone());
         debug!("#nodes {}", nodes.len_incl_own());
-        self.training.do_send(StartTrainingMessage { nodes });
+        self.training.do_send(StartTrainingMessage {
+            nodes,
+            source: None,
+            data: None,
+        });
     }
 }
 

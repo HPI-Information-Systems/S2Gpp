@@ -4,7 +4,7 @@
 # Series2Graph++
 
 [![pipeline status](https://gitlab.hpi.de/akita/s2gpp/badges/main/pipeline.svg)](https://gitlab.hpi.de/akita/s2gpp/-/commits/main)
-[![release info](https://img.shields.io/badge/Release-0.8.1-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/0.8.1)
+[![release info](https://img.shields.io/badge/Release-1.0.0-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/1.0.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 </div>
 
@@ -47,7 +47,7 @@ cd s2gpp
 docker build s2gpp .
 ```
 
-### Usage
+### Usage (bin)
 
 #### Parameters
 
@@ -83,6 +83,82 @@ Before these sub-commands are used, general parameters must be defined:
 The input format of the time series is expected to be a CSV with header. Each column represents a channel of the timeseries.
 Sometimes, time series files include also the labels and an index. You can skip columns with the `column-start-idx` / `column-end-idx` range pattern. It behave like Python ranges.
 
+### Usage (lib)
+
+_Cargo.toml_
+```toml
+[dependencies]
+s2gpp = "1.0.0"
+```
+
+_your Rust app_
+
+```rust
+fn some_fn(timeseries: Array2<f32>) -> Result<Array1<f32>, ()> {
+  let params = s2gpp::Parameters::default();
+  let anomaly_score = s2gpp::s2gpp(params, Some(timeseries))?.unwrap();
+  Ok(anomaly_score)
+}
+```
+
+## Python
+
+We have wrapped the Rust code in a [Python package](https://pypi.org/s2gpp), that can be used without installing Rust.
+
+### Installation
+
+#### PyPI
+
+```shell
+pip install s2gpp
+```
+
+#### Build with Docker
+
+```shell
+make build-docker
+pip install wheels/s2gpp-*.whl
+```
+
+#### Build from Source
+
+```shell
+make install
+```
+
+### Usage
+
+#### Single Machine
+
+```python
+from s2gpp import Series2GraphPP
+import pandas as pd
+
+ts = pd.read_csv("data/ts_0.csv").values
+
+model = Series2GraphPP(pattern_length=100)
+anomaly_scores = model.fit_predict(ts)
+```
+
+#### Distributed
+
+```python
+from s2gpp import DistributedSeries2GraphPP
+from pathlib import Path
+
+# run on one machine
+def main_node():
+    dataset_path = Path("data/ts_0.csv")
+  
+    model = DistributedSeries2GraphPP.main(local_host="127.0.0.1:1992", n_cluster_nodes=2, pattern_length=100)
+    model.fit_predict(dataset_path)
+
+# run on other machine
+def sub_node():
+    model = DistributedSeries2GraphPP.sub(local_host="127.0.0.1:1993", mainhost="127.0.0.1:1992", n_cluster_nodes=2, pattern_length=100)
+    model.fit_predict()
+```
+
 ## Cite
 
 Please cite this work, when using it!
@@ -92,8 +168,3 @@ Please cite this work, when using it!
 [1] P. Boniol and T. Palpanas, Series2Graph: Graph-based Subsequence Anomaly Detection in Time Series, PVLDB (2020) [link](https://helios2.mi.parisdescartes.fr/~themisp/series2graph/data/Series2Graph.pdf)
 
 [2] Schneider, J., Wenig, P. & Papenbrock, T. Distributed detection of sequential anomalies in univariate time series. The VLDB Journal 30, 579–602 (2021). [link](https://doi.org/10.1007/s00778-021-00657-6)
-
-## TODO
-
-- [ ] Python Binding
-- [ ] add own citation

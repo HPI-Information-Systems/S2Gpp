@@ -1,7 +1,8 @@
 use actix::prelude::*;
 use actix_telepathy::prelude::*;
+use anyhow::Result;
 use log::*;
-use ndarray::arr1;
+use ndarray::{arr1, Array2};
 use std::ops::Sub;
 
 use crate::data_manager::{DataLoadedAndProcessed, DataManager, DatasetStats, LoadDataMessage};
@@ -14,7 +15,7 @@ use crate::training::intersection_calculation::{
     IntersectionCalculation, IntersectionCalculationDone, IntersectionCalculator,
     IntersectionRotationMessage, SegmentID,
 };
-pub use crate::training::messages::StartTrainingMessage;
+pub use crate::training::messages::{DetectionResponse, StartTrainingMessage};
 pub use crate::training::node_estimation::Clustering;
 use crate::training::node_estimation::{
     AskForForeignNodes, ForeignNodesAnswer, NodeEstimation, NodeEstimationDone, NodeEstimator,
@@ -36,8 +37,9 @@ use crate::training::transposition::{
     Transposer, Transposition, TranspositionDone, TranspositionRotationMessage,
 };
 use crate::utils::{ClusterNodes, ConsoleLogger};
-
 mod anomaly_contribution;
+use crate::data_manager::data_reader::messages::LocalReadDataMessage;
+use crate::interface::{actor_fit, SyncInterface, SyncResult};
 use num_integer::Integer;
 
 mod edge_estimation;
@@ -49,7 +51,7 @@ mod scoring;
 mod segmentation;
 mod transposition;
 
-#[derive(RemoteActor)]
+#[derive(RemoteActor, Clone)]
 #[remote_messages(
     ForeignNodesAnswer,
     AskForForeignNodes,
@@ -82,10 +84,23 @@ pub struct Training {
     data_store: DataStore,
     num_rotated: Option<usize>,
     anomaly_contribution: Option<Addr<AnomalyContribution>>,
+    sink: Option<Recipient<DetectionResponse>>,
 }
 
 impl Training {
-    pub fn new(parameters: Parameters) -> Self {
+    fn segment_id_to_assignment(&self, segment_id: SegmentID) -> usize {
+        self.parameters.segment_id_to_assignment(segment_id)
+    }
+
+    fn cluster_node_diff(&self, from_node_id: usize, to_node_id: usize) -> usize {
+        (to_node_id as isize)
+            .sub(&(from_node_id as isize))
+            .mod_floor(&(self.parameters.n_cluster_nodes as isize)) as usize
+    }
+}
+
+impl SyncInterface<f32> for Training {
+    fn init(parameters: Parameters) -> Self {
         Self {
             own_addr: None,
             parameters,
@@ -101,17 +116,13 @@ impl Training {
             data_store: DataStore::default(),
             num_rotated: None,
             anomaly_contribution: None,
+            sink: None,
         }
     }
 
-    fn segment_id_to_assignment(&self, segment_id: SegmentID) -> usize {
-        self.parameters.segment_id_to_assignment(segment_id)
-    }
-
-    fn cluster_node_diff(&self, from_node_id: usize, to_node_id: usize) -> usize {
-        (to_node_id as isize)
-            .sub(&(from_node_id as isize))
-            .mod_floor(&(self.parameters.n_cluster_nodes as isize)) as usize
+    fn fit(&mut self, data: Array2<f32>) -> Result<SyncResult> {
+        let actor = self.clone();
+        System::new().block_on(async move { actor_fit(actor, data).await })
     }
 }
 
@@ -142,12 +153,20 @@ impl Handler<StartTrainingMessage> for Training {
 
     fn handle(&mut self, msg: StartTrainingMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.cluster_nodes = msg.nodes;
-        self.data_manager
-            .as_ref()
-            .unwrap()
-            .do_send(LoadDataMessage {
-                nodes: self.cluster_nodes.clone(),
-            });
+        self.sink = msg.source;
+        if let Some(data) = msg.data {
+            self.data_manager
+                .as_ref()
+                .unwrap()
+                .do_send(LocalReadDataMessage { data })
+        } else {
+            self.data_manager
+                .as_ref()
+                .unwrap()
+                .do_send(LoadDataMessage {
+                    nodes: self.cluster_nodes.clone(),
+                })
+        }
     }
 }
 
@@ -245,6 +264,15 @@ impl Handler<ScoringDone> for Training {
             "score {}",
             self.scoring.score.as_ref().unwrap_or(&arr1(&[]))
         );
+        if let Some(sink) = self.sink.as_ref() {
+            let anomaly_score = self
+                .scoring
+                .score
+                .take()
+                .expect("The score should have been created by now");
+            sink.do_send(DetectionResponse { anomaly_score })
+                .expect("Could not send result to sink");
+        }
 
         ctx.stop();
         System::current().stop();

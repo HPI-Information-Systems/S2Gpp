@@ -11,7 +11,7 @@ pub struct StartRotation {
     pub data_ref: ArcArray3<f32>,
 }
 
-#[derive(RemoteMessage, Serialize, Deserialize)]
+#[derive(RemoteMessage, Serialize, Deserialize, Clone)]
 pub struct RotationMatrixMessage {
     pub rotation_matrix: Array3<f32>,
 }

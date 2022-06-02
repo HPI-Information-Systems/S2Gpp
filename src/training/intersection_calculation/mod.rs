@@ -30,7 +30,7 @@ use self::messages::IntersectionTask;
 
 pub type SegmentID = usize;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct IntersectionCalculation {
     /// Intersections belonging to another cluster node
     pub foreign_intersections: HashMap<SegmentID, Vec<Intersection>>,

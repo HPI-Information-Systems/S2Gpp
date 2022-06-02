@@ -8,7 +8,7 @@ pub enum Role {
     #[structopt(name = "main")]
     Main {
         #[structopt(short = "d", long = "data-path")]
-        data_path: String,
+        data_path: Option<String>,
     },
 
     #[structopt(name = "sub")]
@@ -20,9 +20,7 @@ pub enum Role {
 
 impl Default for Role {
     fn default() -> Self {
-        Role::Main {
-            data_path: "".to_string(),
-        }
+        Role::Main { data_path: None }
     }
 }
 
@@ -61,7 +59,7 @@ pub struct Parameters {
     #[structopt(long = "column-end-idx", default_value = "0")]
     pub column_end: isize,
 
-    #[structopt(long = "clustering", default_value = "meanshift")]
+    #[structopt(long = "clustering", default_value = "kde")]
     pub clustering: Clustering,
 
     #[structopt(long = "explainability")]
@@ -121,7 +119,7 @@ impl Default for Parameters {
             score_output_path: None,
             column_start: 0,
             column_end: 0,
-            clustering: Clustering::MeanShift,
+            clustering: Clustering::MultiKDE,
             explainability: false,
             anomaly_contribution_output_path: "anomaly-contribution.csv".to_string(),
             self_correction: false,
