@@ -11,7 +11,7 @@ use crate::utils::direct_protocol::DirectProtocol;
 use actix::prelude::*;
 use std::collections::HashMap;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct Transposition {
     direct_protocol: DirectProtocol<TranspositionRotationMessage>,
     pub(crate) range_start_point: Option<usize>,

@@ -1,0 +1,5 @@
+maturin==0.12.14
+numpy==1.21.6
+patchelf==0.14.5
+twine==4.0.0
+scikit-learn==1.1

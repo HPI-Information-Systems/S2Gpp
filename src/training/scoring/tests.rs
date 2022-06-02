@@ -4,13 +4,14 @@ use crate::parameters::Parameters;
 use crate::training::scoring::weights::ScoringWeights;
 use crate::training::scoring::Scorer;
 use crate::training::Training;
+use crate::SyncInterface;
 use ndarray::arr1;
 use std::fs::remove_file;
 use std::path::Path;
 
 #[test]
 fn scores_are_written_to_file() {
-    let mut training = Training::new(Parameters::default());
+    let mut training = Training::init(Parameters::default());
     training.scoring.score = Some(arr1(&[1., 1., 1., 1., 1.]));
 
     let scores_path = "data/_test_scores.csv";
@@ -22,7 +23,7 @@ fn scores_are_written_to_file() {
 
 #[test]
 fn node_degrees_correctly_calculated() {
-    let mut training = Training::new(Parameters::default());
+    let mut training = Training::init(Parameters::default());
     let edges = vec![
         Edge::new(
             IndependentNode::new(0, 0, 0).into_ref(),

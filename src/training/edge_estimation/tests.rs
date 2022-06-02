@@ -4,12 +4,13 @@ use crate::data_store::node::IndependentNode;
 use crate::parameters::Parameters;
 use crate::training::edge_estimation::EdgeEstimator;
 use crate::training::Training;
+use crate::SyncInterface;
 use ndarray::arr1;
 use std::ops::Deref;
 
 fn test_edge_estimation(nodes: Vec<IndependentNode>, expected_edges: Vec<Edge>) {
     let parameters = Parameters::default();
-    let mut training = Training::new(parameters);
+    let mut training = Training::init(parameters);
 
     training.dataset_stats = Some(DatasetStats::new(
         arr1(&[0_f32]),

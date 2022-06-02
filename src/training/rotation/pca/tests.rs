@@ -17,6 +17,7 @@ use crate::training::rotation::pca::{PCAnalyzer, PCA};
 use crate::training::rotation::PCAComponents;
 use crate::training::Training;
 use crate::utils::ClusterNodes;
+use crate::SyncInterface;
 use ndarray::ArcArray2;
 
 #[derive(Message)]
@@ -411,7 +412,7 @@ async fn run_single_pca_node(
 
     let id = cluster_nodes.get_own_idx();
 
-    let mut training = Training::new(parameters);
+    let mut training = Training::init(parameters);
     training.cluster_nodes = cluster_nodes;
     training.rotation.pca = PCA::new(id, 2);
     training.rotation.pca.recipient =

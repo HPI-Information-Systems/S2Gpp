@@ -5,6 +5,7 @@ use crate::data_manager::data_reader::read_data_;
 use crate::parameters::{Parameters, Role};
 use crate::training::{Clustering, StartTrainingMessage, Training};
 use crate::utils::ClusterNodes;
+use crate::{s2gpp, SyncInterface};
 use actix::prelude::*;
 use actix_rt::System;
 use actix_telepathy::Cluster;
@@ -13,7 +14,6 @@ use port_scanner::request_open_port;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::env::temp_dir;
 use std::fs::remove_file;
-use std::path::Path;
 
 const ESTIMATED_SCORES_PATH: &str = "ts_0.csv.scores";
 const EXPECTED_SCORES_PATH: &str = "data/ts_0.csv.scores";
@@ -29,30 +29,11 @@ fn get_output_path() -> String {
 fn global_test_kde_clustering() {
     let params: Parameters = Parameters {
         role: Role::Main {
-            data_path: "data/ts_0.csv".to_string(),
+            data_path: Some("data/ts_0.csv".to_string()),
         },
         local_host: "127.0.0.1:1992".parse().unwrap(),
         score_output_path: Some(get_output_path()),
         clustering: Clustering::MultiKDE,
-        ..Default::default()
-    };
-
-    run_single_global_comut(params);
-
-    let estimated_scores_path = get_output_path();
-    let path = Path::new(&estimated_scores_path);
-    assert!(path.exists())
-}
-
-#[test]
-#[ignore] // takes some time
-fn global_comut_not_distributed() {
-    let params: Parameters = Parameters {
-        role: Role::Main {
-            data_path: "data/ts_0.csv".to_string(),
-        },
-        local_host: "127.0.0.1:1992".parse().unwrap(),
-        score_output_path: Some(get_output_path()),
         ..Default::default()
     };
 
@@ -63,26 +44,23 @@ fn global_comut_not_distributed() {
 
 #[test]
 #[ignore] // takes some time
+fn global_test_kde_clustering_provided_data() {
+    let params: Parameters = Parameters {
+        clustering: Clustering::MultiKDE,
+        ..Default::default()
+    };
+
+    let data = read_data_("data/ts_0.csv");
+
+    let result = s2gpp(params, Some(data)).unwrap();
+
+    assert!(result.is_some());
+}
+
+#[test]
+#[ignore] // takes some time
 fn global_comut_distributed_2() {
     setup_distributed_global_comut(1)
-}
-
-#[test]
-#[ignore] // takes some time
-fn global_comut_distributed_3() {
-    setup_distributed_global_comut(2)
-}
-
-#[test]
-#[ignore] // takes some time
-fn global_comut_distributed_4() {
-    setup_distributed_global_comut(3)
-}
-
-#[test]
-#[ignore] // takes some time
-fn global_comut_distributed_8() {
-    setup_distributed_global_comut(8)
 }
 
 fn setup_distributed_global_comut(n_subhosts: usize) {
@@ -92,7 +70,7 @@ fn setup_distributed_global_comut(n_subhosts: usize) {
 
     let mut parameters = vec![Parameters {
         role: Role::Main {
-            data_path: "data/ts_0.csv".to_string(),
+            data_path: Some("data/ts_0.csv".to_string()),
         },
         local_host: mainhost,
         score_output_path: Some(get_output_path()),
@@ -124,6 +102,8 @@ fn setup_distributed_global_comut(n_subhosts: usize) {
 }
 
 fn run_single_global_comut(params: Parameters) {
+    println!("{:?}", params);
+
     let system = System::new();
 
     system.block_on(async {
@@ -133,13 +113,17 @@ fn run_single_global_comut(params: Parameters) {
             _ => vec![],
         };
 
-        let training = Training::new(params.clone()).start();
+        let training = Training::init(params.clone()).start();
         if params.n_cluster_nodes > 1 {
             let _cluster = Cluster::new(host, seed_nodes);
             let _cluster_listener = ClusterMemberListener::new(params, training).start();
         } else {
             let nodes = ClusterNodes::new();
-            training.do_send(StartTrainingMessage { nodes });
+            training.do_send(StartTrainingMessage {
+                nodes,
+                source: None,
+                data: None,
+            });
         }
     });
 

@@ -18,7 +18,7 @@ use crate::{messages::PoisonPill, training::Training};
 
 use self::{helper::PCAHelper, messages::PCAHelperMessage};
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 #[allow(clippy::upper_case_acronyms)]
 pub struct PCA {
     id: usize,

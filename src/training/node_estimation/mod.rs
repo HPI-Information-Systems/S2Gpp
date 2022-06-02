@@ -27,7 +27,7 @@ use crate::training::node_estimation::multi_kde::actors::messages::MultiKDEMessa
 use crate::training::node_estimation::multi_kde::actors::MultiKDEActor;
 use crate::utils::direct_protocol::DirectProtocol;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct NodeEstimation {
     pub next_foreign_node: HashMap<(usize, usize), (usize, IndependentNode)>,
     pub(crate) current_intersections: Vec<IntersectionRef>,

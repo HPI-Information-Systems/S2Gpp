@@ -3,12 +3,13 @@ use crate::data_store::node::IndependentNode;
 use crate::parameters::Parameters;
 use crate::training::transposition::Transposer;
 use crate::training::Training;
+use crate::SyncInterface;
 
 #[test]
 fn test_assignments() {
     let mut parameters = Parameters::default();
     parameters.n_cluster_nodes = 2;
-    let mut training = Training::new(parameters);
+    let mut training = Training::init(parameters);
 
     training.transposition.range_start_point = Some(0);
     training.transposition.partition_len = Some(2);

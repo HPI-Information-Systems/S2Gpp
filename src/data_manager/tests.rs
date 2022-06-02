@@ -295,7 +295,7 @@ async fn start_reading(
     let parameters = Parameters {
         role: if main {
             Role::Main {
-                data_path: "data/test.csv".to_string(),
+                data_path: Some("data/test.csv".to_string()),
             }
         } else {
             Role::Sub {
@@ -340,7 +340,7 @@ async fn start_reading(
             .phase_space
             .as_ref()
             .unwrap()
-            .slice(s![..3, .., ..])
+            .slice(s![..3_usize, .., ..])
             .to_owned(),
         &expected_phase_space,
         0.0005,
@@ -350,7 +350,7 @@ async fn start_reading(
             .data_ref
             .as_ref()
             .unwrap()
-            .slice(s![..3, .., ..])
+            .slice(s![..3_usize, .., ..])
             .to_owned(),
         &expected_data_ref,
         0.0005,

@@ -33,7 +33,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::ops::{Div, Index, IndexMut};
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct Scoring {
     pub score: Option<Array1<f32>>,
     single_scores: Vec<f32>,

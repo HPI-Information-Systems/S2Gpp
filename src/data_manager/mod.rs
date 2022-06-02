@@ -9,6 +9,7 @@ use crate::data_manager::preprocessor::{Preprocessing, PreprocessingDoneMessage,
 use crate::parameters::{Parameters, Role};
 use actix_telepathy::prelude::*;
 
+use crate::data_manager::data_reader::messages::LocalReadDataMessage;
 use crate::data_manager::phase_spacer::PhaseSpacer;
 use crate::data_manager::reference_dataset_builder::ReferenceDatasetBuilder;
 pub use crate::data_manager::stats_collector::DatasetStats;
@@ -19,6 +20,7 @@ use crate::data_manager::stats_collector::{
 use crate::messages::PoisonPill;
 use crate::utils::itertools::FromToAble;
 use crate::utils::{ClusterNodes, ConsoleLogger};
+use log::*;
 use std::str::FromStr;
 
 pub mod data_reader;
@@ -169,7 +171,10 @@ impl Handler<LoadDataMessage> for DataManager {
         });
 
         let role = self.parameters.role.clone();
-        if let Role::Main { data_path } = role {
+        if let Role::Main {
+            data_path: Some(data_path),
+        } = role
+        {
             self.read_csv(&data_path, ctx.address())
         } else {
             self.resolve_buffer(ctx.address())
@@ -187,7 +192,7 @@ impl Handler<DataPartitionMessage> for DataManager {
             return;
         }
 
-        debug!("all node are now connected");
+        debug!("all nodes are now connected");
 
         ConsoleLogger::new(2, 12, "Calculating Data Stats".to_string()).print();
         let n_rows = msg.data.len();
@@ -216,6 +221,15 @@ impl Handler<DataPartitionMessage> for DataManager {
                 .expect("Could not deserialize sent data"),
         );
 
+        self.calculate_datastats(ctx.address());
+    }
+}
+
+impl Handler<LocalReadDataMessage> for DataManager {
+    type Result = ();
+
+    fn handle(&mut self, msg: LocalReadDataMessage, ctx: &mut Self::Context) -> Self::Result {
+        self.data = Some(msg.data);
         self.calculate_datastats(ctx.address());
     }
 }

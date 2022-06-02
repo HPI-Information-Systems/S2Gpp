@@ -6,3 +6,5 @@ target/
 .gitlab-ci.yml
 LICENSE
 README.md
+Logo.png
+.venv/
