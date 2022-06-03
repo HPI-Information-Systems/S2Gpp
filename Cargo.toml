@@ -9,6 +9,11 @@ documentation = "https://docs.rs/s2gpp"
 homepage = "https://github.com/HPI-Information-Systems/S2Gpp"
 repository = "https://github.com/HPI-Information-Systems/S2Gpp"
 
+[package.metadata.maturin]
+classifier = ["Programming Language :: Python"]
+requires-dist = ["scikit-learn~=1.1"]
+project-url = { homepage = "https://github.com/HPI-Information-Systems/S2Gpp", repository = "https://github.com/HPI-Information-Systems/S2Gpp" }
+
 [profile.release]
 panic = "abort"
 

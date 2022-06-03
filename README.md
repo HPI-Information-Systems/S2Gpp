@@ -163,6 +163,16 @@ def sub_node():
 
 Please cite this work, when using it!
 
+```bibtex
+@software{Wenig_Series2Graph_2022,
+  author = {Wenig, Phillip},
+  month = {6},
+  title = {{Series2Graph++}},
+  version = {1.0.0},
+  year = {2022}
+}
+```
+
 ## References
 
 [1] P. Boniol and T. Palpanas, Series2Graph: Graph-based Subsequence Anomaly Detection in Time Series, PVLDB (2020) [link](https://helios2.mi.parisdescartes.fr/~themisp/series2graph/data/Series2Graph.pdf)
