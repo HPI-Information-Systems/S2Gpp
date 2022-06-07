@@ -105,3 +105,15 @@ deploy-pypi:
   script:
     - make build
     - TWINE_PASSWORD=${PYPI_TOKEN} TWINE_USERNAME=${PYPI_USER} twine upload --verbose ./wheels/s2gpp-*.whl
+
+deploy-cargo:
+  image: "gitlab.hpi.de/akita/dependency_proxy/containers/rust:latest"
+  stage: deploy
+  only:
+    - main
+  tags:
+    - akita
+  variables:
+    CARGO_REGISTRY_TOKEN: $CARGO_REGISTRY_TOKEN
+  script:
+    - cargo publish --token=${CARGO_REGISTRY_TOKEN}

@@ -103,7 +103,7 @@ fn some_fn(timeseries: Array2<f32>) -> Result<Array1<f32>, ()> {
 
 ## Python
 
-We have wrapped the Rust code in a [Python package](https://pypi.org/s2gpp), that can be used without installing Rust.
+We have wrapped the Rust code in a [Python package](https://pypi.org/project/s2gpp/), that can be used without installing Rust.
 
 ### Installation
 

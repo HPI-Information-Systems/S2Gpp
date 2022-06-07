@@ -65,4 +65,4 @@ futures-sink = "0.3.21"
 pyo3 = { version = "0.16", features = ["extension-module"], optional=true }
 numpy = { version = "0.16", optional = true }
 
-meanshift-rs = { git = "https://github.com/wenig/meanshift-rs.git", tag = "0.7.0" }
+meanshift-rs = "0.8.0"

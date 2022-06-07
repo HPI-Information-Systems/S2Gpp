@@ -3,3 +3,5 @@
 Cargo.lock
 .venv
 /wheels
+coverage
+s2gpp/__pycache__
