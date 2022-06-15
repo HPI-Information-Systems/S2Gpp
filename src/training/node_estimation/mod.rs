@@ -220,9 +220,6 @@ impl NodeEstimator for Training {
 
     fn take_in_answers(&mut self, answers: Vec<(usize, usize, usize, IndependentNode)>) {
         for (prev_point_id, prev_segment_id, point_id, node) in answers {
-            if (prev_point_id == 3310) & (prev_segment_id == 99) & (point_id == 3310) {
-                println!("There you go! {}\n", self.cluster_nodes.get_own_idx())
-            }
             self.node_estimation
                 .next_foreign_node
                 .insert((prev_point_id, prev_segment_id), (point_id, node));

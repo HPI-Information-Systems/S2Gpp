@@ -1,6 +1,6 @@
 [package]
 name = "s2gpp"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Phillip Wenig <phillip.wenig@hpi.de>"]
 description = "Algorithm for Highly Efficient Detection of Correlation Anomalies in Multivariate Time Series"
 license = "MIT"
