@@ -1,7 +1,5 @@
 .DEFAULT_GOAL := help
-ENV := $(PWD)/.env
-include $(ENV)
-export
+RUSTFLAGS = "-l static=gfortran -L native="$$(find /usr/lib/gcc/*/*/libgfortran.a | sed 's/libgfortran.a//' | tail -n 1)
 
 .PHONY: help
 help: ## Generate list of targets with descriptions
@@ -15,8 +13,8 @@ install: build ## Build and install s2gpp to current Python environment
 
 .PHONY: build
 build: ## Build s2gpp Python package with RUSTFLAGS
-	pip install -r requirements.txt
-	maturin build --release --cargo-extra-args="--features python" -o wheels -i $$(which python)
+	@pip install -r requirements.txt
+	@RUSTFLAGS=$(RUSTFLAGS) maturin build --release --cargo-extra-args="--features python" -o wheels -i $$(which python)
 
 .PHONY: clean
 clean: ## Uninstall s2gpp and its requirements and delete wheels
