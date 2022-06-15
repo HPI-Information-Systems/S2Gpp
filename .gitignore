@@ -5,3 +5,4 @@ Cargo.lock
 /wheels
 coverage
 s2gpp/__pycache__
+test.Dockerfile
