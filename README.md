@@ -3,10 +3,10 @@
 
 # Series2Graph++
 
-[![release info](https://img.shields.io/badge/Release-1.0.1-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/1.0.1)
+[![release info](https://img.shields.io/badge/Release-1.0.2-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/1.0.2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![pipeline status](https://gitlab.hpi.de/akita/s2gpp/badges/main/pipeline.svg)](https://gitlab.hpi.de/akita/s2gpp/-/commits/main)
-[![dependency status](https://deps.rs/crate/s2gpp/1.0.1/status.svg)](https://deps.rs/crate/s2gpp/1.0.1)
+[![dependency status](https://deps.rs/crate/s2gpp/1.0.2/status.svg)](https://deps.rs/crate/s2gpp/1.0.2)
 </div>
 
 _Series2Graph++_ (S2G++) is a time series anomaly detection algorithm based on the [Series2Graph](https://helios2.mi.parisdescartes.fr/~themisp/series2graph/) (S2G) and the [DADS](https://hpi.de/naumann/s/dads) algorithms. 
@@ -89,7 +89,7 @@ Sometimes, time series files include also the labels and an index. You can skip 
 _Cargo.toml_
 ```toml
 [dependencies]
-s2gpp = "1.0.1"
+s2gpp = "1.0.2"
 ```
 
 _your Rust app_
@@ -169,7 +169,7 @@ Please cite this work, when using it!
   author = {Wenig, Phillip},
   month = {6},
   title = {{Series2Graph++}},
-  version = {1.0.1},
+  version = {1.0.2},
   year = {2022}
 }
 ```
