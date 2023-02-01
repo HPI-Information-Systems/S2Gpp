@@ -14,7 +14,7 @@ for ((i=0; i<$processes_per_node; i++)); do
         # write time results to file with filename including number of processes
         time_results_path="time_results_${processes_per_node}_main.txt"
         # Starting main node
-        /usr/bin/time -v target/release/s2gpp \
+        echo ${/usr/bin/time -v target/release/s2gpp \
                         --local-host $(hostname -i):1992 \
                         --pattern-length 100 \
                         --latent 25 \
@@ -26,7 +26,7 @@ for ((i=0; i<$processes_per_node; i++)); do
                         --column-start-idx 1 \
                         --column-end-idx=-1 \
                         --clustering kde \
-                        main --data-path=/home/phillip.wenig/datasets/timeseries/scalability/ecg-5120000-1/test.csv > $time_results_path &
+                        main --data-path=/home/phillip.wenig/datasets/timeseries/scalability/ecg-5120000-1/test.csv} > $time_results_path &
     else
     
         # start process and add i to port
@@ -34,7 +34,7 @@ for ((i=0; i<$processes_per_node; i++)); do
         # write time results to file with filename including number of processes
         time_results_path="time_results_${processes_per_node}_${i}.txt"
         
-        /usr/bin/time -v target/release/s2gpp \
+        echo ${/usr/bin/time -v target/release/s2gpp \
                         --local-host $(hostname -i):$port \
                         --pattern-length 100 \
                         --latent 25 \
@@ -46,6 +46,6 @@ for ((i=0; i<$processes_per_node; i++)); do
                         --column-start-idx 1 \
                         --column-end-idx=-1 \
                         --clustering kde \
-                        sub --mainhost $mainhost > $time_results_path &
+                        sub --mainhost $mainhost} > $time_results_path &
     fi
 done
