@@ -5,6 +5,8 @@ cluster_nodes=12
 mainhost=172.20.11.103:1992
 # params: number of processes_per_node
 processes_per_node=$1
+processer_per_cluster=$(($cluster_nodes * $processes_per_node))
+
 # start processes 
 for ((i=0; i<$processes_per_node; i++)); do
     echo "Starting process $i"
@@ -21,7 +23,7 @@ for ((i=0; i<$processes_per_node; i++)); do
                         --query-length 150 \
                         --rate 100 \
                         --threads 20 \
-                        --cluster-nodes $cluster_nodes \
+                        --cluster-nodes $processer_per_cluster \
                         --score-output-path results.txt \
                         --column-start-idx 1 \
                         --column-end-idx=-1 \
@@ -41,7 +43,7 @@ for ((i=0; i<$processes_per_node; i++)); do
                         --query-length 150 \
                         --rate 100 \
                         --threads 20 \
-                        --cluster-nodes $cluster_nodes \
+                        --cluster-nodes $processer_per_cluster \
                         --score-output-path results.txt \
                         --column-start-idx 1 \
                         --column-end-idx=-1 \
