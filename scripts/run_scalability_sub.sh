@@ -13,7 +13,7 @@ for ((i=0; i<$processes_per_node; i++)); do
     port=$(($base_port + $i))
     time_results_path="time_results_${processes_per_node}_${i}.txt"
     
-    echo $(/usr/bin/time -v target/release/s2gpp \
+    /usr/bin/time -v target/release/s2gpp \
                     --local-host $(hostname -i):$port \
                     --pattern-length 100 \
                     --latent 25 \
@@ -25,5 +25,5 @@ for ((i=0; i<$processes_per_node; i++)); do
                     --column-start-idx 1 \
                     --column-end-idx=-1 \
                     --clustering kde \
-                    sub --mainhost $mainhost) > $time_results_path &
+                    sub --mainhost $mainhost &
 done
