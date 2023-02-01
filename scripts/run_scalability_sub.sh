@@ -26,3 +26,4 @@ for ((i=0; i<$processes_per_node; i++)); do
                     --column-end-idx=-1 \
                     --clustering kde \
                     sub --mainhost $mainhost > $time_results_path &
+done

@@ -48,3 +48,4 @@ for ((i=0; i<$processes_per_node; i++)); do
                         --clustering kde \
                         sub --mainhost $mainhost > $time_results_path &
     fi
+done
