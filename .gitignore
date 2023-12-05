@@ -6,3 +6,7 @@ Cargo.lock
 coverage
 s2gpp/__pycache__
 test.Dockerfile
+*.csv
+*.ts
+*.ipynb
+scripts/dads
