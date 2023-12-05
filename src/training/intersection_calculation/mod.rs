@@ -219,7 +219,7 @@ impl IntersectionCalculator for Training {
 
     fn rotate_foreign_assignments(&mut self, rec: Recipient<IntersectionCalculationDone>) {
         if self.cluster_nodes.len() == 0 {
-            rec.do_send(IntersectionCalculationDone).unwrap();
+            rec.do_send(IntersectionCalculationDone);
             return;
         }
 
@@ -296,7 +296,7 @@ impl Handler<IntersectionResultMessage> for Training {
                 .unwrap()
                 .do_send(PoisonPill);
             match &self.intersection_calculation.recipient {
-                Some(rec) => rec.do_send(IntersectionCalculationDone).unwrap(),
+                Some(rec) => rec.do_send(IntersectionCalculationDone),
                 None => {
                     self.start_distribution_protocol();
                 }

@@ -146,8 +146,7 @@ impl DataManager {
                 data_ref: self.reference_dataset.as_ref().unwrap().to_shared(),
                 phase_space: self.phase_space.as_ref().unwrap().to_shared(),
                 dataset_stats: self.dataset_stats.clone(),
-            })
-            .unwrap();
+            });
     }
 }
 

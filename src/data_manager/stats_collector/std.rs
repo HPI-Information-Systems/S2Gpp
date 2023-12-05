@@ -115,7 +115,7 @@ impl Handler<StdNodeMessage> for DataManager {
                 };
 
             for node in self.std_calculation.as_ref().unwrap().nodes.iter() {
-                let receiving_node = match &node.network_interface {
+                let receiving_node = match &node.node.network_interface {
                     Some(_) => AnyAddr::Remote(node.clone()),
                     None => AnyAddr::Local(ctx.address()),
                 };

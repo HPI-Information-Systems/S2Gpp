@@ -130,7 +130,7 @@ impl ScoringWeights for Training {
                     .scoring
                     .node_degrees
                     .iter()
-                    .map(|(node, degree)| (node.deref().deref().clone(), *degree))
+                    .map(|(node, degree)| (node.deref().clone(), *degree))
                     .collect(),
             });
         self.scoring.node_degrees_rotation_protocol.sent();

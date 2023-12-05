@@ -37,7 +37,7 @@ impl<T: Message + RemoteMessage + Clone> RotationProtocol<T> {
         T::Result: Send,
     {
         for _ in 0..self.buffer.len() {
-            rec.do_send(self.buffer.remove(0)).unwrap();
+            rec.do_send(self.buffer.remove(0));
         }
     }
 }

@@ -96,8 +96,7 @@ impl Handler<EstimatorTask> for EstimatorHelper {
     fn handle(&mut self, msg: EstimatorTask, _ctx: &mut Self::Context) -> Self::Result {
         let estimate = self.evaluate(msg.data_range);
         self.receiver
-            .do_send(EstimatorResponse { estimate })
-            .unwrap();
+            .do_send(EstimatorResponse { estimate });
     }
 }
 

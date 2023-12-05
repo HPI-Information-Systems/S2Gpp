@@ -310,7 +310,7 @@ impl Handler<PCAComponents> for Training {
         self.rotation.pca.global_means = Some(msg.means.clone());
         match &self.rotation.pca.recipient {
             Some(rec) => {
-                rec.do_send(msg).unwrap();
+                rec.do_send(msg);
             }
             None => ctx.address().do_send(PCADoneMessage),
         }

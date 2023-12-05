@@ -2,7 +2,7 @@ use std::collections::hash_map::Iter;
 use std::collections::HashMap;
 
 use actix::{Actor, Addr};
-use actix_telepathy::{AnyAddr, RemoteAddr};
+use actix_telepathy::{AnyAddr, RemoteAddr, Node};
 use ndarray::{ArcArray, Ix3};
 use num_integer::Integer;
 
@@ -137,6 +137,16 @@ impl ClusterNodes {
 impl From<HashMap<usize, RemoteAddr>> for ClusterNodes {
     fn from(nodes: HashMap<usize, RemoteAddr>) -> Self {
         Self { nodes }
+    }
+}
+
+impl From<HashMap<usize, Node>> for ClusterNodes {
+    fn from(nodes: HashMap<usize, Node>) -> Self {
+        let remote_addrs_nodes = nodes
+            .into_iter()
+            .map(|(key, node)| (key, node.get_remote_addr("".to_string())))
+            .collect();
+        Self { nodes: remote_addrs_nodes }
     }
 }
 

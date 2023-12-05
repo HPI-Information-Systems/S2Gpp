@@ -1,7 +1,7 @@
+use crate::training::node_estimation::ClusteringResponse;
 use crate::training::node_estimation::multi_kde::actors::messages::MultiKDEMessage;
 use crate::training::node_estimation::multi_kde::actors::MultiKDEActor;
 use actix::{Actor, Context, Handler};
-use meanshift_rs::ClusteringResponse;
 use ndarray::{arr2, Array1, Array2, Axis};
 use ndarray_stats::CorrelationExt;
 use std::ops::{Deref, DerefMut};

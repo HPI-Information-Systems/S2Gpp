@@ -56,13 +56,13 @@ impl PCAHelper {
 
     fn resolve_buffer(&mut self) {
         while let Some(msg) = self.buffer.pop() {
-            self.neighbors.get(self.id).unwrap().do_send(msg).unwrap();
+            self.neighbors.get(self.id).unwrap().do_send(msg);
         }
     }
 
     fn resolve_means_buffer(&mut self) {
         while let Some(msg) = self.means_buffer.pop() {
-            self.neighbors.get(self.id).unwrap().do_send(msg).unwrap();
+            self.neighbors.get(self.id).unwrap().do_send(msg);
         }
     }
 
@@ -71,8 +71,7 @@ impl PCAHelper {
         main.do_send(PCAHelperMessage::Means {
             columns_means: self.column_means.as_ref().unwrap().clone(),
             n: self.data.as_ref().unwrap().shape()[0],
-        })
-        .unwrap();
+        });
     }
 
     fn next_2_power(&mut self) -> usize {
@@ -93,8 +92,7 @@ impl PCAHelper {
                         .do_send(PCAHelperMessage::Decomposition {
                             r: self.local_r.as_ref().unwrap().clone(),
                             count: self.r_count + 1,
-                        })
-                        .unwrap();
+                        });
                 }
                 None => panic!("No neighbor with id {} exists!", &neighbor_id),
             }
@@ -147,8 +145,7 @@ impl PCAHelper {
                 column_means: global_means,
                 n: n.sum(),
                 r,
-            })
-            .unwrap();
+            });
     }
 }
 

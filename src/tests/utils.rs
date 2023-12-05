@@ -52,7 +52,7 @@ impl TestClusterMemberListener {
         let mut connected_nodes = self.connected_nodes.clone();
         for (i, socket_addr) in sorted_socket_addrs.into_iter().enumerate() {
             let remote_addr = connected_nodes.iter().find_map(|x| {
-                if socket_addr.eq(&x.socket_addr) {
+                if socket_addr.eq(&x.node.socket_addr) {
                     Some(x.clone())
                 } else {
                     None
@@ -92,10 +92,11 @@ impl Handler<ClusterLog> for TestClusterMemberListener {
 
     fn handle(&mut self, msg: ClusterLog, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
-            ClusterLog::NewMember(addr, remote_addr) => {
-                debug!("new member {:?}", addr);
+            ClusterLog::NewMember(node) => {
+                debug!("new member {:?}", node.socket_addr);
+                let remote_addr = node.get_remote_addr("".to_string());
 
-                if self.main_socket_addr.eq(&addr) {
+                if self.main_socket_addr.eq(&node.socket_addr) {
                     self.main_node = Some(remote_addr.clone());
                 }
                 self.connected_nodes.insert(remote_addr);
@@ -107,7 +108,7 @@ impl Handler<ClusterLog> for TestClusterMemberListener {
                             &mut self
                                 .connected_nodes
                                 .iter()
-                                .map(|x| x.socket_addr.clone())
+                                .map(|x| x.node.socket_addr.clone())
                                 .collect(),
                         );
 

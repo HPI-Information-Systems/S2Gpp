@@ -167,8 +167,7 @@ impl Handler<EstimatorResponse> for GaussianKDEActor {
                 .unwrap()
                 .do_send(GaussianKDEResponse {
                     kernel_estimate: estimate,
-                })
-                .unwrap();
+                });
         }
     }
 }

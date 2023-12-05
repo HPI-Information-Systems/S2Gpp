@@ -45,8 +45,7 @@ impl Handler<IntersectionTaskMessage> for IntersectionCalculationHelper {
     fn handle(&mut self, msg: IntersectionTaskMessage, _ctx: &mut Self::Context) -> Self::Result {
         let results = msg.tasks.into_iter().map(|task| self.work(task)).collect();
         msg.source
-            .do_send(IntersectionResultMessage { results })
-            .unwrap();
+            .do_send(IntersectionResultMessage { results });
     }
 }
 

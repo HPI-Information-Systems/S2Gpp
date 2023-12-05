@@ -1,7 +1,7 @@
 use crate::parameters::{Parameters, Role};
 use actix::{Actor, ActorContext, Addr, AsyncContext, Context, Handler, Message, System};
 use actix_broker::BrokerSubscribe;
-use actix_telepathy::prelude::*;
+use actix_telepathy::{prelude::*, Node};
 use log::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -17,10 +17,10 @@ struct SortedMembersMessage(pub Vec<SocketAddr>);
 #[remote_messages(SortedMembersMessage)]
 pub struct ClusterMemberListener {
     parameters: Parameters,
-    connected_nodes: HashSet<RemoteAddr>,
-    main_node: Option<RemoteAddr>,
+    connected_nodes: HashSet<Node>,
+    main_node: Option<Node>,
     training: Addr<Training>,
-    sorted_nodes: HashMap<usize, RemoteAddr>,
+    sorted_nodes: HashMap<usize, Node>,
     sorted_addr_buffer: Vec<SocketAddr>,
 }
 
@@ -85,14 +85,14 @@ impl Handler<ClusterLog> for ClusterMemberListener {
 
     fn handle(&mut self, msg: ClusterLog, ctx: &mut Self::Context) -> Self::Result {
         match msg {
-            ClusterLog::NewMember(addr, remote_addr) => {
-                debug!("new member {:?}", addr);
+            ClusterLog::NewMember(node) => {
+                debug!("new member {:?}", node.socket_addr);
 
-                if self.parameters.is_main_addr(addr) {
+                if self.parameters.is_main_addr(node.socket_addr) {
                     debug!("is main node");
-                    self.main_node = Some(remote_addr.clone());
+                    self.main_node = Some(node.clone());
                 }
-                self.connected_nodes.insert(remote_addr);
+                self.connected_nodes.insert(node);
 
                 if self.connected_nodes.len() == self.parameters.n_cluster_nodes - 1 {
                     match &self.parameters.role {
@@ -103,8 +103,7 @@ impl Handler<ClusterLog> for ClusterMemberListener {
                             );
 
                             for node in self.connected_nodes.iter() {
-                                let mut remote_listener = node.clone();
-                                remote_listener.change_id("ClusterMemberListener".to_string());
+                                let remote_listener = node.get_remote_addr(Self::ACTOR_ID.to_string());
                                 remote_listener
                                     .do_send(SortedMembersMessage(sorted_members.clone()))
                             }

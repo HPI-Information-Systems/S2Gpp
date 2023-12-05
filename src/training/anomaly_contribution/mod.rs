@@ -187,6 +187,5 @@ impl Handler<QueryClustercontributionDone> for AnomalyContribution {
             .do_send(QueryClusterContributionResponse {
                 contributions: self.query_response.take().unwrap(),
             })
-            .unwrap()
     }
 }

@@ -270,8 +270,7 @@ impl Handler<ScoringDone> for Training {
                 .score
                 .take()
                 .expect("The score should have been created by now");
-            sink.do_send(DetectionResponse { anomaly_score })
-                .expect("Could not send result to sink");
+            sink.do_send(DetectionResponse { anomaly_score });
         }
 
         ctx.stop();

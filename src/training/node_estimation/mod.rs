@@ -4,13 +4,12 @@ mod multi_kde;
 use crate::training::Training;
 use actix::{
     Actor, ActorFutureExt, AsyncContext, Context, ContextFutureSpawner, Handler, Recipient,
-    WrapFuture,
+    WrapFuture, Message,
 };
 use std::cmp::Ordering;
 
 use actix_telepathy::AnyAddr;
-use meanshift_rs::{ClusteringResponse, MeanShiftActor, MeanShiftMessage};
-use ndarray::{stack, ArrayView1, Axis};
+use ndarray::{stack, ArrayView1, Axis, Array2};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::str::FromStr;
@@ -62,14 +61,6 @@ impl NodeEstimator for Training {
 
                 match data.nrows().cmp(&1) {
                     Ordering::Greater => match &self.parameters.clustering {
-                        Clustering::MeanShift => {
-                            let cluster_addr =
-                                MeanShiftActor::new(self.parameters.n_threads).start();
-                            cluster_addr.do_send(MeanShiftMessage {
-                                source: Some(clustering_recipient),
-                                data,
-                            });
-                        }
                         Clustering::MultiKDE => {
                             let cluster_addr =
                                 MultiKDEActor::new(clustering_recipient, self.parameters.n_threads)
@@ -81,8 +72,7 @@ impl NodeEstimator for Training {
                         .do_send(ClusteringResponse {
                             cluster_centers: data,
                             labels: vec![0],
-                        })
-                        .unwrap(),
+                        }),
                     Ordering::Less => panic!("No Intersection found."),
                 }
             }
@@ -91,8 +81,7 @@ impl NodeEstimator for Training {
                     .do_send(ClusteringResponse {
                         cluster_centers: Default::default(),
                         labels: vec![],
-                    })
-                    .unwrap();
+                    });
             }
         }
     }
@@ -231,8 +220,7 @@ impl NodeEstimator for Training {
             Some(source) => source.clone(),
             None => ctx.address().recipient(),
         }
-        .do_send(NodeEstimationDone)
-        .unwrap();
+        .do_send(NodeEstimationDone);
     }
 }
 
@@ -324,7 +312,6 @@ impl Handler<ForeignNodesAnswer> for Training {
 
 #[derive(Debug, Clone)]
 pub enum Clustering {
-    MeanShift,
     MultiKDE,
 }
 
@@ -332,9 +319,7 @@ impl FromStr for Clustering {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.eq("meanshift") {
-            Ok(Clustering::MeanShift)
-        } else if s.eq("kde") {
+        if s.eq("kde") {
             Ok(Clustering::MultiKDE)
         } else {
             Err(format!(
@@ -343,4 +328,11 @@ impl FromStr for Clustering {
             ))
         }
     }
+}
+
+#[derive(Message)]
+#[rtype(Result = "()")]
+pub struct ClusteringResponse<A> {
+    pub cluster_centers: Array2<A>,
+    pub labels: Vec<usize>,
 }

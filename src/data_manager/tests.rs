@@ -62,11 +62,11 @@ impl Handler<ClusterLog> for OwnListener {
 
     fn handle(&mut self, msg: ClusterLog, ctx: &mut Context<Self>) -> Self::Result {
         match msg {
-            ClusterLog::NewMember(addr, remote_addr) => {
-                debug!("new member {}", addr.to_string());
+            ClusterLog::NewMember(node) => {
+                debug!("new member {}", node.socket_addr.to_string());
                 match &self.parameters.role {
-                    Role::Main { .. } => self.cluster_nodes.insert(1, remote_addr),
-                    _ => self.cluster_nodes.insert(0, remote_addr),
+                    Role::Main { .. } => self.cluster_nodes.insert(1, node.get_remote_addr("".to_string())),
+                    _ => self.cluster_nodes.insert(0, node.get_remote_addr("".to_string())),
                 };
                 self.load_data(ctx)
             }

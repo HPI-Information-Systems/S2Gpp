@@ -6,7 +6,7 @@ use crate::training::segmentation::Segmenter;
 use crate::training::Training;
 use crate::utils::ClusterNodes;
 use crate::SyncInterface;
-use actix_telepathy::{AddrRepresentation, RemoteAddr};
+use actix_telepathy::{AddrRepresentation, RemoteAddr, Node};
 use ndarray::arr1;
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -28,9 +28,9 @@ fn test_segmenting() {
     ));
     training.cluster_nodes = ClusterNodes::from(HashMap::from_iter(vec![(
         1,
-        RemoteAddr::new(
+        RemoteAddr::new(Node::new(
             "127.0.0.1:1993".parse().unwrap(),
-            None,
+            None),
             AddrRepresentation::Key("test1".to_string()),
         ),
     )]));
@@ -95,9 +95,9 @@ fn test_segment_distribution() {
     ));
     training.cluster_nodes = ClusterNodes::from(HashMap::from_iter(vec![(
         1,
-        RemoteAddr::new(
+        RemoteAddr::new(Node::new(
             "127.0.0.1:1993".parse().unwrap(),
-            None,
+            None),
             AddrRepresentation::Key("test1".to_string()),
         ),
     )]));
@@ -161,9 +161,9 @@ fn test_segment_transitions_sub() {
     ));
     training.cluster_nodes = ClusterNodes::from(HashMap::from_iter(vec![(
         0,
-        RemoteAddr::new(
+        RemoteAddr::new(Node::new(
             "127.0.0.1:1993".parse().unwrap(),
-            None,
+            None),
             AddrRepresentation::Key("test1".to_string()),
         ),
     )]));
@@ -206,9 +206,9 @@ fn test_segment_transitions_main() {
     ));
     training.cluster_nodes = ClusterNodes::from(HashMap::from_iter(vec![(
         1,
-        RemoteAddr::new(
+        RemoteAddr::new(Node::new(
             "127.0.0.1:1993".parse().unwrap(),
-            None,
+            None),
             AddrRepresentation::Key("test1".to_string()),
         ),
     )]));

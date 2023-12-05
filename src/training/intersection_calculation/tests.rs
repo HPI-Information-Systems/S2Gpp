@@ -64,8 +64,7 @@ impl Handler<CheckingMessage> for Training {
 
         msg.rec
             .unwrap()
-            .do_send(CheckingMessage { rec: None })
-            .unwrap();
+            .do_send(CheckingMessage { rec: None });
     }
 }
 

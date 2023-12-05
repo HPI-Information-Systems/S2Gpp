@@ -77,7 +77,7 @@ impl Handler<MinMaxNodeMessage> for DataManager {
         if self.minmax_calculation.as_ref().unwrap().nodes.len() == self.parameters.n_cluster_nodes
         {
             for node in self.minmax_calculation.as_ref().unwrap().nodes.iter() {
-                let receiving_node = match &node.network_interface {
+                let receiving_node = match &node.node.network_interface {
                     Some(_) => AnyAddr::Remote(node.clone()),
                     None => AnyAddr::Local(ctx.address()),
                 };

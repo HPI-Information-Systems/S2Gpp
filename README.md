@@ -3,14 +3,14 @@
 
 # Series2Graph++
 
-[![release info](https://img.shields.io/badge/Release-1.0.2-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/1.0.2)
+[![release info](https://img.shields.io/badge/Release-1.1.0-blue)](https://gitlab.hpi.de/phillip.wenig/s2gpp/-/releases/1.1.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![pipeline status](https://gitlab.hpi.de/akita/s2gpp/badges/main/pipeline.svg)](https://gitlab.hpi.de/akita/s2gpp/-/commits/main)
-[![dependency status](https://deps.rs/crate/s2gpp/1.0.2/status.svg)](https://deps.rs/crate/s2gpp/1.0.2)
+[![dependency status](https://deps.rs/crate/s2gpp/1.1.0/status.svg)](https://deps.rs/crate/s2gpp/1.1.0)
 </div>
 
-_Series2Graph++_ (S2G++) is a time series anomaly detection algorithm based on the [Series2Graph](https://helios2.mi.parisdescartes.fr/~themisp/series2graph/) (S2G) and the [DADS](https://hpi.de/naumann/s/dads) algorithms. 
-S2G++ can handle multivariate time series whereas S2G and DADS can cope with only univariate time series. 
+_Series2Graph++_ (S2G++) is a time series anomaly detection algorithm based on the [Series2Graph](https://helios2.mi.parisdescartes.fr/~themisp/series2graph/) (S2G) and the [DADS](https://hpi.de/naumann/s/dads) algorithms.
+S2G++ can handle multivariate time series whereas S2G and DADS can cope with only univariate time series.
 Moreover, S2G++ takes ideas from DADS to run distributedly in a computer cluster.
 S2G++ is written in _Rust_ and leverages the [actix](https://github.com/actix/actix) and [actix-telepathy](https://github.com/wenig/actix-telepathy) libraries.
 
@@ -89,7 +89,7 @@ Sometimes, time series files include also the labels and an index. You can skip 
 _Cargo.toml_
 ```toml
 [dependencies]
-s2gpp = "1.0.2"
+s2gpp = "1.1.0"
 ```
 
 _your Rust app_
@@ -150,7 +150,7 @@ from pathlib import Path
 # run on one machine
 def main_node():
     dataset_path = Path("data/ts_0.csv")
-  
+
     model = DistributedSeries2GraphPP.main(local_host="127.0.0.1:1992", n_cluster_nodes=2, pattern_length=100)
     model.fit_predict(dataset_path)
 
@@ -169,7 +169,7 @@ Please cite this work, when using it!
   author = {Wenig, Phillip},
   month = {6},
   title = {{Series2Graph++}},
-  version = {1.0.2},
+  version = {1.1.0},
   year = {2022}
 }
 ```

@@ -1,6 +1,6 @@
 [package]
 name = "s2gpp"
-version = "1.0.2"
+version = "1.1.0"
 authors = ["Phillip Wenig <phillip.wenig@hpi.de>"]
 description = "Algorithm for Highly Efficient Detection of Correlation Anomalies in Multivariate Time Series"
 license = "MIT"
@@ -31,38 +31,35 @@ doc = false
 python = ["pyo3", "numpy"]
 
 [dev-dependencies]
-actix-rt = "2.2.0"
+actix-rt = "2.9.0"
 port_scanner = "0.1.5"
-rayon = "1.5.0"
+rayon = "1.8.0"
 
 [dependencies]
 log = "0.4"
-env_logger = "0.9.0"
+env_logger = "0.10.1"
 structopt = "0.3"
-indicatif = "0.16.2"
+indicatif = "0.17.7"
 console = "0.15.0"
 
-actix = "=0.12.0"
-actix-telepathy = "=0.4.1"
-actix-broker = "0.4.1"
+actix = "0.13.1"
+actix-telepathy = "0.6.0"
+actix-broker = "0.4.3"
 serde = "1.0"
-serde_with = "1.9.1"
+serde_with = "3.4.0"
 ndarray = { version = "0.15", features = ["serde"] }
-ndarray-linalg = { version = "0.14",  features = ["openblas-static"] }
+ndarray-linalg = { version = "0.16",  features = ["openblas-static"] }
 ndarray_einsum_beta = "0.7.0"
 ndarray-stats = "0.5"
 csv = "1.1.6"
-kdtree = "0.6.0"
 num-traits = "0.2.14"
 num-integer = "0.1.44"
 sortedvec = "0.5.0"
 anyhow = "1.0.41"
-indexmap = "1.8"
-itertools = "0.10.3"
-tokio = { version = "1.12", features = ["sync"] }
+indexmap = "2.1.0"
+itertools = "0.12.0"
+tokio = { version = "1.34", features = ["sync"] }
 futures-sink = "0.3.21"
 
-pyo3 = { version = "0.16", features = ["extension-module"], optional=true }
-numpy = { version = "0.16", optional = true }
-
-meanshift-rs = "0.8.0"
+pyo3 = { version = "0.20", features = ["extension-module"], optional=true }
+numpy = { version = "0.20", optional = true }

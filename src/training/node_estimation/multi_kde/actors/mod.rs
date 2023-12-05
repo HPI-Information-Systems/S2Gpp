@@ -1,4 +1,5 @@
 use crate::messages::PoisonPill;
+use crate::training::node_estimation::ClusteringResponse;
 use crate::training::node_estimation::multi_kde::actors::gaussian_kde::GaussianKDEActor;
 use crate::training::node_estimation::multi_kde::actors::messages::{
     GaussianKDEMessage, GaussianKDEResponse, MultiKDEMessage,
@@ -7,7 +8,6 @@ use crate::training::node_estimation::multi_kde::MultiKDEBase;
 use crate::utils::pop_clear::PopClear;
 use crate::utils::stack::Stack;
 use actix::{Actor, ActorContext, Addr, AsyncContext, Context, Handler, Recipient};
-use meanshift_rs::ClusteringResponse;
 use ndarray::{s, ArcArray2, Array1, Array2, Axis};
 use ndarray_stats::QuantileExt;
 
@@ -64,8 +64,7 @@ impl MultiKDEActor {
                 .do_send(ClusteringResponse {
                     cluster_centers,
                     labels,
-                })
-                .unwrap();
+                });
             self.gaussian_kde.as_ref().unwrap().do_send(PoisonPill);
             ctx.stop();
         }

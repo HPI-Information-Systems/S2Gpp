@@ -70,8 +70,7 @@ impl Handler<ScoringHelperInstruction> for ScoringHelper {
                 start: msg.start,
                 scores: single_scores,
                 first_empty,
-            })
-            .unwrap();
+            });
     }
 }
 
