@@ -165,12 +165,12 @@ def sub_node():
 Please cite this work, when using it!
 
 ```bibtex
-@software{Wenig_Series2Graph_2022,
-  author = {Wenig, Phillip},
-  month = {6},
-  title = {{Series2Graph++}},
-  version = {1.1.0},
-  year = {2022}
+@inproceedings{wenig2024s2gpp,
+  author = {Wenig, Phillip and Papenbrock, Thorsten},
+  title = {{Series2Graph++: Distributed Detection of Correlation Anomalies in Multivariate Time Series}},
+  booktitle = {{DaWaK 2024}},
+  year = {2024},
+  doi = {10.1007/978-3-031-68323-7_17}
 }
 ```
 
